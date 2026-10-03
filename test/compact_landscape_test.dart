@@ -18,17 +18,41 @@ void _setCompactLandscape(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('home keeps its learning card clear of the floating menu',
-      (tester) async {
+  testWidgets('home keeps its learning card beside the menu', (tester) async {
     _setCompactLandscape(tester);
     await tester.pumpWidget(
       MaterialApp(home: TinyMindHomeShell(store: ProgressStore())),
     );
     await tester.pump();
 
-    final menu = tester.getRect(find.byIcon(Icons.menu_rounded));
+    final menuTapTarget = find.descendant(
+      of: find.byTooltip('Menu'),
+      matching: find.byType(InkWell),
+    );
+    final menu = tester.getRect(menuTapTarget);
     final firstWorld = tester.getRect(find.byKey(const Key('module-letters')));
-    expect(firstWorld.top, greaterThanOrEqualTo(menu.bottom));
+    expect(menu.width, 52);
+    expect(menu.height, 52);
+    expect(firstWorld.left, greaterThanOrEqualTo(menu.right));
+    expect(find.textContaining('/ 78 stars'), findsOneWidget);
+    expect(find.textContaining('/ 26 activities'), findsOneWidget);
+    expect(find.byTooltip('Menu'), findsOneWidget);
+    expect(find.text('Menu'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('world cards fit a small landscape phone', (tester) async {
+    tester.view.physicalSize = const Size(320, 240);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(home: TinyMindHomeShell(store: ProgressStore())),
+    );
+    await tester.pump();
+
+    expect(find.text('Learning worlds'), findsOneWidget);
+    expect(find.text('Letter Land'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -113,8 +137,7 @@ void main() {
   testWidgets('weekly chart fits a short landscape screen', (tester) async {
     _setCompactLandscape(tester);
     final today = DateTime.now();
-    final dateKey =
-        '${today.year.toString().padLeft(4, '0')}-'
+    final dateKey = '${today.year.toString().padLeft(4, '0')}-'
         '${today.month.toString().padLeft(2, '0')}-'
         '${today.day.toString().padLeft(2, '0')}';
     await tester.pumpWidget(
@@ -123,7 +146,9 @@ void main() {
           body: Center(
             child: SizedBox(
               width: 600,
-              child: WeekChart(dailyStats: {dateKey: const [12, 9]}),
+              child: WeekChart(dailyStats: {
+                dateKey: const [12, 9]
+              }),
             ),
           ),
         ),

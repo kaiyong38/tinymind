@@ -1,6 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'audio_config.dart';
 
 /// Which looping music bed is playing.
 enum MusicTrack {
@@ -61,7 +62,7 @@ class BackgroundMusicService {
   static const _mutedKey = 'tinymind_music_muted';
 
   final AudioPlayer _player = AudioPlayer();
-  bool _muted = false;
+  bool _muted = true;
   MusicTrack? _current;
 
   /// True while music was auto-paused because the app went to the
@@ -74,28 +75,14 @@ class BackgroundMusicService {
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    _muted = prefs.getBool(_mutedKey) ?? false;
+    _muted = prefs.getBool(_mutedKey) ?? true;
     await _player.setReleaseMode(ReleaseMode.loop);
     await _player.setVolume(0.5);
     // Force playback onto the media/music stream and ignore the device's
     // silent switch — otherwise some Android devices/emulators route audio
     // through a stream that is muted by default even though the app looks
     // like it's working fine.
-    await _player.setAudioContext(
-      AudioContext(
-        android: AudioContextAndroid(
-          isSpeakerphoneOn: false,
-          stayAwake: false,
-          contentType: AndroidContentType.music,
-          usageType: AndroidUsageType.media,
-          audioFocus: AndroidAudioFocus.gainTransient,
-        ),
-        iOS: AudioContextIOS(
-          category: AVAudioSessionCategory.playback,
-          options: const {AVAudioSessionOptions.mixWithOthers},
-        ),
-      ),
-    );
+    await _player.setAudioContext(AudioConfig.backgroundMusic);
   }
 
   /// Starts (or switches to) [track]. Safe to call repeatedly — it only

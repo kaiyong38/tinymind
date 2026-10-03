@@ -25,6 +25,7 @@ class QuizQuestion {
     required this.answerIndex,
     this.visual = AnswerVisual.text,
     this.teach,
+    this.spokenText,
     this.teachOption,
     this.hint,
   });
@@ -34,6 +35,7 @@ class QuizQuestion {
   final int answerIndex;
   final AnswerVisual visual;
   final String? teach;
+  final String? spokenText;
   final QuizOption? teachOption;
   final String? hint;
 }

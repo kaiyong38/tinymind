@@ -23,11 +23,6 @@ class AdminPage extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Learning dashboard'),
           actions: [
-            IconButton(
-              onPressed: () {},
-              tooltip: 'Refresh dashboard',
-              icon: const Icon(Icons.refresh_rounded),
-            ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.account_circle_rounded),
               tooltip: 'Account',

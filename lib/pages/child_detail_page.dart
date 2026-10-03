@@ -113,8 +113,6 @@ class _DetailBody extends StatelessWidget {
                         '${progress.streak}',
                         'day streak',
                         const Color(0xFFFF715B)),
-                    _MiniStat(Icons.quiz_rounded, '$total', 'tries',
-                        const Color(0xFF3A86FF)),
                   ],
                 ),
               ],
@@ -156,9 +154,6 @@ class _DetailBody extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _Legend(const Color(0xFF2ECC71), '$correct correct'),
-                      const SizedBox(height: 6),
-                      _Legend(const Color(0xFFFFD8B0),
-                          '${total - correct} needed another try'),
                     ],
                   ),
           ),
@@ -237,11 +232,6 @@ class _DetailBody extends StatelessWidget {
                     ],
                   )
                 : Column(children: [left, const SizedBox(height: 14), right]),
-            const SizedBox(height: 10),
-            const Text(
-              'A try is each time an answer is dropped, including retries.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
-            ),
           ],
         ),
       );
@@ -469,7 +459,7 @@ class _SubjectRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   '$completedActivities / $totalActivities activities · '
-                  '$stars / $totalStars stars · $answered tries',
+                  '$stars / $totalStars stars',
                   style: const TextStyle(fontSize: 11, color: Colors.black54),
                 ),
               ],
@@ -587,7 +577,7 @@ class WeekChart extends StatelessWidget {
           spacing: 14,
           children: const [
             _Legend(Color(0xFF2ECC71), 'correct'),
-            _Legend(Color(0xFFFFD8B0), 'needed another try'),
+            _Legend(Color(0xFFFFD8B0), 'incorrect'),
           ],
         ),
         if (!any)

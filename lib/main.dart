@@ -74,6 +74,7 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
         BackgroundMusicService.instance.pauseForBackground();
+        NarrationService.instance.stop();
       case AppLifecycleState.resumed:
         BackgroundMusicService.instance.resumeFromBackground();
       case AppLifecycleState.inactive:
@@ -194,31 +195,33 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    final landscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
     return Scaffold(
       body: SafeArea(
-        child: Stack(
-          children: [
-            Padding(
-              padding: EdgeInsets.only(
-                top: landscape ? 0 : 80,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 52,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _MenuButton(onTap: _openMenu),
+                ),
               ),
-              child: IndexedStack(
-                index: _tabIndex,
-                children: [
-                  HomePage(store: widget.store, onModuleTap: _openLibrary),
-                  ProgressPage(store: widget.store),
-                  ParentPage(store: widget.store),
-                ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: IndexedStack(
+                  index: _tabIndex,
+                  children: [
+                    HomePage(store: widget.store, onModuleTap: _openLibrary),
+                    ProgressPage(store: widget.store),
+                    ParentPage(store: widget.store),
+                  ],
+                ),
               ),
-            ),
-            Positioned(
-              top: 12,
-              left: 14,
-              child: _MenuButton(onTap: _openMenu, showLabel: landscape),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -228,43 +231,32 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
 /// The single always-visible "options" button: a big pink circle with a
 /// white menu icon so it's easy to spot, sitting in its own gutter.
 class _MenuButton extends StatelessWidget {
-  const _MenuButton({required this.onTap, required this.showLabel});
+  const _MenuButton({required this.onTap});
   final VoidCallback onTap;
-  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Material(
-          color: TinyMindColors.primary,
-          shape: const CircleBorder(
-            side: BorderSide(color: Colors.white, width: 3),
-          ),
-          elevation: 6,
-          shadowColor: TinyMindColors.primary.withValues(alpha: 0.6),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: const Padding(
-              padding: EdgeInsets.all(14),
-              child: Icon(Icons.menu_rounded, color: Colors.white, size: 30),
+    return Tooltip(
+      message: 'Menu',
+      child: Material(
+        color: TinyMindColors.primary,
+        shape: const CircleBorder(
+          side: BorderSide(color: Colors.white, width: 3),
+        ),
+        elevation: 6,
+        shadowColor: TinyMindColors.primary.withValues(alpha: 0.6),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: const SizedBox(
+            width: 52,
+            height: 52,
+            child: Center(
+              child: Icon(Icons.menu_rounded, color: Colors.white, size: 24),
             ),
           ),
         ),
-        if (showLabel) ...[
-          const SizedBox(height: 4),
-          const Text(
-            'Menu',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              color: TinyMindColors.primary,
-            ),
-          ),
-        ],
-      ],
+      ),
     );
   }
 }
@@ -432,15 +424,18 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = store.progress;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 76, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Column(
         children: [
-          const Text(
-            'Learning worlds',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Learning worlds',
+              textAlign: TextAlign.left,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Expanded(
             child: _WorldCarousel(
               progress: progress,
@@ -467,8 +462,7 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
-    BackgroundMusicService.instance
-        .play(MusicTrack.forModule(widget.world.id));
+    BackgroundMusicService.instance.play(MusicTrack.forModule(widget.world.id));
   }
 
   @override
@@ -664,13 +658,29 @@ class _WorldCarousel extends StatefulWidget {
   State<_WorldCarousel> createState() => _WorldCarouselState();
 }
 
-class _WorldCarouselState extends State<_WorldCarousel> {
-  final _controller = PageController(viewportFraction: 0.86);
+class _WorldCarouselState extends State<_WorldCarousel>
+    with SingleTickerProviderStateMixin {
+  final _controller = PageController(viewportFraction: 0.75);
+  late final AnimationController _mascotController;
+  late final Animation<double> _mascotFloat;
   int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _mascotController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    )..repeat(reverse: true);
+    _mascotFloat = Tween<double>(begin: -5, end: 5).animate(
+      CurvedAnimation(parent: _mascotController, curve: Curves.easeInOut),
+    );
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _mascotController.dispose();
     super.dispose();
   }
 
@@ -703,6 +713,7 @@ class _WorldCarouselState extends State<_WorldCarousel> {
                   child: _LearningWorldCard(
                     module: module,
                     progress: widget.progress,
+                    mascotFloat: _mascotFloat,
                     onTap: () => widget.onModuleTap(module),
                   ),
                 ),
@@ -951,11 +962,13 @@ class _LearningWorldCard extends StatelessWidget {
   const _LearningWorldCard({
     required this.module,
     required this.progress,
+    required this.mascotFloat,
     required this.onTap,
   });
 
   final LearningModule module;
   final UserProgress progress;
+  final Animation<double> mascotFloat;
   final VoidCallback onTap;
 
   @override
@@ -966,69 +979,267 @@ class _LearningWorldCard extends StatelessWidget {
       (total, activity) => total + (progress.activityStars[activity.id] ?? 0),
     );
     final totalStars = activities.length * 3;
+    final completedActivities = activities
+        .where((activity) => (progress.activityStars[activity.id] ?? 0) > 0)
+        .length;
+    final progressValue =
+        activities.isEmpty ? 0.0 : completedActivities / activities.length;
+    final decoration = switch (module.id) {
+      'letters' => const ['A', 'B', 'C'],
+      'numbers' => const ['1', '2', '3'],
+      'shapes' => const ['◆', '●', '▲'],
+      _ => const ['✿', '●', '✦'],
+    };
 
     return BouncyTap(
       key: Key('module-${module.id}'),
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: module.color,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: module.color.withValues(alpha: 0.45),
-              blurRadius: 14,
-              offset: const Offset(0, 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 280;
+          final mascotSize = compact
+              ? (constraints.maxWidth * 0.28).clamp(40.0, 64.0).toDouble()
+              : (constraints.maxHeight * 0.58).clamp(96.0, 150.0).toDouble();
+          return Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: module.color,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: module.color.withValues(alpha: 0.45),
+                  blurRadius: 14,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -8,
+                  top: -30,
+                  child: Text(
+                    decoration[0],
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.10),
+                      fontSize: 112,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                  child: module.illustrationAsset != null
-                      ? Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: SvgPicture.asset(module.illustrationAsset!),
+                ),
+                Positioned(
+                  right: 44,
+                  bottom: -35,
+                  child: Text(
+                    decoration[1],
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.10),
+                      fontSize: 100,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: constraints.maxWidth * 0.34,
+                  bottom: -16,
+                  child: Text(
+                    decoration[2],
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      fontSize: 74,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: compact
+                      ? const EdgeInsets.all(8)
+                      : const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  child: compact
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedBuilder(
+                              animation: mascotFloat,
+                              builder: (context, child) => Transform.translate(
+                                offset: Offset(0, mascotFloat.value),
+                                child: child,
+                              ),
+                              child: Container(
+                                width: mascotSize,
+                                height: mascotSize,
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.94),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: module.illustrationAsset != null
+                                    ? SvgPicture.asset(
+                                        module.illustrationAsset!,
+                                        fit: BoxFit.contain,
+                                      )
+                                    : Icon(
+                                        module.icon,
+                                        color: module.color,
+                                        size: mascotSize * 0.6,
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              module.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                height: 1,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '⭐ $earnedStars / $totalStars',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '$completedActivities / ${activities.length} activities',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: LinearProgressIndicator(
+                                value: progressValue,
+                                minHeight: 8,
+                                backgroundColor:
+                                    Colors.white.withValues(alpha: 0.35),
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
                         )
-                      : Icon(module.icon, color: module.color, size: 32),
+                      : Row(
+                          children: [
+                            SizedBox(
+                              width: constraints.maxWidth * 0.40,
+                              child: Center(
+                                child: AnimatedBuilder(
+                                  animation: mascotFloat,
+                                  builder: (context, child) =>
+                                      Transform.translate(
+                                    offset: Offset(0, mascotFloat.value),
+                                    child: child,
+                                  ),
+                                  child: Container(
+                                    width: mascotSize,
+                                    height: mascotSize,
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.94),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.10),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: module.illustrationAsset != null
+                                        ? SvgPicture.asset(
+                                            module.illustrationAsset!,
+                                            fit: BoxFit.contain,
+                                          )
+                                        : Icon(
+                                            module.icon,
+                                            color: module.color,
+                                            size: mascotSize * 0.6,
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    module.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      height: 1.05,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '⭐ $earnedStars / $totalStars stars',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    '$completedActivities / ${activities.length} activities',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: LinearProgressIndicator(
+                                      value: progressValue,
+                                      minHeight: 10,
+                                      backgroundColor:
+                                          Colors.white.withValues(alpha: 0.35),
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                module.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '⭐ $earnedStars / $totalStars',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1109,20 +1320,15 @@ class _QuizPageState extends State<QuizPage> {
     final lead = _teaching
         ? _teachLeadIns[_questionNumber % _teachLeadIns.length]
         : _leadIns[_questionNumber % _leadIns.length];
-    final spokenText = _teaching ? _question.teach! : _question.prompt;
-    NarrationService.instance.speak('$lead ${_removeEmoji(spokenText)}');
+    final displayedText = _teaching ? _question.teach! : _question.prompt;
+    final speechText = _question.spokenText == null
+        ? null
+        : '$lead ${_question.spokenText}';
+    NarrationService.instance.speak(
+      '$lead $displayedText',
+      spokenText: speechText,
+    );
   }
-
-  String _removeEmoji(String text) => text
-      .replaceAll(
-        RegExp(
-          r'[\u{1F000}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{20E3}]',
-          unicode: true,
-        ),
-        '',
-      )
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
 
   /// A short, kid-friendly description of the option that was tapped, so
   /// the feedback can say what they picked before explaining why it's not
@@ -1169,9 +1375,11 @@ class _QuizPageState extends State<QuizPage> {
     final last = _questionNumber == 3;
     final buttonLabel =
         correct ? (last ? 'Finish game 🎉' : 'Next game →') : 'Try again 💪';
-    NarrationService.instance.speak(correct
-        ? '$title $detail'
-        : '$title $detail Try again, you can do it!');
+    NarrationService.instance.speak(
+      correct
+          ? '$title ${_question.spokenText ?? detail}'
+          : '$title $detail Try again, you can do it!',
+    );
     if (!mounted) return;
     await showDialog<void>(
       context: context,
@@ -1556,7 +1764,7 @@ class _TeachCard extends StatelessWidget {
       onPressed: onContinue,
       style: FilledButton.styleFrom(
         backgroundColor: module.color,
-          minimumSize: const Size(180, 46),
+        minimumSize: const Size(180, 46),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       child: const Text("Let's try it! 🎯",
@@ -1601,8 +1809,7 @@ class _TeachCard extends StatelessWidget {
                         ),
                       if (question.teachOption != null) ...[
                         const SizedBox(height: 4),
-                        buildQuizVisual(
-                            question.teachOption!, question.visual,
+                        buildQuizVisual(question.teachOption!, question.visual,
                             size: 42),
                       ],
                     ],
@@ -1744,8 +1951,7 @@ class ResultPage extends StatelessWidget {
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final landscape =
-                    constraints.maxWidth > constraints.maxHeight;
+                final landscape = constraints.maxWidth > constraints.maxHeight;
                 final celebration = Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
@@ -1826,8 +2032,7 @@ class ResultPage extends StatelessWidget {
                     if (nextActivity != null) ...[
                       const SizedBox(height: 8),
                       FilledButton.tonal(
-                        onPressed: () =>
-                            Navigator.of(context).pushReplacement(
+                        onPressed: () => Navigator.of(context).pushReplacement(
                           MaterialPageRoute<void>(
                             builder: (_) => QuizPage(
                               activity: nextActivity,
