@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "20018846997",
+    "project_id": "tinymind-dab14",
+    "storage_bucket": "tinymind-dab14.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:20018846997:android:964e8becfdc926a7bedd1c",
+        "android_client_info": {
+          "package_name": "com.example.tinymind"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5OsQClQ6kF0pDYQCO1OyTDQCmBbShTMU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

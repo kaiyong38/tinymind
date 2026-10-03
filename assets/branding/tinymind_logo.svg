@@ -1,0 +1,35 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="background" x1="44" y1="24" x2="330" y2="334" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B80FF"/>
+      <stop offset="1" stop-color="#74C0FC"/>
+    </linearGradient>
+    <linearGradient id="brain" x1="104" y1="100" x2="253" y2="254" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF9BC9"/>
+      <stop offset="1" stop-color="#FF7EB9"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="10" y="10" width="340" height="340" rx="88" fill="url(#background)"/>
+  <g fill="#FFD93D">
+    <path d="M73 76L80 94L99 101L80 108L73 127L66 108L47 101L66 94L73 76Z"/>
+    <path d="M283 70L289 86L306 92L289 98L283 115L277 98L260 92L277 86L283 70Z"/>
+    <path d="M291 238L298 255L316 262L298 269L291 287L284 269L266 262L284 255L291 238Z"/>
+  </g>
+  <path d="M175 83C144 83 117 105 117 134C117 143 120 151 125 158C116 167 113 179 116 191C119 205 130 214 143 218C149 236 165 247 184 244C193 243 201 238 207 231C214 235 221 237 229 235C246 233 258 220 258 203C271 197 278 185 276 172C275 161 268 153 260 147C262 141 262 134 261 128C258 103 235 83 205 83H175Z" fill="url(#brain)"/>
+  <path d="M175 84V242M157 101C143 108 137 120 139 134C141 143 147 149 155 153M139 174C129 182 133 197 145 201M173 110C163 116 160 126 165 136C169 145 166 153 157 159M173 177C161 181 156 192 162 202M214 101C229 108 235 121 231 134C229 143 223 149 215 153M232 173C242 181 238 196 226 201M198 110C208 116 211 126 206 136C202 145 205 153 214 159M198 177C210 181 215 192 209 202" stroke="#D9589C" stroke-width="6" stroke-linecap="round"/>
+  <g fill="#3E315F">
+    <circle cx="154" cy="158" r="6"/>
+    <circle cx="217" cy="158" r="6"/>
+  </g>
+  <path d="M168 181C174 188 181 190 188 188C192 187 195 184 198 181" stroke="#3E315F" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="136" cy="176" r="8" fill="#FFB7D7"/>
+  <circle cx="235" cy="176" r="8" fill="#FFB7D7"/>
+  <path d="M175 34L182 50L198 57L182 64L175 80L168 64L152 57L168 50L175 34Z" fill="#FFD93D"/>
+
+  <text x="392" y="211" fill="#3E315F" font-family="Arial, Helvetica, sans-serif" font-size="132" font-weight="800" letter-spacing="-5">Tiny</text>
+  <text x="702" y="211" fill="#8B80FF" font-family="Arial, Helvetica, sans-serif" font-size="132" font-weight="800" letter-spacing="-5">Mind</text>
+  <circle cx="1089" cy="112" r="10" fill="#FFD93D"/>
+  <circle cx="1120" cy="137" r="7" fill="#FF7EB9"/>
+  <text x="398" y="267" fill="#6D668A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="600" letter-spacing="3">PLAY • LEARN • GROW</text>
+</svg>

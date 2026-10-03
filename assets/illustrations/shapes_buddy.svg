@@ -1,0 +1,25 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shape Safari buddy: a teal blob with a triangle ear + circle ear, holding a triangle -->
+  <polygon points="70,30 84,58 56,58" fill="#3BB6AE"/>
+  <circle cx="130" cy="52" r="13" fill="#3BB6AE"/>
+  <rect x="28" y="42" width="144" height="136" rx="68" fill="#4ECDC4"/>
+  <rect x="66" y="118" width="68" height="56" rx="14" fill="#B7ECE8"/>
+
+  <circle cx="72" cy="96" r="17" fill="#FFFFFF"/>
+  <circle cx="128" cy="96" r="17" fill="#FFFFFF"/>
+  <circle cx="75" cy="99" r="8" fill="#154F4B"/>
+  <circle cx="131" cy="99" r="8" fill="#154F4B"/>
+  <circle cx="78" cy="96" r="2.6" fill="#FFFFFF"/>
+  <circle cx="134" cy="96" r="2.6" fill="#FFFFFF"/>
+
+  <ellipse cx="56" cy="118" rx="11" ry="6.5" fill="#FFD8A0" opacity="0.8"/>
+  <ellipse cx="144" cy="118" rx="11" ry="6.5" fill="#FFD8A0" opacity="0.8"/>
+
+  <path d="M84 118 Q100 132 116 118" stroke="#154F4B" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <circle cx="46" cy="152" r="13" fill="#3BB6AE"/>
+  <circle cx="154" cy="152" r="13" fill="#3BB6AE"/>
+
+  <polygon points="100,146 122,182 78,182" fill="#FFFFFF"/>
+  <polygon points="100,156 113,178 87,178" fill="#4ECDC4"/>
+</svg>

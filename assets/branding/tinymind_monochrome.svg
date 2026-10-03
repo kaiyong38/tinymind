@@ -1,0 +1,12 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#3E315F">
+    <rect x="10" y="10" width="340" height="340" rx="88"/>
+    <path d="M151 113C188 69 259 57 310 85C343 103 357 128 360 153C392 164 411 190 407 219C431 241 431 278 406 301C409 335 384 361 351 363C332 395 288 407 256 387C222 408 178 394 160 363C125 361 101 334 105 302C79 278 81 240 106 219C101 185 120 160 151 153C144 141 144 126 151 113Z" transform="translate(-76 -18) scale(.68)" fill="#FFF"/>
+    <path d="M175 84V242M157 101C143 108 137 120 139 134M139 174C129 182 133 197 145 201M214 101C229 108 235 121 231 134M232 173C242 181 238 196 226 201" stroke="#3E315F" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="154" cy="158" r="6"/>
+    <circle cx="217" cy="158" r="6"/>
+    <path d="M168 181C174 188 181 190 188 188C192 187 195 184 198 181" stroke="#3E315F" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <text x="390" y="205" fill="#3E315F" font-family="Arial, Helvetica, sans-serif" font-size="132" font-weight="800" letter-spacing="-5">TinyMind</text>
+  <text x="398" y="267" fill="#3E315F" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="600" letter-spacing="3">LEARN • PLAY • GROW</text>
+</svg>

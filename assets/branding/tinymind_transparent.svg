@@ -1,0 +1,20 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="brain" x1="104" y1="87" x2="250" y2="254" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB4D8"/>
+      <stop offset="1" stop-color="#FF7EB9"/>
+    </linearGradient>
+  </defs>
+  <path d="M151 113C188 69 259 57 310 85C343 103 357 128 360 153C392 164 411 190 407 219C431 241 431 278 406 301C409 335 384 361 351 363C332 395 288 407 256 387C222 408 178 394 160 363C125 361 101 334 105 302C79 278 81 240 106 219C101 185 120 160 151 153C144 141 144 126 151 113Z" fill="url(#brain)" transform="translate(-76 -18) scale(.68)"/>
+  <path d="M175 84V242M157 101C143 108 137 120 139 134M139 174C129 182 133 197 145 201M214 101C229 108 235 121 231 134M232 173C242 181 238 196 226 201" stroke="#D9589C" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="154" cy="158" r="6" fill="#3E315F"/>
+  <circle cx="217" cy="158" r="6" fill="#3E315F"/>
+  <path d="M168 181C174 188 181 190 188 188C192 187 195 184 198 181" stroke="#3E315F" stroke-width="6" stroke-linecap="round"/>
+  <path d="M97 48C120 22 154 15 181 28" stroke="#FF7EB9" stroke-width="10" stroke-linecap="round"/>
+  <path d="M105 39C128 22 151 20 171 27" stroke="#FFD93D" stroke-width="6" stroke-linecap="round"/>
+  <path d="M123 29C140 24 155 25 167 29" stroke="#8CE99A" stroke-width="6" stroke-linecap="round"/>
+  <path d="M175 28L182 46L201 53L182 60L175 78L168 60L149 53L168 46L175 28Z" fill="#FFD93D"/>
+  <text x="390" y="181" fill="#3E315F" font-family="Arial, Helvetica, sans-serif" font-size="126" font-weight="800" letter-spacing="-6">Tiny</text>
+  <text x="696" y="181" fill="#8B80FF" font-family="Arial, Helvetica, sans-serif" font-size="126" font-weight="800" letter-spacing="-6">Mind</text>
+  <text x="398" y="238" fill="#6D668A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="4">LEARN • PLAY • GROW</text>
+</svg>

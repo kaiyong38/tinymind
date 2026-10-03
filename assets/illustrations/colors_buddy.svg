@@ -1,0 +1,29 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Color Garden buddy: a golden blob under a little rainbow, holding a paint palette -->
+  <path d="M62 46 A38 38 0 0 1 138 46" stroke="#FF6FA5" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M68 50 A32 32 0 0 1 132 50" stroke="#4ECDC4" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M74 54 A26 26 0 0 1 126 54" stroke="#A78BFA" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+  <rect x="28" y="42" width="144" height="136" rx="68" fill="#FFC857"/>
+  <ellipse cx="100" cy="142" rx="44" ry="32" fill="#FFE1A0"/>
+
+  <circle cx="72" cy="96" r="17" fill="#FFFFFF"/>
+  <circle cx="128" cy="96" r="17" fill="#FFFFFF"/>
+  <circle cx="75" cy="99" r="8" fill="#7A5A12"/>
+  <circle cx="131" cy="99" r="8" fill="#7A5A12"/>
+  <circle cx="78" cy="96" r="2.6" fill="#FFFFFF"/>
+  <circle cx="134" cy="96" r="2.6" fill="#FFFFFF"/>
+
+  <ellipse cx="56" cy="118" rx="11" ry="6.5" fill="#FF9FC0" opacity="0.8"/>
+  <ellipse cx="144" cy="118" rx="11" ry="6.5" fill="#FF9FC0" opacity="0.8"/>
+
+  <path d="M84 120 Q100 134 116 120" stroke="#7A5A12" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <circle cx="46" cy="152" r="13" fill="#FFC857"/>
+  <circle cx="154" cy="152" r="13" fill="#FFC857"/>
+
+  <ellipse cx="100" cy="164" rx="34" ry="22" fill="#FFFFFF"/>
+  <circle cx="86" cy="160" r="6" fill="#FF6FA5"/>
+  <circle cx="100" cy="168" r="6" fill="#4ECDC4"/>
+  <circle cx="114" cy="160" r="6" fill="#A78BFA"/>
+</svg>

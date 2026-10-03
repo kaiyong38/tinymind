@@ -1,0 +1,39 @@
+name: tinymind
+description: TinyMind FYP
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.1
+  shared_preferences: ^2.5.5
+  google_fonts: ^6.2.1
+  audioplayers: ^6.1.0
+  flutter_svg: ^2.0.10+1
+  crypto: ^3.0.3
+  flutter_tts: ^4.2.0
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/tinymind_icon.svg
+    - assets/branding/tinymind_logo.svg
+    - assets/branding/tinymind_app_icon.svg
+    - assets/branding/tinymind_horizontal.svg
+    - assets/branding/tinymind_monochrome.svg
+    - assets/branding/tinymind_transparent.svg
+    - assets/audio/
+    - assets/illustrations/
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+  image_path: "assets/branding/tinymind_logo.png"

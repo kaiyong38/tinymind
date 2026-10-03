@@ -1,0 +1,399 @@
+import 'package:flutter/material.dart';
+import '../models/activities.dart';
+import '../models/learning.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
+import '../widgets/bouncy_tap.dart';
+import 'auth_pages.dart';
+import 'child_detail_page.dart';
+
+class AdminPage extends StatelessWidget {
+  AdminPage({
+    required this.parentUid,
+    FirestoreService? firestore,
+    AuthService? auth,
+    super.key,
+  })  : firestore = firestore ?? FirestoreService(),
+        auth = auth ?? AuthService();
+  final String parentUid;
+  final FirestoreService firestore;
+  final AuthService auth;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Learning dashboard'),
+          actions: [
+            IconButton(
+              onPressed: () {},
+              tooltip: 'Refresh dashboard',
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.account_circle_rounded),
+              tooltip: 'Account',
+              onSelected: (value) async {
+                if (value == 'change_password') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => ChangePasswordPage(auth: auth),
+                    ),
+                  );
+                } else if (value == 'sign_out') {
+                  await auth.signOut();
+                  if (context.mounted) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'change_password',
+                  child: Text('Change password'),
+                ),
+                PopupMenuItem(
+                  value: 'sign_out',
+                  child: Text('Sign out'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        body: StreamBuilder(
+          stream: firestore.watchChildren(parentUid),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Unable to load children: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final children = snapshot.data!.docs;
+            if (children.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'No child profiles yet.\nSet up a learner to see progress here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              );
+            }
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 700 ? 2 : 1;
+                return GridView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: children.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    // Shorter (taller-relative-to-width) than before: the
+                    // card now also shows age, accuracy and a per-world
+                    // row, so it needs more vertical room to avoid
+                    // clipping its own content.
+                    childAspectRatio: columns == 2 ? 1.15 : 1.05,
+                  ),
+                  itemBuilder: (_, index) {
+                    final doc = children[index];
+                    final data = doc.data();
+                    if (data['age'] == null || data['activityStars'] == null) {
+                      // Fire-and-forget: this child's profile predates the
+                      // age/activity sync, so pull it from saved progress.
+                      // The stream picks up the write automatically.
+                      firestore.backfillProfileFromProgress(parentUid, doc.id);
+                    }
+                    return BouncyTap(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => ChildDetailPage(
+                            parentUid: parentUid,
+                            childId: doc.id,
+                            summary: data,
+                            firestore: firestore,
+                          ),
+                        ),
+                      ),
+                      child: _ChildProgressCard(data: data),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
+      );
+}
+
+class _ChildProgressCard extends StatelessWidget {
+  const _ChildProgressCard({required this.data});
+
+  final Map<String, dynamic> data;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = data['name'] as String? ?? 'Little Learner';
+    final avatar = data['avatar'] as String? ?? '🧒';
+    final age = _number(data['age']);
+    final points = _number(data['points']);
+    final streak = UserProgress.fromJson({
+      'dailyStats': data['dailyStats'],
+    }).streak;
+    final totalQuestions = _number(data['totalQuestions']);
+    final correctAnswers = _number(data['correctAnswers']);
+    final accuracy =
+        totalQuestions == 0 ? 0.0 : correctAnswers / totalQuestions;
+    final activityStars =
+        Map<String, dynamic>.from(data['activityStars'] as Map? ?? {});
+    final totalActivities = worldCatalogs.values.fold<int>(
+      0,
+      (sum, catalog) => sum + catalog.activities.length,
+    );
+    final completedActivities = worldCatalogs.values
+        .expand((catalog) => catalog.activities)
+        .where((activity) => _number(activityStars[activity.id]) > 0)
+        .length;
+    final progress =
+        totalActivities == 0 ? 0.0 : completedActivities / totalActivities;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFFFE1ED), Color(0xFFFFF9F4)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(18),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: const Color(0xFFFFD166),
+                    child: Text(avatar, style: const TextStyle(fontSize: 30)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        if (age > 0)
+                          Text(
+                            '$age years old',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.black54,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.child_care_rounded,
+                    color: Color(0xFFFF6FA5),
+                    size: 28,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _Stat(
+                      icon: Icons.star_rounded,
+                      value: '$points',
+                      label: 'Points',
+                      color: const Color(0xFFFFB703),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _Stat(
+                      icon: Icons.local_fire_department_rounded,
+                      value: '$streak',
+                      label: 'Days',
+                      color: const Color(0xFFFF715B),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _Stat(
+                      icon: Icons.check_circle_rounded,
+                      value: totalQuestions == 0
+                          ? '—'
+                          : '${(accuracy * 100).round()}%',
+                      label: 'Correct',
+                      color: const Color(0xFF4ECDC4),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // A quick "which worlds has this child tried" row — the
+              // simplest way to show more than a single overall bar without
+              // needing a separate detail screen.
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  for (final module in learningModules)
+                    _WorldBadge(
+                      module: module,
+                      activitiesCompleted: worldCatalogs[module.id]!
+                          .activities
+                          .where((activity) =>
+                              _number(activityStars[activity.id]) > 0)
+                          .length,
+                      totalActivities:
+                          worldCatalogs[module.id]!.activities.length,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 9,
+                        color: const Color(0xFFFF6FA5),
+                        backgroundColor:
+                            const Color(0xFFFF6FA5).withValues(alpha: 0.15),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '${(progress * 100).round()}%',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Tap for charts & details ›',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFFF6FA5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  int _number(Object? value) => value is num ? value.toInt() : 0;
+}
+
+/// A small pill showing how many activities a child has completed in a world.
+class _WorldBadge extends StatelessWidget {
+  const _WorldBadge({
+    required this.module,
+    required this.activitiesCompleted,
+    required this.totalActivities,
+  });
+  final LearningModule module;
+  final int activitiesCompleted;
+  final int totalActivities;
+
+  @override
+  Widget build(BuildContext context) {
+    final tried = activitiesCompleted > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tried
+            ? module.color.withValues(alpha: 0.15)
+            : Colors.black.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(module.icon,
+              size: 16, color: tried ? module.color : Colors.black38),
+          const SizedBox(width: 5),
+          Text(
+            '$activitiesCompleted / $totalActivities',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: tried ? module.color : Colors.black38,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 23),
+        const SizedBox(width: 5),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.black54),
+          ),
+        ),
+      ],
+    );
+  }
+}

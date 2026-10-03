@@ -1,0 +1,27 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Letter Land buddy: a round purple blob holding an "A" block -->
+  <ellipse cx="70" cy="55" rx="12" ry="12" fill="#8B6FE0"/>
+  <ellipse cx="130" cy="55" rx="12" ry="12" fill="#8B6FE0"/>
+  <rect x="28" y="42" width="144" height="136" rx="68" fill="#A78BFA"/>
+  <ellipse cx="100" cy="142" rx="44" ry="32" fill="#C9B8FB"/>
+
+  <circle cx="72" cy="96" r="17" fill="#FFFFFF"/>
+  <circle cx="128" cy="96" r="17" fill="#FFFFFF"/>
+  <circle cx="75" cy="99" r="8" fill="#3A2E5C"/>
+  <circle cx="131" cy="99" r="8" fill="#3A2E5C"/>
+  <circle cx="78" cy="96" r="2.6" fill="#FFFFFF"/>
+  <circle cx="134" cy="96" r="2.6" fill="#FFFFFF"/>
+
+  <ellipse cx="56" cy="118" rx="11" ry="6.5" fill="#FF9FC0" opacity="0.7"/>
+  <ellipse cx="144" cy="118" rx="11" ry="6.5" fill="#FF9FC0" opacity="0.7"/>
+
+  <path d="M84 120 Q100 134 116 120" stroke="#3A2E5C" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <!-- hands -->
+  <circle cx="46" cy="152" r="13" fill="#8B6FE0"/>
+  <circle cx="154" cy="152" r="13" fill="#8B6FE0"/>
+
+  <!-- ABC block held at chest -->
+  <rect x="78" y="150" width="44" height="38" rx="8" fill="#FFFFFF"/>
+  <text x="100" y="178" font-family="Baloo2, Arial, sans-serif" font-size="26" font-weight="900" fill="#A78BFA" text-anchor="middle">Aa</text>
+</svg>

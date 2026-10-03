@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /parents/{parentUid} {
+      allow read, write: if request.auth != null && request.auth.uid == parentUid;
+
+      match /children/{childId} {
+        allow read, write: if request.auth != null && request.auth.uid == parentUid;
+
+        match /progress/{progressDoc} {
+          allow read, write: if request.auth != null && request.auth.uid == parentUid;
+        }
+      }
+    }
+  }
+}
