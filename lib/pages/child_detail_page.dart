@@ -1,11 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/activities.dart';
 import '../models/learning.dart';
 import '../services/firestore_service.dart';
+import '../services/learning_report_builder.dart';
+import '../services/learning_report_pdf.dart';
 
 /// The parent's "everything about this learner" screen, opened by tapping a
 /// child on the Learning dashboard: accuracy, a per-world breakdown, the
@@ -222,6 +226,33 @@ class _DetailBody extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _shareReport(context),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    icon: const Icon(Icons.share_rounded),
+                    label: const Text('Share report'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _copyReport(context),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    icon: const Icon(Icons.copy_rounded),
+                    label: const Text('Copy as text'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             wide
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,6 +267,71 @@ class _DetailBody extends StatelessWidget {
         ),
       );
     });
+  }
+
+  Future<bool> _confirmSharing(BuildContext context) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          content: const Text('You choose who to share this report with.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
+  Future<void> _shareReport(BuildContext context) async {
+    if (!await _confirmSharing(context) || !context.mounted) return;
+    final report = ReportBuilder.build(progress);
+    try {
+      final pdfBytes = await LearningReportPdf.build(report);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              pdfBytes,
+              mimeType: 'application/pdf',
+              name: 'tinymind-learning-report.pdf',
+            ),
+          ],
+          fileNameOverrides: ['tinymind-learning-report.pdf'],
+          subject: 'TinyMind Learning Report',
+        ),
+      );
+    } on Exception catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to share the report: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _copyReport(BuildContext context) async {
+    if (!await _confirmSharing(context) || !context.mounted) return;
+    final report = ReportBuilder.build(progress);
+    try {
+      await Clipboard.setData(ClipboardData(text: report.toPlainText()));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Learning report copied as text.')),
+        );
+      }
+    } on PlatformException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to copy the report: ${error.message}')),
+        );
+      }
+    }
   }
 
   String _suggestion(UserProgress p) {
