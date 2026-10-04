@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/learning.dart';
+import '../services/accessibility_settings.dart';
 import '../services/narration_service.dart';
+import '../theme/adaptive_metrics.dart';
 import 'quiz_visuals.dart';
 
 /// A controlled answer area that supports both dragging and tapping options.
@@ -164,7 +166,13 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
                 ],
               ),
               child: buildQuizVisual(
-                  context, option, visual, size: start.width * 0.65),
+                context,
+                option,
+                visual,
+                size: visual == AnswerVisual.colorSwatch
+                    ? start.width - 16
+                    : start.width * 0.65,
+              ),
             ),
           ),
         ),
@@ -200,8 +208,15 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      final tileSize =
-          ((constraints.maxHeight - 16) / 2.15).clamp(64.0, 84.0).toDouble();
+      final colorFriendly =
+          widget.question.visual == AnswerVisual.colorSwatch &&
+              AccessibilitySettingsScope.of(context).colorFriendlyMode;
+      final metrics = AdaptiveMetrics.fromConstraints(context, constraints);
+      final minTileSize = colorFriendly ? 76.0 : metrics.size(64);
+      final maxTileSize = (metrics.size(84)).clamp(minTileSize, 110.0);
+      final tileSize = ((constraints.maxHeight - metrics.size(16)) / 2.15)
+          .clamp(minTileSize, maxTileSize)
+          .toDouble();
       final slotSize = tileSize * 1.15;
       final displayedIndex = widget.selectedIndex ?? _tapSelectedIndex;
       final slot = _Slot(
@@ -225,8 +240,8 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
       );
       final tray = Wrap(
         alignment: WrapAlignment.center,
-        spacing: 16,
-        runSpacing: 16,
+        spacing: metrics.size(16),
+        runSpacing: metrics.size(16),
         children: [
           for (var i = 0; i < widget.question.options.length; i++)
             _Tile(
@@ -271,7 +286,7 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
                       );
                     },
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: metrics.size(16)),
                   tray,
                 ],
               ),
@@ -372,9 +387,16 @@ class _Slot extends StatelessWidget {
                   children: [
                     Padding(
                       padding: EdgeInsets.all(size * 0.09),
-                      child:
-                          buildQuizVisual(
-                              context, option!, visual, size: size * 0.72),
+                      child: buildQuizVisual(
+                        context,
+                        option!,
+                        visual,
+                        size: size -
+                            2 *
+                                (visual == AnswerVisual.colorSwatch
+                                    ? size * 0.06
+                                    : size * 0.09),
+                      ),
                     ),
                     if (correct || wrong)
                       Positioned(
@@ -455,7 +477,12 @@ class _Tile extends StatelessWidget {
           ),
         ],
       ),
-      child: buildQuizVisual(context, option, visual, size: size * 0.65),
+      child: buildQuizVisual(
+        context,
+        option,
+        visual,
+        size: visual == AnswerVisual.colorSwatch ? size - 16 : size * 0.65,
+      ),
     );
 
     final tile = SizedBox(

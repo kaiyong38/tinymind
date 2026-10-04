@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/parent_gate_service.dart';
 import '../services/progress_store.dart';
+import '../theme/adaptive_metrics.dart';
 import 'admin_page.dart';
 import 'auth_pages.dart';
 
@@ -93,8 +94,13 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Remove $name?'),
-        content: const Text('This deletes their progress.'),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text('Remove $name?'),
+        ),
+        content: const SingleChildScrollView(
+          child: Text('This deletes their progress.'),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -139,84 +145,92 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                 final columns = (availableWidth / 108).floor().clamp(1, total);
                 final rows = (total / columns).ceil();
                 final spacing = 8.0;
+                final metrics =
+                    AdaptiveMetrics.fromConstraints(context, constraints);
                 final itemWidth =
                     (availableWidth - spacing * (columns - 1)) / columns;
-                final itemHeight = (constraints.maxHeight - 100) / rows;
+                final itemHeight =
+                    ((constraints.maxHeight - 100) / rows)
+                        .clamp(104.0, 150.0)
+                        .toDouble();
                 final avatarRadius =
-                    (itemWidth * 0.31).clamp(20.0, 42.0).toDouble();
+                    (itemWidth * 0.31)
+                        .clamp(metrics.size(20), metrics.size(42))
+                        .toDouble();
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: 44,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('🌈', style: TextStyle(fontSize: 28)),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Who is playing?',
-                              style: TextStyle(
-                                  fontSize: 21, fontWeight: FontWeight.w900),
-                            ),
-                            const Spacer(),
-                            TextButton(
-                              onPressed: _managing
-                                  ? () => setState(() => _managing = false)
-                                  : _startManaging,
-                              child: Text(_managing ? 'Done' : 'Manage'),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Wrap(
-                            spacing: spacing,
+                  child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Column(
+                        children: [
+                          Wrap(
+                            spacing: 8,
                             runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             alignment: WrapAlignment.center,
                             children: [
-                              for (final doc in children)
-                                _FlatChildAvatar(
-                                  name: (doc.data()['name'] as String?) ??
-                                      'Little Learner',
-                                  avatar:
-                                      (doc.data()['avatar'] as String?) ?? '🧒',
-                                  width: itemWidth,
-                                  height: itemHeight.clamp(0.0, 150.0),
-                                  avatarRadius: avatarRadius,
-                                  managing: _managing,
-                                  onTap: _managing
-                                      ? () => _removeChild(
-                                            doc.id,
-                                            (doc.data()['name'] as String?) ??
-                                                'Little Learner',
-                                          )
-                                      : () => _selectChild(doc.id),
-                                ),
-                              _FlatAddAvatar(
-                                width: itemWidth,
-                                height: itemHeight.clamp(0.0, 150.0),
-                                avatarRadius: avatarRadius,
-                                onTap: _managing ? () {} : _addChild,
+                              const Text('🌈', style: TextStyle(fontSize: 28)),
+                              const Text(
+                                'Who is playing?',
+                                style: TextStyle(
+                                    fontSize: 21,
+                                    fontWeight: FontWeight.w900),
+                              ),
+                              TextButton(
+                                onPressed: _managing
+                                    ? () => setState(() => _managing = false)
+                                    : _startManaging,
+                                child: Text(_managing ? 'Done' : 'Manage'),
                               ),
                             ],
                           ),
-                        ),
+                          Center(
+                            child: Wrap(
+                              spacing: spacing,
+                              runSpacing: 4,
+                              alignment: WrapAlignment.center,
+                              children: [
+                                for (final doc in children)
+                                  _FlatChildAvatar(
+                                    name: (doc.data()['name'] as String?) ??
+                                        'Little Learner',
+                                    avatar:
+                                        (doc.data()['avatar'] as String?) ??
+                                            '🧒',
+                                    width: itemWidth,
+                                    height: itemHeight,
+                                    avatarRadius: avatarRadius,
+                                    managing: _managing,
+                                    onTap: _managing
+                                        ? () => _removeChild(
+                                              doc.id,
+                                              (doc.data()['name'] as String?) ??
+                                                  'Little Learner',
+                                            )
+                                        : () => _selectChild(doc.id),
+                                  ),
+                                _FlatAddAvatar(
+                                  width: itemWidth,
+                                  height: itemHeight,
+                                  avatarRadius: avatarRadius,
+                                  onTap: _managing ? () {} : _addChild,
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () =>
+                                openParentArea(context, auth: widget.auth),
+                            icon: const Icon(Icons.family_restroom_rounded,
+                                size: 18, color: Colors.black45),
+                            label: const Text('For parents',
+                                style: TextStyle(color: Colors.black45)),
+                          ),
+                        ],
                       ),
-                      SizedBox(
-                        height: 40,
-                        child: TextButton.icon(
-                          onPressed: () =>
-                              openParentArea(context, auth: widget.auth),
-                          icon: const Icon(Icons.family_restroom_rounded,
-                              size: 18, color: Colors.black45),
-                          label: const Text('For parents',
-                              style: TextStyle(color: Colors.black45)),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 );
               },
@@ -282,11 +296,17 @@ class _FlatChildAvatar extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w800),
+                ),
+              ),
             ),
           ],
         ),

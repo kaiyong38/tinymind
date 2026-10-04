@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tinymind/models/activities.dart';
 import 'package:tinymind/models/learning.dart';
 import 'package:tinymind/services/accessibility_settings.dart';
+import 'package:tinymind/widgets/drag_answer.dart';
 import 'package:tinymind/widgets/quiz_visuals.dart';
 
 void main() {
@@ -60,5 +63,57 @@ void main() {
 
     expect(patternFinder, findsNothing);
     expect(find.text('Red'), findsNothing);
+  });
+
+  testWidgets('color names fit in options and the selected answer preview',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final settings = AccessibilitySettings();
+    await settings.load();
+    await settings.setColorFriendlyMode(true);
+    tester.view.physicalSize = const Size(568, 320);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final question = worldCatalogs.values
+        .expand((catalog) => catalog.activities)
+        .expand((activity) => activity.questions)
+        .firstWhere((question) => question.visual == AnswerVisual.colorSwatch);
+    await tester.pumpWidget(
+      AccessibilitySettingsScope(
+        settings: settings,
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 170,
+              child: DragAnswerArea(
+                question: question,
+                selectedIndex: 2,
+                answered: false,
+                moduleColor: Colors.orange,
+                onDrop: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (final label in find.byType(Text).evaluate()) {
+      final text = (label.widget as Text).data;
+      if (text == 'Orange') {
+        final paragraph = label.renderObject as RenderParagraph;
+        expect(
+          paragraph.getBoxesForSelection(
+            TextSelection(baseOffset: 0, extentOffset: text!.length),
+          ),
+          hasLength(1),
+        );
+      }
+    }
+    expect(find.text('Orange'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 }

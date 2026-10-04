@@ -229,9 +229,11 @@ Future<void> _deleteAccount(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: const Text('Delete account and all data?'),
-      content: const Text(
-        'This permanently deletes your account, all learner profiles and '
-        'their learning progress. This cannot be undone.',
+      content: const SingleChildScrollView(
+        child: Text(
+          'This permanently deletes your account, all learner profiles and '
+          'their learning progress. This cannot be undone.',
+        ),
       ),
       actions: [
         TextButton(
@@ -332,13 +334,17 @@ class _ChildProgressCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w900,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            softWrap: false,
+                            style: const TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                         if (age > 0)
@@ -519,7 +525,13 @@ class _Stat extends StatelessWidget {
       children: [
         Icon(icon, color: color, size: 20),
         const SizedBox(width: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value,
+                style: const TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ),
         const SizedBox(width: 3),
         Flexible(
           child: Text(

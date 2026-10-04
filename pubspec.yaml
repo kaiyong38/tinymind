@@ -26,6 +26,7 @@ flutter:
     - assets/branding/tinymind_horizontal.svg
     - assets/branding/tinymind_monochrome.svg
     - assets/branding/tinymind_transparent.svg
+    - assets/fonts/
     - assets/audio/
     - assets/illustrations/
 dev_dependencies:

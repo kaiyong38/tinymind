@@ -69,12 +69,15 @@ class WelcomePage extends StatelessWidget {
           builder: (context, constraints) {
             final landscape = constraints.maxWidth > constraints.maxHeight;
             final compact = landscape || constraints.maxHeight < 560;
-            return Center(
+            return SingleChildScrollView(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Padding(
-                  padding: EdgeInsets.all(compact ? 12 : 20),
-                  child: Column(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: Padding(
+                      padding: EdgeInsets.all(compact ? 12 : 20),
+                      child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -181,6 +184,8 @@ class WelcomePage extends StatelessWidget {
                         style: TextStyle(color: Colors.black54, fontSize: 12),
                       ),
                     ],
+                      ),
+                    ),
                   ),
                 ),
               ),

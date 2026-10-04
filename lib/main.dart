@@ -22,9 +22,16 @@ import 'widgets/bouncy_tap.dart';
 import 'widgets/drag_answer.dart';
 import 'widgets/quiz_visuals.dart';
 import 'theme/tinymind_colors.dart';
+import 'theme/app_theme.dart';
+import 'widgets/text_scale_limit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = false;
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString('assets/fonts/OFL.txt');
+    yield LicenseEntryWithLineBreaks(['Baloo 2'], license);
+  });
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -105,44 +112,10 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
       child: MaterialApp(
         title: 'TinyMind',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: TinyMindColors.primary,
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          materialTapTargetSize: MaterialTapTargetSize.padded,
-          scaffoldBackgroundColor: TinyMindColors.background,
-          textTheme: GoogleFonts.baloo2TextTheme().apply(
-            bodyColor: TinyMindColors.textDark,
-            displayColor: TinyMindColors.textDark,
-          ),
-          inputDecorationTheme: const InputDecorationTheme(
-            constraints: BoxConstraints(minHeight: 56),
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            centerTitle: true,
-          ),
-          cardTheme: CardThemeData(
-            margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(30)),
-            ),
-          ),
-          navigationBarTheme: NavigationBarThemeData(
-            height: 74,
-            backgroundColor: Colors.white,
-            indicatorColor: TinyMindColors.primaryTint,
-            labelTextStyle: WidgetStatePropertyAll(
-              GoogleFonts.baloo2(fontWeight: FontWeight.w700, fontSize: 12),
-            ),
-            indicatorShape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(20)),
-            ),
-          ),
+        theme: buildAppTheme(),
+        builder: (context, child) => TextScaleLimit(
+          maxScale: 1.6,
+          child: child!,
         ),
         // The app always opens on "Who is learning today?" rather than
         // silently resuming whichever child was last cached — a shared
@@ -186,9 +159,11 @@ class _VoiceAvailabilityNoticeState extends State<_VoiceAvailabilityNotice> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Voice not available'),
-        content: const Text(
-          'This device has no voice installed. Ask a grown-up to install '
-          'Google Text-to-Speech, then restart TinyMind.',
+        content: const SingleChildScrollView(
+          child: Text(
+            'This device has no voice installed. Ask a grown-up to install '
+            'Google Text-to-Speech, then restart TinyMind.',
+          ),
         ),
         actions: [
           TextButton(
@@ -251,35 +226,38 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 52,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: _MenuButton(onTap: _openMenu),
+      body: TextScaleLimit(
+        maxScale: 1.3,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 52,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: _MenuButton(onTap: _openMenu),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: IndexedStack(
-                  index: _tabIndex,
-                  children: [
-                    HomePage(
-                      store: widget.store,
-                      onModuleTap: _openLibrary,
-                      onToggleMusic: _toggleMusic,
-                    ),
-                    ProgressPage(store: widget.store),
-                    ParentPage(store: widget.store),
-                  ],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: IndexedStack(
+                    index: _tabIndex,
+                    children: [
+                      HomePage(
+                        store: widget.store,
+                        onModuleTap: _openLibrary,
+                        onToggleMusic: _toggleMusic,
+                      ),
+                      ProgressPage(store: widget.store),
+                      ParentPage(store: widget.store),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -656,63 +634,66 @@ class _LibraryPageState extends State<LibraryPage> {
         title: Text(widget.world.title,
             style: const TextStyle(fontWeight: FontWeight.w900)),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final columns = (constraints.maxWidth / 190).floor().clamp(4, 5);
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-            children: [
-              if (recommendedId == null)
-                const Padding(
-                  padding: EdgeInsets.only(top: 12),
-                  child: Text(
-                    'You finished everything here! Replay your favorites ⭐',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
+      body: TextScaleLimit(
+        maxScale: 1.3,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = (constraints.maxWidth / 190).floor().clamp(4, 5);
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+              children: [
+                if (recommendedId == null)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: Text(
+                      'You finished everything here! Replay your favorites ⭐',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                ),
-              for (var sectionIndex = 0;
-                  sectionIndex < catalog.sections.length;
-                  sectionIndex++) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 14, bottom: 8),
-                  child: Text(
-                    '${catalog.sections[sectionIndex].emoji} '
-                    '${catalog.sections[sectionIndex].title}',
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.w900),
+                for (var sectionIndex = 0;
+                    sectionIndex < catalog.sections.length;
+                    sectionIndex++) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14, bottom: 8),
+                    child: Text(
+                      '${catalog.sections[sectionIndex].emoji} '
+                      '${catalog.sections[sectionIndex].title}',
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w900),
+                    ),
                   ),
-                ),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: catalog.inSection(sectionIndex).length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.15,
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: catalog.inSection(sectionIndex).length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.15,
+                    ),
+                    itemBuilder: (context, index) {
+                      final activity = catalog.inSection(sectionIndex)[index];
+                      final stars = bestStars[activity.id] ?? 0;
+                      final recommended = activity.id == recommendedId;
+                      return _ActivityTile(
+                        activity: activity,
+                        stars: stars,
+                        recommended: recommended,
+                        color: widget.world.color,
+                        onTap: () => _openActivity(activity),
+                      );
+                    },
                   ),
-                  itemBuilder: (context, index) {
-                    final activity = catalog.inSection(sectionIndex)[index];
-                    final stars = bestStars[activity.id] ?? 0;
-                    final recommended = activity.id == recommendedId;
-                    return _ActivityTile(
-                      activity: activity,
-                      stars: stars,
-                      recommended: recommended,
-                      color: widget.world.color,
-                      onTap: () => _openActivity(activity),
-                    );
-                  },
-                ),
+                ],
               ],
-            ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -973,12 +954,18 @@ class _HomeHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  'Hi, ${progress.childName}! 👋',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Hi, ${progress.childName}! 👋',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 13),
@@ -1732,71 +1719,74 @@ class _QuizPageState extends State<QuizPage> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-          child: Column(
-            children: [
-              LinearProgressIndicator(
-                value: _questionNumber / 3,
-                minHeight: 12,
-                borderRadius: BorderRadius.circular(12),
-                color: _world.color,
-                backgroundColor: _world.color.withValues(alpha: 0.15),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Game $_questionNumber of 3',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: _world.color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14),
-              ),
-              const SizedBox(height: 6),
-              Expanded(
-                child: _teaching
-                    ? _TeachCard(
-                        module: _world,
-                        question: _question,
-                        onContinue: _beginQuestion,
-                      )
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide =
-                              constraints.maxWidth > constraints.maxHeight;
-                          if (isWide) {
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(flex: 5, child: _questionCard()),
-                                const SizedBox(width: 18),
-                                Expanded(
-                                  flex: 4,
-                                  child: Column(
-                                    children: [
-                                      Expanded(child: _answerArea()),
-                                      const SizedBox(height: 6),
-                                      _confirmButton(),
-                                    ],
+      body: TextScaleLimit(
+        maxScale: 1.3,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            child: Column(
+              children: [
+                LinearProgressIndicator(
+                  value: _questionNumber / 3,
+                  minHeight: 12,
+                  borderRadius: BorderRadius.circular(12),
+                  color: _world.color,
+                  backgroundColor: _world.color.withValues(alpha: 0.15),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Game $_questionNumber of 3',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: _world.color,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14),
+                ),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: _teaching
+                      ? _TeachCard(
+                          module: _world,
+                          question: _question,
+                          onContinue: _beginQuestion,
+                        )
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isWide =
+                                constraints.maxWidth > constraints.maxHeight;
+                            if (isWide) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(flex: 5, child: _questionCard()),
+                                  const SizedBox(width: 18),
+                                  Expanded(
+                                    flex: 4,
+                                    child: Column(
+                                      children: [
+                                        Expanded(child: _answerArea()),
+                                        const SizedBox(height: 6),
+                                        _confirmButton(),
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                ],
+                              );
+                            }
+                            return Column(
+                              children: [
+                                Expanded(flex: 3, child: _questionCard()),
+                                const SizedBox(height: 12),
+                                Expanded(flex: 5, child: _answerArea()),
+                                const SizedBox(height: 8),
+                                _confirmButton(),
                               ],
                             );
-                          }
-                          return Column(
-                            children: [
-                              Expanded(flex: 3, child: _questionCard()),
-                              const SizedBox(height: 12),
-                              Expanded(flex: 5, child: _answerArea()),
-                              const SizedBox(height: 8),
-                              _confirmButton(),
-                            ],
-                          );
-                        },
-                      ),
-              ),
-            ],
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -2002,7 +1992,9 @@ class _TeachCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         buildQuizVisual(
                             context, question.teachOption!, question.visual,
-                            size: 42),
+                            size: question.visual == AnswerVisual.colorSwatch
+                                ? 60
+                                : 42),
                       ],
                     ],
                   ),
@@ -2138,140 +2130,153 @@ class ResultPage extends StatelessWidget {
     final nextActivity = nextId == null ? null : activityById(nextId);
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBF0),
-      body: Stack(
-        children: [
-          if (excellent) const _ConfettiOverlay(),
-          SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final landscape = constraints.maxWidth > constraints.maxHeight;
-                final celebration = Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: world.color.withValues(alpha: 0.14),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        excellent ? Icons.celebration : Icons.auto_awesome,
-                        size: 48,
-                        color: world.color,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      excellent ? 'Amazing work! 🎉' : 'Good try! 💪',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 23, fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'You got $score out of 3 in ${activity.title}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 15),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        3,
-                        (index) => Icon(
-                          Icons.star,
-                          size: 25,
-                          color: index < stars
-                              ? const Color(0xFFFFB703)
-                              : Colors.black12,
+      body: TextScaleLimit(
+        maxScale: 1.3,
+        child: Stack(
+          children: [
+            if (excellent) const _ConfettiOverlay(),
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final landscape =
+                      constraints.maxWidth > constraints.maxHeight;
+                  final celebration = Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: world.color.withValues(alpha: 0.14),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          excellent ? Icons.celebration : Icons.auto_awesome,
+                          size: 48,
+                          color: world.color,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Best result: $stars ${stars == 1 ? 'star' : 'stars'}',
-                      style: TextStyle(
-                          color: world.color, fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                );
-                final buttons = Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FilledButton(
-                      onPressed: () => Navigator.of(context).pushReplacement(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              QuizPage(activity: activity, store: store),
-                        ),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: world.color,
-                        minimumSize: const Size.fromHeight(46),
-                      ),
-                      child: const Text('Play again'),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(46),
-                      ),
-                      child: const Text('Back to library'),
-                    ),
-                    if (nextActivity != null) ...[
                       const SizedBox(height: 8),
-                      FilledButton.tonal(
+                      Text(
+                        excellent ? 'Amazing work! 🎉' : 'Good try! 💪',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 23, fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'You got $score out of 3 in ${activity.title}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 15),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          3,
+                          (index) => Icon(
+                            Icons.star,
+                            size: 25,
+                            color: index < stars
+                                ? const Color(0xFFFFB703)
+                                : Colors.black12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Best result: $stars ${stars == 1 ? 'star' : 'stars'}',
+                        style: TextStyle(
+                            color: world.color, fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  );
+                  final buttons = Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FilledButton(
                         onPressed: () => Navigator.of(context).pushReplacement(
                           MaterialPageRoute<void>(
-                            builder: (_) => QuizPage(
-                              activity: nextActivity,
-                              store: store,
-                            ),
+                            builder: (_) =>
+                                QuizPage(activity: activity, store: store),
                           ),
                         ),
                         style: FilledButton.styleFrom(
+                          backgroundColor: world.color,
                           minimumSize: const Size.fromHeight(46),
                         ),
-                        child: const Text('Next'),
+                        child: const Text('Play again'),
                       ),
-                    ] else ...[
                       const SizedBox(height: 8),
-                      const Text(
-                        'You finished everything here! Replay your favorites ⭐',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13),
+                      OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(46),
+                        ),
+                        child: const Text('Back to library'),
                       ),
-                    ],
-                  ],
-                );
-                return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Center(
-                    child: landscape
-                        ? Row(
-                            children: [
-                              Expanded(child: Center(child: celebration)),
-                              const SizedBox(width: 20),
-                              SizedBox(width: 190, child: buttons),
-                            ],
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Expanded(child: Center(child: celebration)),
-                              SizedBox(width: 240, child: buttons),
-                            ],
+                      if (nextActivity != null) ...[
+                        const SizedBox(height: 8),
+                        FilledButton.tonal(
+                          onPressed: () =>
+                              Navigator.of(context).pushReplacement(
+                            MaterialPageRoute<void>(
+                              builder: (_) => QuizPage(
+                                activity: nextActivity,
+                                store: store,
+                              ),
+                            ),
                           ),
-                  ),
-                );
-              },
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(46),
+                          ),
+                          child: const Text('Next'),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'You finished everything here! Replay your favorites ⭐',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ],
+                  );
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Center(
+                          child: landscape
+                              ? Row(
+                                  children: [
+                                    Expanded(child: Center(child: celebration)),
+                                    const SizedBox(width: 20),
+                                    SizedBox(width: 190, child: buttons),
+                                  ],
+                                )
+                              : Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Center(child: celebration),
+                                    const SizedBox(height: 12),
+                                    SizedBox(width: 240, child: buttons),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2322,109 +2327,112 @@ class _ProgressPageState extends State<ProgressPage>
     final accuracy = progress.totalQuestions == 0
         ? 0
         : ((progress.correctAnswers / progress.totalQuestions) * 100).round();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-      children: [
-        _HomeHeader(
-          progress: progress,
-          avatarAnimation: _avatarController,
-          onAvatarTap: _openAvatarPicker,
-        ),
-        const SizedBox(height: 14),
-        _HomeStats(progress: progress),
-        const SizedBox(height: 22),
-        const Text('My little wins',
-            style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 5),
-        const Text('Every game makes your brain stronger! 💪',
-            style: TextStyle(fontSize: 16)),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-                colors: [Color(0xFFFFD166), Color(0xFFFFE9A6)]),
-            borderRadius: BorderRadius.circular(26),
+    return TextScaleLimit(
+      maxScale: 1.3,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+        children: [
+          _HomeHeader(
+            progress: progress,
+            avatarAnimation: _avatarController,
+            onAvatarTap: _openAvatarPicker,
           ),
-          child: Row(
-            children: [
-              const Icon(Icons.stars_rounded, color: Colors.white, size: 62),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${progress.points} points collected',
-                        style: const TextStyle(
-                            fontSize: 21, fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 3),
-                    Text(
-                        '${progress.daysLearned} days played • $accuracy% correct',
-                        style: const TextStyle(fontSize: 15)),
-                  ],
+          const SizedBox(height: 14),
+          _HomeStats(progress: progress),
+          const SizedBox(height: 22),
+          const Text('My little wins',
+              style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 5),
+          const Text('Every game makes your brain stronger! 💪',
+              style: TextStyle(fontSize: 16)),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                  colors: [Color(0xFFFFD166), Color(0xFFFFE9A6)]),
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.stars_rounded, color: Colors.white, size: 62),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${progress.points} points collected',
+                          style: const TextStyle(
+                              fontSize: 21, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 3),
+                      Text(
+                          '${progress.daysLearned} days played • $accuracy% correct',
+                          style: const TextStyle(fontSize: 15)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 24),
-        const Text('Badge collection 🏅',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 12),
-        FilledButton.tonalIcon(
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => AchievementPage(progress: progress))),
-          icon: const Icon(Icons.emoji_events),
-          label: const Text('See all achievements'),
-        ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 600 ? 4 : 2;
-            final badges = [
-              _BadgeData(
-                icon: Icons.waving_hand,
-                label: 'First steps',
-                earned: progress.totalQuestions > 0,
-              ),
-              _BadgeData(
-                icon: Icons.calendar_month_rounded,
-                label: 'Three-day explorer',
-                earned: progress.daysLearned >= 3,
-              ),
-              _BadgeData(
-                icon: Icons.star,
-                label: 'Star learner',
-                earned: progress.points >= 50,
-              ),
-              _BadgeData(
-                icon: Icons.school,
-                label: 'Super learner',
-                earned: progress.totalQuestions >= 20,
-              ),
-            ];
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: badges.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: columns == 4 ? 1.1 : 1.05,
-              ),
-              itemBuilder: (context, index) {
-                final badge = badges[index];
-                return _Badge(
-                  icon: badge.icon,
-                  label: badge.label,
-                  earned: badge.earned,
-                );
-              },
-            );
-          },
-        ),
-      ],
+          const SizedBox(height: 24),
+          const Text('Badge collection 🏅',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => AchievementPage(progress: progress))),
+            icon: const Icon(Icons.emoji_events),
+            label: const Text('See all achievements'),
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 600 ? 4 : 2;
+              final badges = [
+                _BadgeData(
+                  icon: Icons.waving_hand,
+                  label: 'First steps',
+                  earned: progress.totalQuestions > 0,
+                ),
+                _BadgeData(
+                  icon: Icons.calendar_month_rounded,
+                  label: 'Three-day explorer',
+                  earned: progress.daysLearned >= 3,
+                ),
+                _BadgeData(
+                  icon: Icons.star,
+                  label: 'Star learner',
+                  earned: progress.points >= 50,
+                ),
+                _BadgeData(
+                  icon: Icons.school,
+                  label: 'Super learner',
+                  earned: progress.totalQuestions >= 20,
+                ),
+              ];
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: badges.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: columns == 4 ? 1.1 : 1.05,
+                ),
+                itemBuilder: (context, index) {
+                  final badge = badges[index];
+                  return _Badge(
+                    icon: badge.icon,
+                    label: badge.label,
+                    earned: badge.earned,
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

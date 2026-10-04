@@ -155,18 +155,26 @@ class _VoiceStatusRow extends StatelessWidget {
     final voiceAvailable = NarrationService.instance.voiceAvailable;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: Row(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Icon(
-            voiceAvailable ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-            color: voiceAvailable ? Colors.green : Colors.redAccent,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Voice: ${voiceAvailable ? 'Ready' : 'Not available'}',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                voiceAvailable
+                    ? Icons.volume_up_rounded
+                    : Icons.volume_off_rounded,
+                color: voiceAvailable ? Colors.green : Colors.redAccent,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Voice: ${voiceAvailable ? 'Ready' : 'Not available'}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
           ),
           OutlinedButton.icon(
             onPressed: voiceAvailable

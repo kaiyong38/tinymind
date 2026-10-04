@@ -27,9 +27,9 @@ Widget buildQuizVisual(
     case AnswerVisual.colorSwatch:
       final colorFriendlyMode =
           AccessibilitySettingsScope.of(context).colorFriendlyMode;
-      final labelFontSize = (size * 0.34).clamp(14, 24).toDouble();
+      final labelFontSize = (size * 0.24).clamp(14.0, 24.0);
       final swatchSize = colorFriendlyMode
-          ? (size - labelFontSize - 3).clamp(1.0, size).toDouble()
+          ? (size * 0.68).clamp(40.0, size - 17).toDouble()
           : size;
       final swatch = Container(
         width: swatchSize,
@@ -50,22 +50,33 @@ Widget buildQuizVisual(
             : null,
       );
       if (!colorFriendlyMode) return swatch;
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          swatch,
-          const SizedBox(height: 3),
-          Text(
-            option.label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.black87,
-              fontSize: labelFontSize,
-              fontWeight: FontWeight.w900,
-              height: 1,
+      return SizedBox.square(
+        dimension: size,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            swatch,
+            const SizedBox(height: 3),
+            Flexible(
+              fit: FlexFit.loose,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  option.label,
+                  maxLines: 1,
+                  softWrap: false,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: labelFontSize,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     case AnswerVisual.shape:
       return ShapeGlyph(
