@@ -2,6 +2,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'audio_config.dart';
+import 'music_settings.dart';
 
 /// Which looping music bed is playing.
 enum MusicTrack {
@@ -60,10 +61,15 @@ class BackgroundMusicService {
   static final BackgroundMusicService instance = BackgroundMusicService._();
 
   static const _mutedKey = 'tinymind_music_muted';
+  static const _volumeKey = 'tinymind_music_volume';
+  static const _previousVolumeKey = 'tinymind_music_previous_volume';
 
   final AudioPlayer _player = AudioPlayer();
-  bool _muted = true;
+  MusicSettings _settings = const MusicSettings();
+  final ValueNotifier<MusicSettings> settingsNotifier =
+      ValueNotifier(const MusicSettings());
   MusicTrack? _current;
+  MusicTrack? _playingTrack;
 
   /// True while music was auto-paused because the app went to the
   /// background — distinct from [_muted], which is the grown-up's
@@ -71,13 +77,19 @@ class BackgroundMusicService {
   /// never flips the mute switch the parent sees.
   bool _pausedForBackground = false;
 
-  bool get isMuted => _muted;
+  bool get isMuted => _settings.isMuted;
+  double get volume => _settings.volume;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    _muted = prefs.getBool(_mutedKey) ?? true;
+    _settings = MusicSettings.fromSaved(
+      isMuted: prefs.getBool(_mutedKey),
+      volume: prefs.getDouble(_volumeKey),
+      previousVolume: prefs.getDouble(_previousVolumeKey),
+    );
+    settingsNotifier.value = _settings;
     await _player.setReleaseMode(ReleaseMode.loop);
-    await _player.setVolume(0.5);
+    await _player.setVolume(_settings.volume);
     // Force playback onto the media/music stream and ignore the device's
     // silent switch — otherwise some Android devices/emulators route audio
     // through a stream that is muted by default even though the app looks
@@ -88,7 +100,7 @@ class BackgroundMusicService {
   /// Starts (or switches to) [track]. Safe to call repeatedly — it only
   /// restarts playback if the track actually changed.
   Future<void> play(MusicTrack track) async {
-    if (_muted) {
+    if (_settings.isMuted || _pausedForBackground) {
       _current = track;
       return;
     }
@@ -96,6 +108,7 @@ class BackgroundMusicService {
     _current = track;
     try {
       await _player.play(AssetSource(track.asset));
+      _playingTrack = track;
     } catch (error) {
       // Surface the real reason in the run console instead of failing
       // silently, so a missing/misnamed asset is easy to spot.
@@ -110,17 +123,44 @@ class BackgroundMusicService {
     }
   }
 
-  Future<void> toggleMute() async {
-    _muted = !_muted;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_mutedKey, _muted);
-    if (_muted) {
+  Future<void> setVolume(double volume) async {
+    final wasMuted = _settings.isMuted;
+    _updateSettings(_settings.setVolume(volume));
+    await _player.setVolume(_settings.volume);
+    if (_settings.isMuted) {
       await _player.pause();
-    } else if (_current != null) {
+    } else if (wasMuted && _current != null && !_pausedForBackground) {
       final track = _current!;
       _current = null;
       await play(track);
     }
+  }
+
+  Future<void> saveSettings() => _saveSettings();
+
+  Future<void> toggleMute() async {
+    _updateSettings(_settings.toggleMute());
+    await _player.setVolume(_settings.volume);
+    if (_settings.isMuted) {
+      await _player.pause();
+    } else if (_current != null && !_pausedForBackground) {
+      final track = _current!;
+      _current = null;
+      await play(track);
+    }
+    await _saveSettings();
+  }
+
+  void _updateSettings(MusicSettings settings) {
+    _settings = settings;
+    settingsNotifier.value = settings;
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_mutedKey, _settings.isMuted);
+    await prefs.setDouble(_volumeKey, _settings.volume);
+    await prefs.setDouble(_previousVolumeKey, _settings.previousVolume);
   }
 
   /// Called when the app is backgrounded (another app comes to the
@@ -128,7 +168,7 @@ class BackgroundMusicService {
   /// keeps looping music even while TinyMind isn't the visible app, which
   /// is the "music won't stop until I force-close it" bug.
   Future<void> pauseForBackground() async {
-    if (_muted) return; // Already silent; nothing to pause.
+    if (_settings.isMuted) return; // Already silent; nothing to pause.
     _pausedForBackground = true;
     await _player.pause();
   }
@@ -139,7 +179,17 @@ class BackgroundMusicService {
   Future<void> resumeFromBackground() async {
     if (!_pausedForBackground) return;
     _pausedForBackground = false;
-    if (!_muted) await _player.resume();
+    if (!_settings.isMuted) {
+      await _player.setVolume(_settings.volume);
+      final track = _current;
+      if (track == null) return;
+      if (_playingTrack == track) {
+        await _player.resume();
+      } else {
+        _current = null;
+        await play(track);
+      }
+    }
   }
 
   Future<void> dispose() => _player.dispose();

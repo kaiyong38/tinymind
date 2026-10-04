@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +14,7 @@ import 'pages/parent_gate_pages.dart';
 import 'services/auth_service.dart';
 import 'services/accessibility_settings.dart';
 import 'services/background_music_service.dart';
+import 'services/music_settings.dart';
 import 'services/narration_service.dart';
 import 'services/progress_store.dart';
 import 'widgets/bouncy_tap.dart';
@@ -99,55 +101,55 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
     return AccessibilitySettingsScope(
       settings: _accessibilitySettings,
       child: MaterialApp(
-      title: 'TinyMind',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: TinyMindColors.primary,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        materialTapTargetSize: MaterialTapTargetSize.padded,
-        scaffoldBackgroundColor: TinyMindColors.background,
-        textTheme: GoogleFonts.baloo2TextTheme().apply(
-          bodyColor: TinyMindColors.textDark,
-          displayColor: TinyMindColors.textDark,
-        ),
-        inputDecorationTheme: const InputDecorationTheme(
-          constraints: BoxConstraints(minHeight: 56),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-        ),
-        cardTheme: CardThemeData(
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(30)),
+        title: 'TinyMind',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: TinyMindColors.primary,
+            brightness: Brightness.light,
+          ),
+          useMaterial3: true,
+          materialTapTargetSize: MaterialTapTargetSize.padded,
+          scaffoldBackgroundColor: TinyMindColors.background,
+          textTheme: GoogleFonts.baloo2TextTheme().apply(
+            bodyColor: TinyMindColors.textDark,
+            displayColor: TinyMindColors.textDark,
+          ),
+          inputDecorationTheme: const InputDecorationTheme(
+            constraints: BoxConstraints(minHeight: 56),
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            centerTitle: true,
+          ),
+          cardTheme: CardThemeData(
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(30)),
+            ),
+          ),
+          navigationBarTheme: NavigationBarThemeData(
+            height: 74,
+            backgroundColor: Colors.white,
+            indicatorColor: TinyMindColors.primaryTint,
+            labelTextStyle: WidgetStatePropertyAll(
+              GoogleFonts.baloo2(fontWeight: FontWeight.w700, fontSize: 12),
+            ),
+            indicatorShape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(20)),
+            ),
           ),
         ),
-        navigationBarTheme: NavigationBarThemeData(
-          height: 74,
-          backgroundColor: Colors.white,
-          indicatorColor: TinyMindColors.primaryTint,
-          labelTextStyle: WidgetStatePropertyAll(
-            GoogleFonts.baloo2(fontWeight: FontWeight.w700, fontSize: 12),
-          ),
-          indicatorShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(20)),
-          ),
-        ),
-      ),
-      // The app always opens on "Who is learning today?" rather than
-      // silently resuming whichever child was last cached — a shared
-      // family device needs that gate every single launch, and it's
-      // also where the parent arithmetic challenge is enforced before
-      // anything grown-up-only is reachable.
-      home: _loading
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-          : _VoiceAvailabilityNotice(child: WelcomePage(store: _store)),
+        // The app always opens on "Who is learning today?" rather than
+        // silently resuming whichever child was last cached — a shared
+        // family device needs that gate every single launch, and it's
+        // also where the parent arithmetic challenge is enforced before
+        // anything grown-up-only is reachable.
+        home: _loading
+            ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+            : _VoiceAvailabilityNotice(child: WelcomePage(store: _store)),
       ),
     );
   }
@@ -213,11 +215,9 @@ class TinyMindHomeShell extends StatefulWidget {
 
 class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
   int _tabIndex = 0;
+  final _music = BackgroundMusicService.instance;
 
-  Future<void> _toggleMusic() async {
-    await BackgroundMusicService.instance.toggleMute();
-    setState(() {});
-  }
+  Future<void> _toggleMusic() => _music.toggleMute();
 
   void _openLibrary(BuildContext callerContext, LearningModule module) {
     Navigator.of(callerContext)
@@ -237,11 +237,10 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
       backgroundColor: Colors.transparent,
       builder: (context) => _HomeMenuSheet(
         currentIndex: _tabIndex,
-        isMuted: BackgroundMusicService.instance.isMuted,
-        onToggleMusic: () {
-          _toggleMusic();
-          Navigator.of(context).pop();
-        },
+        musicSettings: _music.settingsNotifier,
+        onToggleMusic: _toggleMusic,
+        onVolumeChanged: (value) => _music.setVolume(value),
+        onVolumeChangeEnd: (_) => _music.saveSettings(),
       ),
     );
     if (selected != null) setState(() => _tabIndex = selected);
@@ -268,7 +267,11 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
                 child: IndexedStack(
                   index: _tabIndex,
                   children: [
-                    HomePage(store: widget.store, onModuleTap: _openLibrary),
+                    HomePage(
+                      store: widget.store,
+                      onModuleTap: _openLibrary,
+                      onToggleMusic: _toggleMusic,
+                    ),
                     ProgressPage(store: widget.store),
                     ParentPage(store: widget.store),
                   ],
@@ -322,13 +325,17 @@ class _MenuButton extends StatelessWidget {
 class _HomeMenuSheet extends StatelessWidget {
   const _HomeMenuSheet({
     required this.currentIndex,
-    required this.isMuted,
+    required this.musicSettings,
     required this.onToggleMusic,
+    required this.onVolumeChanged,
+    required this.onVolumeChangeEnd,
   });
 
   final int currentIndex;
-  final bool isMuted;
+  final ValueListenable<MusicSettings> musicSettings;
   final VoidCallback onToggleMusic;
+  final ValueChanged<double> onVolumeChanged;
+  final ValueChanged<double> onVolumeChangeEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -380,19 +387,10 @@ class _HomeMenuSheet extends StatelessWidget {
                         selected: currentIndex == 2,
                         onTap: () => Navigator.of(context).pop(2),
                       ),
-                      _MenuTile(
-                        icon: isMuted
-                            ? Icons.music_off_rounded
-                            : Icons.music_note_rounded,
-                        label: isMuted ? 'Music off' : 'Music on',
-                        color: const Color(0xFFA78BFA),
-                        selected: false,
-                        onTap: onToggleMusic,
-                      ),
                     ];
-                    // Four across on a wide (landscape) screen, two by two
-                    // on a narrow (portrait) one.
-                    final columns = constraints.maxWidth >= 480 ? 4 : 2;
+                    // Navigation stays compact; music controls get a
+                    // dedicated full-width row below.
+                    final columns = constraints.maxWidth >= 480 ? 3 : 2;
                     const gap = 10.0;
                     final width =
                         (constraints.maxWidth - gap * (columns - 1)) / columns;
@@ -405,6 +403,16 @@ class _HomeMenuSheet extends StatelessWidget {
                       ],
                     );
                   }),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<MusicSettings>(
+                    valueListenable: musicSettings,
+                    builder: (context, settings, _) => _MusicVolumeRow(
+                      settings: settings,
+                      onToggleMute: onToggleMusic,
+                      onVolumeChanged: onVolumeChanged,
+                      onVolumeChangeEnd: onVolumeChangeEnd,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -413,6 +421,71 @@ class _HomeMenuSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+class _MusicVolumeRow extends StatelessWidget {
+  const _MusicVolumeRow({
+    required this.settings,
+    required this.onToggleMute,
+    required this.onVolumeChanged,
+    required this.onVolumeChangeEnd,
+  });
+
+  final MusicSettings settings;
+  final VoidCallback onToggleMute;
+  final ValueChanged<double> onVolumeChanged;
+  final ValueChanged<double> onVolumeChangeEnd;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          const SizedBox(
+            width: 60,
+            child: Text(
+              'Music',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+            ),
+          ),
+          Semantics(
+            button: true,
+            label: settings.isMuted ? 'Unmute music' : 'Mute music',
+            child: IconButton(
+              onPressed: onToggleMute,
+              tooltip: settings.isMuted ? 'Unmute music' : 'Mute music',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              icon: Icon(
+                settings.isMuted
+                    ? Icons.volume_off_rounded
+                    : Icons.volume_up_rounded,
+                size: 28,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Semantics(
+              label: 'Music volume',
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 12,
+                    disabledThumbRadius: 12,
+                  ),
+                  overlayShape:
+                      const RoundSliderOverlayShape(overlayRadius: 24),
+                  trackHeight: 6,
+                ),
+                child: Slider(
+                  value: settings.volume,
+                  min: 0,
+                  max: 1,
+                  onChanged: onVolumeChanged,
+                  onChangeEnd: onVolumeChangeEnd,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
 }
 
 class _MenuTile extends StatelessWidget {
@@ -469,27 +542,55 @@ class _MenuTile extends StatelessWidget {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({required this.store, required this.onModuleTap, super.key});
+  const HomePage({
+    required this.store,
+    required this.onModuleTap,
+    required this.onToggleMusic,
+    super.key,
+  });
 
   final ProgressStore store;
   final void Function(BuildContext, LearningModule) onModuleTap;
+  final VoidCallback onToggleMusic;
 
   @override
   Widget build(BuildContext context) {
     final progress = store.progress;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Column(
         children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Learning worlds',
-              textAlign: TextAlign.left,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Learning worlds',
+                  textAlign: TextAlign.left,
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                ),
+              ),
+              ValueListenableBuilder<MusicSettings>(
+                valueListenable:
+                    BackgroundMusicService.instance.settingsNotifier,
+                builder: (context, settings, _) => Semantics(
+                  button: true,
+                  label: settings.isMuted ? 'Unmute music' : 'Mute music',
+                  child: IconButton(
+                    onPressed: onToggleMusic,
+                    tooltip: settings.isMuted ? 'Unmute music' : 'Mute music',
+                    constraints:
+                        const BoxConstraints(minWidth: 48, minHeight: 48),
+                    icon: Icon(
+                      settings.isMuted
+                          ? Icons.volume_off_rounded
+                          : Icons.volume_up_rounded,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 0),
           Expanded(
             child: _WorldCarousel(
               progress: progress,
