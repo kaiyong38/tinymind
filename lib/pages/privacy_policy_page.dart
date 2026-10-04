@@ -36,7 +36,10 @@ class PrivacyPolicyPage extends StatelessWidget {
       'Only the parent signed in to the account can access that account’s '
           'child profiles and learning data. Google Firebase stores and '
           'processes the data on our behalf as a data processor. We do not '
-          'sell or share personal data with others.',
+          'sell or share personal data with others.\n\n'
+          'TinyMind never receives or stores your fingerprint or face data; '
+          'your phone\'s own security handles it. If you choose a PIN, it is '
+          'kept only on this device in a scrambled form.',
     ),
     MapEntry(
       'Children’s privacy',

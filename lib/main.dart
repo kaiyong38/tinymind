@@ -16,6 +16,7 @@ import 'services/accessibility_settings.dart';
 import 'services/background_music_service.dart';
 import 'services/music_settings.dart';
 import 'services/narration_service.dart';
+import 'services/parent_gate_service.dart';
 import 'services/progress_store.dart';
 import 'widgets/bouncy_tap.dart';
 import 'widgets/drag_answer.dart';
@@ -79,6 +80,7 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
+        ParentGateService.instance.clearVerificationWindow();
         BackgroundMusicService.instance.pauseForBackground();
         NarrationService.instance.stop();
       case AppLifecycleState.resumed:

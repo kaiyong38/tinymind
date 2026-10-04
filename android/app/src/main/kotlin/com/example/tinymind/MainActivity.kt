@@ -6,11 +6,11 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val audioFocusChannel = "tinymind/speech_audio_focus"
     private val mainHandler = Handler(Looper.getMainLooper())
     private var audioManager: AudioManager? = null

@@ -6,6 +6,7 @@ import '../services/accessibility_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/narration_service.dart';
+import '../services/parent_gate_service.dart';
 import '../widgets/bouncy_tap.dart';
 import 'auth_pages.dart';
 import 'child_detail_page.dart';
@@ -16,12 +17,15 @@ class AdminPage extends StatelessWidget {
     required this.parentUid,
     FirestoreService? firestore,
     AuthService? auth,
+    ParentGateService? gateService,
     super.key,
   })  : firestore = firestore ?? FirestoreService(),
-        auth = auth ?? AuthService();
+        auth = auth ?? AuthService(),
+        gateService = gateService ?? ParentGateService.instance;
   final String parentUid;
   final FirestoreService firestore;
   final AuthService auth;
+  final ParentGateService gateService;
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -39,6 +43,7 @@ class AdminPage extends StatelessWidget {
                     ),
                   );
                 } else if (value == 'sign_out') {
+                  gateService.clearVerificationWindow();
                   await auth.signOut();
                   if (context.mounted) {
                     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -46,7 +51,7 @@ class AdminPage extends StatelessWidget {
                 } else if (value == 'privacy_policy') {
                   await openPrivacyPolicy(context);
                 } else if (value == 'delete_account') {
-                  await _deleteAccount(context, auth);
+                  await _deleteAccount(context, auth, gateService);
                 }
               },
               itemBuilder: (context) => const [
@@ -77,6 +82,7 @@ class AdminPage extends StatelessWidget {
           children: [
             const _VoiceStatusRow(),
             const _ColorFriendlyModeRow(),
+            _GrownUpLockSection(service: gateService),
             Expanded(
               child: StreamBuilder(
                 stream: firestore.watchChildren(parentUid),
@@ -161,7 +167,132 @@ class AdminPage extends StatelessWidget {
       );
 }
 
-Future<void> _deleteAccount(BuildContext context, AuthService auth) async {
+class _GrownUpLockSection extends StatefulWidget {
+  const _GrownUpLockSection({required this.service});
+
+  final ParentGateService service;
+
+  @override
+  State<_GrownUpLockSection> createState() => _GrownUpLockSectionState();
+}
+
+class _GrownUpLockSectionState extends State<_GrownUpLockSection> {
+  late Future<ParentLockMethod?> _method;
+  late Future<bool> _phoneSupported;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
+    _method = widget.service.selectedMethod;
+    _phoneSupported = widget.service.canUsePhoneUnlock;
+  }
+
+  Future<void> _showResult(String message) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _usePhone() async {
+    try {
+      final changed = await widget.service.usePhoneUnlock();
+      if (!mounted) return;
+      if (changed) {
+        setState(_refresh);
+      } else {
+        await _showResult('Set up a phone screen lock before choosing this.');
+      }
+    } catch (error) {
+      await _showResult('Could not change the grown-up lock: $error');
+    }
+  }
+
+  Future<void> _usePin() async {
+    try {
+      final changed = await widget.service.usePin(context);
+      if (!mounted || !changed) return;
+      setState(_refresh);
+    } catch (error) {
+      await _showResult('Could not save the PIN: $error');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+        child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Grown-up lock',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              FutureBuilder<ParentLockMethod?>(
+                future: _method,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return const Text('Current method: Could not load');
+                  }
+                  if (!snapshot.hasData) {
+                    return const Text('Current method: Loading...');
+                  }
+                  final label = switch (snapshot.data) {
+                    ParentLockMethod.phone => 'Phone unlock',
+                    ParentLockMethod.pin => '4-digit PIN',
+                    _ => 'Not set up',
+                  };
+                  return Text('Current method: $label');
+                },
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  FutureBuilder<bool>(
+                    future: _phoneSupported,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Text(
+                          'Phone unlock is unavailable: ${snapshot.error}',
+                        );
+                      }
+                      return OutlinedButton.icon(
+                        onPressed: snapshot.data == true ? _usePhone : null,
+                        icon: const Icon(Icons.fingerprint_rounded),
+                        label: const Text('Use phone unlock'),
+                      );
+                    },
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _usePin,
+                    icon: const Icon(Icons.dialpad_rounded),
+                    label: const Text('Use a 4-digit PIN'),
+                  ),
+                  TextButton(
+                    onPressed: _usePin,
+                    child: const Text('Change PIN'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+Future<void> _deleteAccount(
+  BuildContext context,
+  AuthService auth,
+  ParentGateService gateService,
+) async {
   final passwordController = TextEditingController();
   final password = await showDialog<String>(
     context: context,
@@ -225,6 +356,7 @@ Future<void> _deleteAccount(BuildContext context, AuthService auth) async {
 
   try {
     await auth.deleteAccountAndData();
+    gateService.clearVerificationWindow();
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(builder: (_) => LoginPage(auth: auth)),
