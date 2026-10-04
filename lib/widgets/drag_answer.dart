@@ -163,7 +163,8 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
                   ),
                 ],
               ),
-              child: buildQuizVisual(option, visual, size: start.width * 0.65),
+              child: buildQuizVisual(
+                  context, option, visual, size: start.width * 0.65),
             ),
           ),
         ),
@@ -372,7 +373,8 @@ class _Slot extends StatelessWidget {
                     Padding(
                       padding: EdgeInsets.all(size * 0.09),
                       child:
-                          buildQuizVisual(option!, visual, size: size * 0.72),
+                          buildQuizVisual(
+                              context, option!, visual, size: size * 0.72),
                     ),
                     if (correct || wrong)
                       Positioned(
@@ -453,7 +455,7 @@ class _Tile extends StatelessWidget {
           ),
         ],
       ),
-      child: buildQuizVisual(option, visual, size: size * 0.65),
+      child: buildQuizVisual(context, option, visual, size: size * 0.65),
     );
 
     final tile = SizedBox(

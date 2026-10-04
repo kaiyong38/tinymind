@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/activities.dart';
 import '../models/learning.dart';
+import '../services/accessibility_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/narration_service.dart';
@@ -58,6 +59,7 @@ class AdminPage extends StatelessWidget {
         body: Column(
           children: [
             const _VoiceStatusRow(),
+            const _ColorFriendlyModeRow(),
             Expanded(
               child: StreamBuilder(
                 stream: firestore.watchChildren(parentUid),
@@ -173,6 +175,46 @@ class _VoiceStatusRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ColorFriendlyModeRow extends StatefulWidget {
+  const _ColorFriendlyModeRow();
+
+  @override
+  State<_ColorFriendlyModeRow> createState() => _ColorFriendlyModeRowState();
+}
+
+class _ColorFriendlyModeRowState extends State<_ColorFriendlyModeRow> {
+  bool _saving = false;
+
+  Future<void> _save(AccessibilitySettings settings, bool enabled) async {
+    setState(() => _saving = true);
+    try {
+      await settings.setColorFriendlyMode(enabled);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save setting: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = AccessibilitySettingsScope.of(context);
+    return SwitchListTile(
+      title: const Text('Color-friendly mode'),
+      subtitle: const Text(
+        'Adds patterns and names to colors for children '
+        'who have trouble telling colors apart.',
+      ),
+      value: settings.colorFriendlyMode,
+      onChanged: _saving ? null : (enabled) => _save(settings, enabled),
     );
   }
 }

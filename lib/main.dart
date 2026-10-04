@@ -11,6 +11,7 @@ import 'pages/achievement_page.dart';
 import 'pages/auth_pages.dart';
 import 'pages/parent_gate_pages.dart';
 import 'services/auth_service.dart';
+import 'services/accessibility_settings.dart';
 import 'services/background_music_service.dart';
 import 'services/narration_service.dart';
 import 'services/progress_store.dart';
@@ -45,6 +46,7 @@ class TinyMindApp extends StatefulWidget {
 
 class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
   final ProgressStore _store = ProgressStore();
+  final AccessibilitySettings _accessibilitySettings = AccessibilitySettings();
   bool _loading = true;
 
   @override
@@ -55,6 +57,7 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
   }
 
   Future<void> _bootstrap() async {
+    await _accessibilitySettings.load();
     await BackgroundMusicService.instance.init();
     await NarrationService.instance.init();
     // Start the calm menu music right away, from the very first
@@ -93,7 +96,9 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return AccessibilitySettingsScope(
+      settings: _accessibilitySettings,
+      child: MaterialApp(
       title: 'TinyMind',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -143,6 +148,7 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
       home: _loading
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : _VoiceAvailabilityNotice(child: WelcomePage(store: _store)),
+      ),
     );
   }
 }
@@ -1891,7 +1897,8 @@ class _TeachCard extends StatelessWidget {
                         ),
                       if (question.teachOption != null) ...[
                         const SizedBox(height: 4),
-                        buildQuizVisual(question.teachOption!, question.visual,
+                        buildQuizVisual(
+                            context, question.teachOption!, question.visual,
                             size: 42),
                       ],
                     ],
@@ -1922,7 +1929,8 @@ class _TeachCard extends StatelessWidget {
                   ),
                 const SizedBox(height: 14),
                 if (question.teachOption != null) ...[
-                  buildQuizVisual(question.teachOption!, question.visual,
+                  buildQuizVisual(
+                      context, question.teachOption!, question.visual,
                       size: 68),
                   const SizedBox(height: 14),
                 ],

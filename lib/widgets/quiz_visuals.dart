@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../models/learning.dart';
+import '../services/accessibility_settings.dart';
 
 /// Renders the visual for a [QuizOption] according to [visual] — a colour
 /// swatch, a drawn shape, a big letter over its picture, or a repeated
 /// counting emoji — shared by the drag-answer tiles and the teach card.
-Widget buildQuizVisual(QuizOption option, AnswerVisual visual,
+Widget buildQuizVisual(
+    BuildContext context, QuizOption option, AnswerVisual visual,
     {double size = 40}) {
   final fallbackColor = option.color ?? Colors.grey;
 
@@ -23,15 +25,47 @@ Widget buildQuizVisual(QuizOption option, AnswerVisual visual,
         ),
       );
     case AnswerVisual.colorSwatch:
-      return Container(
-        width: size,
-        height: size,
+      final colorFriendlyMode =
+          AccessibilitySettingsScope.of(context).colorFriendlyMode;
+      final labelFontSize = (size * 0.34).clamp(14, 24).toDouble();
+      final swatchSize = colorFriendlyMode
+          ? (size - labelFontSize - 3).clamp(1.0, size).toDouble()
+          : size;
+      final swatch = Container(
+        width: swatchSize,
+        height: swatchSize,
         decoration: BoxDecoration(
           color: fallbackColor,
           shape: BoxShape.circle,
           border:
               Border.all(color: Colors.black.withValues(alpha: 0.08), width: 2),
         ),
+        child: colorFriendlyMode
+            ? ClipOval(
+                child: CustomPaint(
+                  size: Size.square(swatchSize),
+                  painter: ColorPatternPainter(option.label, fallbackColor),
+                ),
+              )
+            : null,
+      );
+      if (!colorFriendlyMode) return swatch;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          swatch,
+          const SizedBox(height: 3),
+          Text(
+            option.label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: labelFontSize,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+        ],
       );
     case AnswerVisual.shape:
       return ShapeGlyph(
@@ -69,6 +103,144 @@ Widget buildQuizVisual(QuizOption option, AnswerVisual visual,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: size * 0.4, fontWeight: FontWeight.w900));
   }
+}
+
+enum _ColorPattern {
+  vertical,
+  horizontal,
+  diagonal,
+  dots,
+  grid,
+  waves,
+  cross,
+  triangles,
+}
+
+_ColorPattern _patternForLabel(String label) {
+  switch (label.trim().toLowerCase()) {
+    case 'red':
+      return _ColorPattern.vertical;
+    case 'blue':
+      return _ColorPattern.horizontal;
+    case 'yellow':
+      return _ColorPattern.diagonal;
+    case 'green':
+      return _ColorPattern.dots;
+    case 'orange':
+      return _ColorPattern.grid;
+    case 'purple':
+      return _ColorPattern.waves;
+    case 'pink':
+      return _ColorPattern.cross;
+    case 'brown':
+      return _ColorPattern.triangles;
+    default:
+      return _ColorPattern.diagonal;
+  }
+}
+
+class ColorPatternPainter extends CustomPainter {
+  ColorPatternPainter(this.label, this.color);
+
+  final String label;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
+    canvas.save();
+    canvas.clipPath(Path()..addOval(bounds));
+
+    final luminance = color.computeLuminance();
+    final paint = Paint()
+      ..color = (luminance < 0.35 ? Colors.white : Colors.black)
+          .withValues(alpha: 0.35)
+      ..strokeWidth = (size.shortestSide * 0.07).clamp(1.5, 4).toDouble()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final spacing = size.shortestSide / 4;
+
+    switch (_patternForLabel(label)) {
+      case _ColorPattern.vertical:
+        for (var x = spacing / 2; x < size.width; x += spacing) {
+          canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+        }
+      case _ColorPattern.horizontal:
+        for (var y = spacing / 2; y < size.height; y += spacing) {
+          canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+        }
+      case _ColorPattern.diagonal:
+        for (var offset = -size.height;
+            offset < size.width;
+            offset += spacing) {
+          canvas.drawLine(
+            Offset(offset, 0),
+            Offset(offset + size.height, size.height),
+            paint,
+          );
+        }
+      case _ColorPattern.dots:
+        final dotPaint = Paint()
+          ..color = paint.color
+          ..style = PaintingStyle.fill;
+        for (var x = spacing / 2; x < size.width; x += spacing) {
+          for (var y = spacing / 2; y < size.height; y += spacing) {
+            canvas.drawCircle(Offset(x, y), paint.strokeWidth * 0.8, dotPaint);
+          }
+        }
+      case _ColorPattern.grid:
+        for (var x = spacing / 2; x < size.width; x += spacing) {
+          canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+        }
+        for (var y = spacing / 2; y < size.height; y += spacing) {
+          canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+        }
+      case _ColorPattern.waves:
+        for (var y = spacing / 2; y < size.height; y += spacing) {
+          final path = Path()..moveTo(0, y);
+          for (var x = 0.0; x < size.width; x += spacing) {
+            path.quadraticBezierTo(
+              x + spacing / 4,
+              y - spacing / 3,
+              x + spacing / 2,
+              y,
+            );
+            path.quadraticBezierTo(
+              x + spacing * 3 / 4,
+              y + spacing / 3,
+              x + spacing,
+              y,
+            );
+          }
+          canvas.drawPath(path, paint);
+        }
+      case _ColorPattern.cross:
+        for (var x = spacing / 2; x < size.width; x += spacing) {
+          for (var y = spacing / 2; y < size.height; y += spacing) {
+            canvas.drawLine(
+                Offset(x - spacing / 3, y), Offset(x + spacing / 3, y), paint);
+            canvas.drawLine(
+                Offset(x, y - spacing / 3), Offset(x, y + spacing / 3), paint);
+          }
+        }
+      case _ColorPattern.triangles:
+        for (var x = spacing / 2; x < size.width; x += spacing) {
+          for (var y = spacing / 2; y < size.height; y += spacing) {
+            final path = Path()
+              ..moveTo(x, y - spacing / 3)
+              ..lineTo(x + spacing / 3, y + spacing / 3)
+              ..lineTo(x - spacing / 3, y + spacing / 3)
+              ..close();
+            canvas.drawPath(path, paint);
+          }
+        }
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant ColorPatternPainter oldDelegate) =>
+      label != oldDelegate.label || color != oldDelegate.color;
 }
 
 /// A hand-drawn circle/square/triangle/star, used instead of the English
