@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/parent_gate_service.dart';
 import '../widgets/bouncy_tap.dart';
+import '../widgets/emoji_glyph.dart';
 import 'auth_pages.dart';
 import 'child_detail_page.dart';
 import 'parent_settings_page.dart';
@@ -327,7 +328,7 @@ class _ChildProgressCard extends StatelessWidget {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: const Color(0xFFFFD166),
-                    child: Text(avatar, style: const TextStyle(fontSize: 30)),
+                    child: EmojiGlyph(avatar, 30),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

@@ -10,6 +10,7 @@ import '../models/learning.dart';
 import '../services/firestore_service.dart';
 import '../services/learning_report_builder.dart';
 import '../services/learning_report_pdf.dart';
+import '../widgets/emoji_glyph.dart';
 
 /// The parent's "everything about this learner" screen, opened by tapping a
 /// child on the Learning dashboard: accuracy, a per-world breakdown, the
@@ -91,7 +92,7 @@ class _DetailBody extends StatelessWidget {
           CircleAvatar(
             radius: 34,
             backgroundColor: const Color(0xFFFFD166),
-            child: Text(progress.avatar, style: const TextStyle(fontSize: 36)),
+            child: EmojiGlyph(progress.avatar, 36),
           ),
           const SizedBox(width: 14),
           Expanded(

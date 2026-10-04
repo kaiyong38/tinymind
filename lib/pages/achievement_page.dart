@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/achievement.dart';
 import '../models/learning.dart';
 import '../services/progress_store.dart';
+import '../widgets/emoji_glyph.dart';
 import '../widgets/text_scale_limit.dart';
 
 class AchievementPage extends StatelessWidget {
@@ -137,9 +138,7 @@ class AvatarPage extends StatelessWidget {
                       await store.setAvatar(avatar);
                       if (context.mounted) Navigator.pop(context);
                     },
-                    child: Center(
-                        child:
-                            Text(avatar, style: const TextStyle(fontSize: 44))),
+                    child: Center(child: EmojiGlyph(avatar, 44)),
                   ))
               .toList(),
         ),

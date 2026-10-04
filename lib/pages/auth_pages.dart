@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/progress_store.dart';
 import '../widgets/bouncy_tap.dart';
+import '../widgets/emoji_glyph.dart';
 import '../theme/tinymind_colors.dart';
 import 'privacy_policy_page.dart';
 import 'parent_gate_pages.dart';
@@ -85,7 +86,7 @@ class WelcomePage extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('🌈', style: TextStyle(fontSize: 30)),
+                            const EmojiGlyph('🌈', 30),
                             const SizedBox(width: 10),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,7 +110,7 @@ class WelcomePage extends StatelessWidget {
                           ],
                         )
                       else ...[
-                        const Text('🌈', style: TextStyle(fontSize: 34)),
+                        const EmojiGlyph('🌈', 34),
                         const SizedBox(height: 4),
                         const Text(
                           'Welcome to TinyMind',
@@ -761,10 +762,7 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
                             ),
                           ),
                           child: Center(
-                            child: Text(
-                              avatar,
-                              style: const TextStyle(fontSize: 40),
-                            ),
+                            child: EmojiGlyph(avatar, 40),
                           ),
                         ),
                       );

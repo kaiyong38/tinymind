@@ -6,6 +6,7 @@ import '../services/firestore_service.dart';
 import '../services/parent_gate_service.dart';
 import '../services/progress_store.dart';
 import '../theme/adaptive_metrics.dart';
+import '../widgets/emoji_glyph.dart';
 import 'admin_page.dart';
 import 'auth_pages.dart';
 
@@ -171,7 +172,7 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                             crossAxisAlignment: WrapCrossAlignment.center,
                             alignment: WrapAlignment.center,
                             children: [
-                              const Text('🌈', style: TextStyle(fontSize: 28)),
+                              const EmojiGlyph('🌈', 28),
                               const Text(
                                 'Who is playing?',
                                 style: TextStyle(
@@ -280,8 +281,7 @@ class _FlatChildAvatar extends StatelessWidget {
                 CircleAvatar(
                   radius: avatarRadius,
                   backgroundColor: const Color(0xFFFFD166),
-                  child: Text(avatar,
-                      style: TextStyle(fontSize: avatarRadius * 0.9)),
+                  child: EmojiGlyph(avatar, avatarRadius * 0.9),
                 ),
                 if (managing)
                   const Positioned(

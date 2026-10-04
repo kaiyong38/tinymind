@@ -212,7 +212,9 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
           widget.question.visual == AnswerVisual.colorSwatch &&
               AccessibilitySettingsScope.of(context).colorFriendlyMode;
       final metrics = AdaptiveMetrics.fromConstraints(context, constraints);
-      final minTileSize = colorFriendly ? 76.0 : metrics.size(64);
+      final minTileSize = colorFriendly
+          ? 76.0
+          : metrics.size(56).clamp(56.0, double.infinity).toDouble();
       final maxTileSize = (metrics.size(84)).clamp(minTileSize, 110.0);
       final tileSize = ((constraints.maxHeight - metrics.size(16)) / 2.15)
           .clamp(minTileSize, maxTileSize)
@@ -456,11 +458,12 @@ class _Tile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final card = AnimatedContainer(
+      key: ValueKey('drag-answer-option-card-$index'),
       duration: const Duration(milliseconds: 150),
       width: size,
       height: size,
       alignment: Alignment.center,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: selected ? moduleColor.withValues(alpha: 0.15) : Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -481,7 +484,7 @@ class _Tile extends StatelessWidget {
         context,
         option,
         visual,
-        size: visual == AnswerVisual.colorSwatch ? size - 16 : size * 0.65,
+        size: visual == AnswerVisual.colorSwatch ? size - 12 : size - 12,
       ),
     );
 

@@ -23,6 +23,7 @@ import 'widgets/drag_answer.dart';
 import 'widgets/quiz_visuals.dart';
 import 'theme/tinymind_colors.dart';
 import 'theme/app_theme.dart';
+import 'widgets/emoji_glyph.dart';
 import 'widgets/text_scale_limit.dart';
 
 void main() async {
@@ -645,13 +646,13 @@ class _LibraryPageState extends State<LibraryPage> {
                 if (recommendedId == null)
                   const Padding(
                     padding: EdgeInsets.only(top: 12),
-                    child: Text(
+                    child: EmojiText(
                       'You finished everything here! Replay your favorites ⭐',
-                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 for (var sectionIndex = 0;
@@ -659,11 +660,21 @@ class _LibraryPageState extends State<LibraryPage> {
                     sectionIndex++) ...[
                   Padding(
                     padding: const EdgeInsets.only(top: 14, bottom: 8),
-                    child: Text(
-                      '${catalog.sections[sectionIndex].emoji} '
-                      '${catalog.sections[sectionIndex].title}',
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.w900),
+                    child: Row(
+                      children: [
+                        EmojiGlyph(
+                          catalog.sections[sectionIndex].emoji,
+                          24,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            catalog.sections[sectionIndex].title,
+                            style: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   GridView.builder(
@@ -738,8 +749,7 @@ class _ActivityTile extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Center(
-                      child: Text(activity.emoji,
-                          style: const TextStyle(fontSize: 38)),
+                      child: EmojiGlyph(activity.emoji, 38),
                     ),
                   ),
                   Text(
@@ -777,7 +787,7 @@ class _ActivityTile extends StatelessWidget {
                     ),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      child: Text(
+                      child: EmojiText(
                         '⭐ Try this!',
                         style: TextStyle(
                             color: Colors.white,
@@ -945,27 +955,33 @@ class _HomeHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '🌈 TinyMind',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w900,
-                  ),
+                Row(
+                  children: [
+                    const EmojiGlyph('🌈', 27),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'TinyMind',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 27,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
+                  child: EmojiText(
                     'Hi, ${progress.childName}! 👋',
-                    maxLines: 1,
-                    softWrap: false,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                     ),
+                    maxLines: 1,
+                    softWrap: false,
                   ),
                 ),
                 const SizedBox(height: 13),
@@ -1005,10 +1021,7 @@ class _HomeHeader extends StatelessWidget {
                     color: Color(0xFFFFD166),
                     shape: BoxShape.circle,
                   ),
-                  child: Text(
-                    progress.avatar,
-                    style: const TextStyle(fontSize: 46),
-                  ),
+                  child: EmojiGlyph(progress.avatar, 46),
                 ),
               ),
             ),
@@ -1039,11 +1052,14 @@ class _HeaderChip extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.white, size: 19),
             const SizedBox(width: 4),
-            Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
+            Flexible(
+              child: Text(
+                text,
+                softWrap: true,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -1277,15 +1293,15 @@ class _LearningWorldCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 3),
-                            Text(
+                            EmojiText(
                               '⭐ $earnedStars / $totalStars',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w900,
                                 color: Colors.white,
                               ),
+                              maxLines: 1,
+                              softWrap: false,
                             ),
                             const SizedBox(height: 3),
                             Text(
@@ -1374,15 +1390,15 @@ class _LearningWorldCard extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  Text(
+                                  EmojiText(
                                     '⭐ $earnedStars / $totalStars stars',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w900,
                                       color: Colors.white,
                                     ),
+                                    maxLines: 1,
+                                    softWrap: false,
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
@@ -1633,7 +1649,7 @@ class _QuizPageState extends State<QuizPage> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Center(
-          child: Text(
+          child: EmojiText(
             _question.prompt,
             textAlign: TextAlign.center,
             style: const TextStyle(
@@ -1668,7 +1684,7 @@ class _QuizPageState extends State<QuizPage> {
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
-      child: Text(
+      child: EmojiText(
         wrong
             ? 'Try again 💪'
             : _questionNumber == 3
@@ -1699,8 +1715,12 @@ class _QuizPageState extends State<QuizPage> {
               ),
               const SizedBox(width: 8),
             ],
-            Text('${widget.activity.emoji} ${widget.activity.title}',
-                style: const TextStyle(fontWeight: FontWeight.w900)),
+            EmojiText(
+              '${widget.activity.emoji} ${widget.activity.title}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+              maxLines: 1,
+              softWrap: false,
+            ),
           ],
         ),
         actions: [
@@ -1712,9 +1732,13 @@ class _QuizPageState extends State<QuizPage> {
           Padding(
             padding: const EdgeInsets.only(right: 18),
             child: Center(
-              child: Text('⭐ $_score',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w900, fontSize: 17)),
+              child: EmojiText(
+                '⭐ $_score',
+                style:
+                    const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+                maxLines: 1,
+                softWrap: false,
+              ),
             ),
           ),
         ],
@@ -1882,7 +1906,7 @@ class _FeedbackDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        EmojiText(
                           correct ? '$title 🎉' : '$title 🤔',
                           style: TextStyle(
                             fontSize: 22,
@@ -1948,8 +1972,10 @@ class _TeachCard extends StatelessWidget {
         minimumSize: const Size(180, 46),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
-      child: const Text("Let's try it! 🎯",
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+      child: const EmojiText(
+        "Let's try it! 🎯",
+        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+      ),
     );
     final textCard = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1957,11 +1983,11 @@ class _TeachCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
       ),
-      child: Text(
+      child: EmojiText(
         question.teach ?? '',
-        textAlign: TextAlign.center,
         style: const TextStyle(
             fontSize: 17, fontWeight: FontWeight.w800, height: 1.2),
+        textAlign: TextAlign.center,
       ),
     );
 
@@ -2157,11 +2183,11 @@ class ResultPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
+                      EmojiText(
                         excellent ? 'Amazing work! 🎉' : 'Good try! 💪',
-                        textAlign: TextAlign.center,
                         style: const TextStyle(
                             fontSize: 23, fontWeight: FontWeight.w900),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -2236,10 +2262,10 @@ class ResultPage extends StatelessWidget {
                         ),
                       ] else ...[
                         const SizedBox(height: 8),
-                        const Text(
+                        const EmojiText(
                           'You finished everything here! Replay your favorites ⭐',
-                          textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 13),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ],
@@ -2343,8 +2369,10 @@ class _ProgressPageState extends State<ProgressPage>
           const Text('My little wins',
               style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)),
           const SizedBox(height: 5),
-          const Text('Every game makes your brain stronger! 💪',
-              style: TextStyle(fontSize: 16)),
+          const EmojiText(
+            'Every game makes your brain stronger! 💪',
+            style: TextStyle(fontSize: 16),
+          ),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(20),
@@ -2375,8 +2403,10 @@ class _ProgressPageState extends State<ProgressPage>
             ),
           ),
           const SizedBox(height: 24),
-          const Text('Badge collection 🏅',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const EmojiText(
+            'Badge collection 🏅',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+          ),
           const SizedBox(height: 12),
           FilledButton.tonalIcon(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(

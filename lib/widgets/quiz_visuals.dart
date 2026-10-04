@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/learning.dart';
 import '../services/accessibility_settings.dart';
+import 'emoji_glyph.dart';
 
 /// Renders the visual for a [QuizOption] according to [visual] — a colour
 /// swatch, a drawn shape, a big letter over its picture, or a repeated
@@ -13,15 +14,12 @@ Widget buildQuizVisual(
 
   switch (visual) {
     case AnswerVisual.picture:
-      return SizedBox(
-        width: size,
-        height: size,
+      return SizedBox.square(
+        dimension: size,
         child: Center(
-          child: Text(
-            option.emoji ?? '',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: size * 0.9),
-          ),
+          child: option.emoji == null
+              ? const SizedBox.shrink()
+              : EmojiGlyph(option.emoji!, size * 0.6),
         ),
       );
     case AnswerVisual.colorSwatch:
@@ -85,18 +83,47 @@ Widget buildQuizVisual(
         size: size,
       );
     case AnswerVisual.letterPicture:
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(option.label,
-              style: TextStyle(
-                  fontSize: size * 0.48,
-                  height: 1,
-                  fontWeight: FontWeight.w900)),
-          if (option.emoji != null)
-            Text(option.emoji!,
-                style: TextStyle(fontSize: size * 0.36, height: 1)),
-        ],
+      return SizedBox.square(
+        dimension: size,
+        child: option.emoji == null
+            ? Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    option.label,
+                    style: TextStyle(
+                      fontSize: size * 0.48,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    flex: 6,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        option.label,
+                        style: TextStyle(
+                          fontSize: size * 0.48,
+                          height: 1,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Flexible(
+                    flex: 4,
+                    child: Center(
+                      child: EmojiGlyph(option.emoji!, size * 0.36),
+                    ),
+                  ),
+                ],
+              ),
       );
     case AnswerVisual.numberDots:
       return Wrap(
@@ -105,8 +132,9 @@ Widget buildQuizVisual(
         runSpacing: 2,
         children: List.generate(
           option.count ?? 0,
-          (_) => Text(option.emoji ?? '•',
-              style: TextStyle(fontSize: size * 0.42)),
+          (_) => option.emoji == null
+              ? Text('•', style: TextStyle(fontSize: size * 0.42))
+              : EmojiGlyph(option.emoji!, size * 0.42),
         ),
       );
     case AnswerVisual.text:
