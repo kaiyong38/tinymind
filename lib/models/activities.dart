@@ -54,6 +54,7 @@ class WorldCatalog {
   const WorldCatalog({
     required this.sections,
     required this.olderStartSection,
+    required this.youngMaxSection,
     required this.activities,
   });
 
@@ -62,6 +63,9 @@ class WorldCatalog {
   /// Section where children aged 5-6 are first recommended to start
   /// (3-4 year olds always start at section 0).
   final int olderStartSection;
+
+  /// Last section recommended to children aged 4 and under, inclusive.
+  final int youngMaxSection;
   final List<Activity> activities;
 
   List<Activity> inSection(int index) =>
@@ -94,7 +98,8 @@ Activity? activityById(String id) {
 /// adaptive part): start from the section that suits the child's age, and
 /// suggest the first activity that does not yet have 2+ stars — an unplayed
 /// one, or a 1-star one worth replaying. Falls back to the earliest such
-/// activity anywhere, then to the first without 3 stars, then null.
+/// activity in the age-appropriate range, then to the first without 3 stars
+/// in that range, then null.
 /// [bestStars] maps activity id -> best stars earned so far (missing = 0).
 String? recommendedActivityId({
   required String worldId,
@@ -104,14 +109,17 @@ String? recommendedActivityId({
   final catalog = worldCatalogs[worldId];
   if (catalog == null) return null;
   final start = age >= 5 ? catalog.olderStartSection : 0;
+  final candidates = catalog.activities.where(
+    (activity) => age > 4 || activity.sectionIndex <= catalog.youngMaxSection,
+  );
   int stars(Activity a) => bestStars[a.id] ?? 0;
-  for (final a in catalog.activities) {
+  for (final a in candidates) {
     if (a.sectionIndex >= start && stars(a) < 2) return a.id;
   }
-  for (final a in catalog.activities) {
+  for (final a in candidates) {
     if (stars(a) < 2) return a.id;
   }
-  for (final a in catalog.activities) {
+  for (final a in candidates) {
     if (stars(a) < 3) return a.id;
   }
   return null;
@@ -122,6 +130,7 @@ const worldCatalogs = <String, WorldCatalog>{
   // ===== Letter Land (26 activities) =====
   'letters': WorldCatalog(
     olderStartSection: 0,
+    youngMaxSection: 2,
     sections: [
       LearningSection(title: 'A to I', emoji: '🍎'),
       LearningSection(title: 'J to R', emoji: '🦁'),
@@ -965,6 +974,7 @@ const worldCatalogs = <String, WorldCatalog>{
   // ===== Math Town (20 activities) =====
   'numbers': WorldCatalog(
     olderStartSection: 2,
+    youngMaxSection: 2,
     sections: [
       LearningSection(title: 'Counting to 5', emoji: '🔢'),
       LearningSection(title: 'Counting to 10', emoji: '🔟'),
@@ -1597,6 +1607,7 @@ const worldCatalogs = <String, WorldCatalog>{
   // ===== Shape Safari (12 activities) =====
   'shapes': WorldCatalog(
     olderStartSection: 1,
+    youngMaxSection: 1,
     sections: [
       LearningSection(title: 'Meet the shapes', emoji: '🔺'),
       LearningSection(title: 'Shapes around us', emoji: '🌍'),
@@ -1973,6 +1984,7 @@ const worldCatalogs = <String, WorldCatalog>{
   // ===== Color Garden (12 activities) =====
   'colors': WorldCatalog(
     olderStartSection: 1,
+    youngMaxSection: 1,
     sections: [
       LearningSection(title: 'Meet the colors', emoji: '🎨'),
       LearningSection(title: 'More colors', emoji: '🌈'),

@@ -3,12 +3,15 @@ import 'package:tinymind/models/activities.dart';
 
 void main() {
   test('every world has sections and activities', () {
-    expect(worldCatalogs.keys.toSet(), {'letters', 'numbers', 'shapes', 'colors'});
+    expect(
+        worldCatalogs.keys.toSet(), {'letters', 'numbers', 'shapes', 'colors'});
     for (final entry in worldCatalogs.entries) {
       expect(entry.value.sections, isNotEmpty, reason: entry.key);
       expect(entry.value.activities, isNotEmpty, reason: entry.key);
-      expect(entry.value.olderStartSection,
-          lessThan(entry.value.sections.length));
+      expect(
+          entry.value.olderStartSection, lessThan(entry.value.sections.length));
+      expect(
+          entry.value.youngMaxSection, lessThan(entry.value.sections.length));
     }
   });
 
@@ -47,11 +50,9 @@ void main() {
   });
 
   test('recommendedActivityId follows age and stars', () {
-    expect(
-        recommendedActivityId(worldId: 'numbers', age: 4, bestStars: {}),
+    expect(recommendedActivityId(worldId: 'numbers', age: 4, bestStars: {}),
         'numbers_01');
-    expect(
-        recommendedActivityId(worldId: 'numbers', age: 6, bestStars: {}),
+    expect(recommendedActivityId(worldId: 'numbers', age: 6, bestStars: {}),
         'numbers_11');
     expect(
         recommendedActivityId(
@@ -61,5 +62,54 @@ void main() {
         recommendedActivityId(
             worldId: 'numbers', age: 4, bestStars: {'numbers_01': 1}),
         'numbers_01');
+  });
+
+  test('3-year-olds are not recommended numbers beyond section 2', () {
+    final allEarlierNumbersHaveThreeStars = {
+      for (var number = 1; number <= 15; number++)
+        'numbers_${number.toString().padLeft(2, '0')}': 3,
+    };
+
+    expect(
+      recommendedActivityId(
+        worldId: 'numbers',
+        age: 3,
+        bestStars: allEarlierNumbersHaveThreeStars,
+      ),
+      isNull,
+    );
+  });
+
+  test('6-year-olds can be recommended numbers from section 3', () {
+    final starsBeforeSectionThree = {
+      for (var number = 1; number <= 15; number++)
+        'numbers_${number.toString().padLeft(2, '0')}': 3,
+    };
+
+    expect(
+      recommendedActivityId(
+        worldId: 'numbers',
+        age: 6,
+        bestStars: starsBeforeSectionThree,
+      ),
+      'numbers_16',
+    );
+  });
+
+  test('4-year-olds finish colors recommendations at the young section cap',
+      () {
+    final allowedColorActivities = {
+      for (final activity in worldCatalogs['colors']!.activities)
+        if (activity.sectionIndex <= 1) activity.id: 3,
+    };
+
+    expect(
+      recommendedActivityId(
+        worldId: 'colors',
+        age: 4,
+        bestStars: allowedColorActivities,
+      ),
+      isNull,
+    );
   });
 }

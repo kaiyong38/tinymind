@@ -553,6 +553,18 @@ class _LibraryPageState extends State<LibraryPage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
             children: [
+              if (recommendedId == null)
+                const Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Text(
+                    'You finished everything here! Replay your favorites ⭐',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
               for (var sectionIndex = 0;
                   sectionIndex < catalog.sections.length;
                   sectionIndex++) ...[
@@ -2092,6 +2104,13 @@ class ResultPage extends StatelessWidget {
                           minimumSize: const Size.fromHeight(46),
                         ),
                         child: const Text('Next'),
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'You finished everything here! Replay your favorites ⭐',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13),
                       ),
                     ],
                   ],
