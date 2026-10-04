@@ -137,8 +137,8 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
       // The app always opens on "Who is learning today?" rather than
       // silently resuming whichever child was last cached — a shared
       // family device needs that gate every single launch, and it's
-      // also where the parent PIN (separate from their email password)
-      // is enforced before anything grown-up-only is reachable.
+      // also where the parent arithmetic challenge is enforced before
+      // anything grown-up-only is reachable.
       home: _loading
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : WelcomePage(store: _store),
@@ -2341,7 +2341,7 @@ class ParentPage extends StatelessWidget {
         FilledButton.tonalIcon(
           onPressed: () => openParentArea(context),
           icon: const Icon(Icons.admin_panel_settings),
-          label: const Text('Parent tools (PIN required)'),
+          label: const Text('Grown-ups only'),
         ),
         const SizedBox(height: 10),
         OutlinedButton.icon(

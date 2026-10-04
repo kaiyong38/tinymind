@@ -174,7 +174,7 @@ class WelcomePage extends StatelessWidget {
                       ],
                       SizedBox(height: compact ? 12 : 16),
                       const Text(
-                        'Parents: PIN required. Children never need an email or password.',
+                        'Parents sign in to manage learners. Children can play without an email or password.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.black54, fontSize: 12),
                       ),

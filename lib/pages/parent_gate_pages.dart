@@ -1,8 +1,9 @@
-import 'dart:math';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../models/parent_gate_question.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/progress_store.dart';
@@ -13,10 +14,8 @@ import 'auth_pages.dart';
 /// through: sign in with email/password if this device has never signed
 /// in before, then — every single time, regardless of whether Firebase
 /// still has a session open — solve a freshly-generated [RandomGatePage]
-/// challenge before landing on [AdminPage]. There's no PIN to set up or
-/// forget: the challenge is different every time, so a child who can't
-/// yet read numbers spelled out as words can't get past it, but there's
-/// nothing for a parent to remember either.
+/// arithmetic challenge before landing on [AdminPage]. The challenge
+/// changes every time, so there is nothing for a parent to remember.
 Future<void> openParentArea(BuildContext context, {AuthService? auth}) async {
   try {
     final authService = auth ?? AuthService();
@@ -47,11 +46,8 @@ Future<void> openParentArea(BuildContext context, {AuthService? auth}) async {
   }
 }
 
-/// "Grown-Ups Only!" — three random digits, shown spelled out as words
-/// ("FIVE, THREE, ZERO"), that the parent types back on a number pad. A
-/// wrong attempt just rolls a brand new set rather than locking anyone
-/// out, since the point isn't security against an adult, only against a
-/// child who hasn't learned to read number words yet.
+/// "Grown-Ups Only!" — an arithmetic question that a parent answers on the
+/// number pad. Three consecutive wrong answers start a short lockout.
 class RandomGatePage extends StatefulWidget {
   const RandomGatePage({super.key});
 
@@ -60,22 +56,16 @@ class RandomGatePage extends StatefulWidget {
 }
 
 class _RandomGatePageState extends State<RandomGatePage> {
-  static const _words = [
-    'ZERO',
-    'ONE',
-    'TWO',
-    'THREE',
-    'FOUR',
-    'FIVE',
-    'SIX',
-    'SEVEN',
-    'EIGHT',
-    'NINE',
-  ];
-  final _random = Random();
-  late List<int> _digits;
+  static const _lockoutDuration = Duration(seconds: 30);
+  late ParentGateQuestion _question;
   String _typed = '';
   bool _wrong = false;
+  int _failedAttempts = 0;
+  int _lockoutSecondsRemaining = 0;
+  DateTime? _lockedUntil;
+  Timer? _lockoutTimer;
+
+  bool get _isLocked => _lockedUntil?.isAfter(DateTime.now()) ?? false;
 
   @override
   void initState() {
@@ -84,33 +74,69 @@ class _RandomGatePageState extends State<RandomGatePage> {
   }
 
   void _roll() {
-    _digits = List.generate(3, (_) => _random.nextInt(10));
+    _question = generateParentGateQuestion();
     _typed = '';
     _wrong = false;
   }
 
   void _pressDigit(int digit) {
-    if (_typed.length >= _digits.length) return;
+    if (_typed.length >= 3 || _wrong || _isLocked) return;
     setState(() => _typed += '$digit');
-    if (_typed.length != _digits.length) return;
-    if (_typed == _digits.join()) {
+    if (int.parse(_typed) == _question.answer) {
       Navigator.pop(context, true);
-    } else {
-      setState(() => _wrong = true);
-      Future.delayed(const Duration(milliseconds: 700), () {
-        if (mounted) setState(_roll);
-      });
+      return;
     }
+    if (_typed.length != 3) return;
+
+    setState(() {
+      _wrong = true;
+      _failedAttempts++;
+      if (_failedAttempts >= 3) {
+        _lockedUntil = DateTime.now().add(_lockoutDuration);
+        _lockoutSecondsRemaining = _lockoutDuration.inSeconds;
+      }
+    });
+    if (_lockedUntil != null) _startLockoutTimer();
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) setState(_roll);
+    });
+  }
+
+  void _startLockoutTimer() {
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = _lockedUntil!.difference(DateTime.now()).inMilliseconds;
+      setState(() {
+        if (remaining <= 0) {
+          timer.cancel();
+          _lockedUntil = null;
+          _failedAttempts = 0;
+          _lockoutSecondsRemaining = 0;
+        } else {
+          _lockoutSecondsRemaining =
+              (remaining + 999) ~/ Duration.millisecondsPerSecond;
+        }
+      });
+    });
   }
 
   void _backspace() {
-    if (_typed.isEmpty || _wrong) return;
+    if (_typed.isEmpty || _wrong || _isLocked) return;
     setState(() => _typed = _typed.substring(0, _typed.length - 1));
   }
 
   @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final words = _digits.map((d) => _words[d]).join(', ');
     return Scaffold(
       appBar: AppBar(title: const Text('Grown-ups only')),
       body: SafeArea(
@@ -118,14 +144,16 @@ class _RandomGatePageState extends State<RandomGatePage> {
           builder: (context, constraints) {
             final landscape = constraints.maxWidth > constraints.maxHeight;
             final prompt = _GatePrompt(
-              words: words,
+              question: _question.expression,
               typed: _typed,
-              length: _digits.length,
               wrong: _wrong,
+              locked: _isLocked,
+              lockoutSecondsRemaining: _lockoutSecondsRemaining,
             );
             final keyboard = _GateKeyboard(
               onDigit: _pressDigit,
               onBackspace: _backspace,
+              enabled: !_wrong && !_isLocked,
             );
             return Padding(
               padding: const EdgeInsets.all(12),
@@ -154,16 +182,18 @@ class _RandomGatePageState extends State<RandomGatePage> {
 
 class _GatePrompt extends StatelessWidget {
   const _GatePrompt({
-    required this.words,
+    required this.question,
     required this.typed,
-    required this.length,
     required this.wrong,
+    required this.locked,
+    required this.lockoutSecondsRemaining,
   });
 
-  final String words;
+  final String question;
   final String typed;
-  final int length;
   final bool wrong;
+  final bool locked;
+  final int lockoutSecondsRemaining;
 
   @override
   Widget build(BuildContext context) {
@@ -182,15 +212,15 @@ class _GatePrompt extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           const Text(
-            'To continue, type these numbers:',
+            'Solve this to continue:',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Colors.black54),
           ),
           const SizedBox(height: 2),
           Text(
-            words,
+            question,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           AnimatedContainer(
@@ -208,7 +238,7 @@ class _GatePrompt extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: Text(
-              typed.padRight(length, '_').split('').join('  '),
+              typed.padRight(3, '_').split('').join('  '),
               style: const TextStyle(
                   fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 8),
             ),
@@ -217,11 +247,20 @@ class _GatePrompt extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.only(top: 4),
               child: Text(
-                "That's not it — here come new numbers.",
+                "That's not right. Here's a new question.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.red, fontSize: 12),
               ),
             ),
+          if (locked)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Please wait $lockoutSecondsRemaining seconds, then try again.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            )
         ],
       ),
     );
@@ -229,10 +268,15 @@ class _GatePrompt extends StatelessWidget {
 }
 
 class _GateKeyboard extends StatelessWidget {
-  const _GateKeyboard({required this.onDigit, required this.onBackspace});
+  const _GateKeyboard({
+    required this.onDigit,
+    required this.onBackspace,
+    required this.enabled,
+  });
 
   final ValueChanged<int> onDigit;
   final VoidCallback onBackspace;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -250,10 +294,15 @@ class _GateKeyboard extends StatelessWidget {
           childAspectRatio: aspectRatio,
           children: [
             for (var n = 1; n <= 9; n++)
-              _GateKey(label: '$n', onTap: () => onDigit(n)),
+              _GateKey(label: '$n', onTap: () => onDigit(n), enabled: enabled),
             const SizedBox.shrink(),
-            _GateKey(label: '0', onTap: () => onDigit(0)),
-            _GateKey(label: '⌫', onTap: onBackspace, isAction: true),
+            _GateKey(label: '0', onTap: () => onDigit(0), enabled: enabled),
+            _GateKey(
+              label: '⌫',
+              onTap: onBackspace,
+              isAction: true,
+              enabled: enabled,
+            ),
           ],
         );
       },
@@ -265,20 +314,24 @@ class _GateKey extends StatelessWidget {
   const _GateKey({
     required this.label,
     required this.onTap,
+    required this.enabled,
     this.isAction = false,
   });
   final String label;
   final VoidCallback onTap;
+  final bool enabled;
   final bool isAction;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isAction ? Colors.black.withValues(alpha: 0.05) : Colors.white,
+      color: isAction || !enabled
+          ? Colors.black.withValues(alpha: 0.05)
+          : Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
+        onTap: enabled ? onTap : null,
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(color: Colors.black12),
