@@ -38,6 +38,7 @@ class Activity {
     required this.title,
     required this.emoji,
     required this.questions,
+    this.minAge = 3,
   });
 
   /// Stable id, e.g. 'letters_a', 'numbers_07'. Used as the key in saved
@@ -47,6 +48,7 @@ class Activity {
   final String title;
   final String emoji;
   final List<QuizQuestion> questions;
+  final int minAge;
 }
 
 /// Everything one learning world (LearningModule.id) shows in its library.
@@ -110,7 +112,9 @@ String? recommendedActivityId({
   if (catalog == null) return null;
   final start = age >= 5 ? catalog.olderStartSection : 0;
   final candidates = catalog.activities.where(
-    (activity) => age > 4 || activity.sectionIndex <= catalog.youngMaxSection,
+    (activity) =>
+        age >= activity.minAge &&
+        (age > 4 || activity.sectionIndex <= catalog.youngMaxSection),
   );
   int stars(Activity a) => bestStars[a.id] ?? 0;
   for (final a in candidates) {
@@ -444,7 +448,7 @@ const worldCatalogs = <String, WorldCatalog>{
         QuizQuestion(
           prompt: 'Find the small letter j',
           visual: AnswerVisual.text,
-          hint: 'Small letters look a bit different. Look for "j" — it is called "jay".',
+          hint: 'Look for the small letter "j". It is called "jay".',
           options: [QuizOption('o'), QuizOption('j'), QuizOption('w')],
           answerIndex: 1,
         ),
@@ -476,7 +480,7 @@ const worldCatalogs = <String, WorldCatalog>{
         QuizQuestion(
           prompt: 'Find the small letter k',
           visual: AnswerVisual.text,
-          hint: 'Small letters look a bit different. Look for "k" — it is called "kay".',
+          hint: 'Look for the small letter "k". It is called "kay".',
           options: [QuizOption('p'), QuizOption('x'), QuizOption('k')],
           answerIndex: 2,
         ),
@@ -508,7 +512,7 @@ const worldCatalogs = <String, WorldCatalog>{
         QuizQuestion(
           prompt: 'Find the small letter l',
           visual: AnswerVisual.text,
-          hint: 'Small letters look a bit different. Look for "l" — it is called "ell".',
+          hint: 'Look for the small letter "l". It is called "ell".',
           options: [QuizOption('l'), QuizOption('q'), QuizOption('y')],
           answerIndex: 0,
         ),
@@ -540,7 +544,7 @@ const worldCatalogs = <String, WorldCatalog>{
         QuizQuestion(
           prompt: 'Find the small letter m',
           visual: AnswerVisual.text,
-          hint: 'Small letters look a bit different. Look for "m" — it is called "em".',
+          hint: 'Look for the small letter "m". It is called "em".',
           options: [QuizOption('r'), QuizOption('m'), QuizOption('z')],
           answerIndex: 1,
         ),
@@ -572,7 +576,7 @@ const worldCatalogs = <String, WorldCatalog>{
         QuizQuestion(
           prompt: 'Find the small letter n',
           visual: AnswerVisual.text,
-          hint: 'Small letters look a bit different. Look for "n" — it is called "en".',
+          hint: 'Look for the small letter "n". It is called "en".',
           options: [QuizOption('s'), QuizOption('a'), QuizOption('n')],
           answerIndex: 2,
         ),
@@ -604,7 +608,7 @@ const worldCatalogs = <String, WorldCatalog>{
         QuizQuestion(
           prompt: 'Find the small letter o',
           visual: AnswerVisual.text,
-          hint: 'Small letters look a bit different. Look for "o" — it is called "oh".',
+          hint: 'Look for the small letter "o". It is called "oh".',
           options: [QuizOption('o'), QuizOption('t'), QuizOption('b')],
           answerIndex: 0,
         ),
@@ -636,7 +640,7 @@ const worldCatalogs = <String, WorldCatalog>{
         QuizQuestion(
           prompt: 'Find the small letter p',
           visual: AnswerVisual.text,
-          hint: 'Small letters look a bit different. Look for "p" — it is called "pee".',
+          hint: 'Look for the small letter "p". It is called "pee".',
           options: [QuizOption('u'), QuizOption('p'), QuizOption('c')],
           answerIndex: 1,
         ),
@@ -668,7 +672,7 @@ const worldCatalogs = <String, WorldCatalog>{
         QuizQuestion(
           prompt: 'Find the small letter q',
           visual: AnswerVisual.text,
-          hint: 'Small letters look a bit different. Look for "q" — it is called "cue".',
+          hint: 'Look for the small letter "q". It is called "cue".',
           options: [QuizOption('v'), QuizOption('e'), QuizOption('q')],
           answerIndex: 2,
         ),
@@ -700,7 +704,7 @@ const worldCatalogs = <String, WorldCatalog>{
         QuizQuestion(
           prompt: 'Find the small letter r',
           visual: AnswerVisual.text,
-          hint: 'Small letters look a bit different. Look for "r" — it is called "are".',
+          hint: 'Look for the small letter "r". It is called "are".',
           options: [QuizOption('r'), QuizOption('w'), QuizOption('e')],
           answerIndex: 0,
         ),
@@ -1545,6 +1549,7 @@ const worldCatalogs = <String, WorldCatalog>{
       sectionIndex: 3,
       title: 'Make 10',
       emoji: '🔟',
+      minAge: 5,
       questions: [
         QuizQuestion(
           prompt: '7 + ? = 10',
@@ -1625,14 +1630,15 @@ const worldCatalogs = <String, WorldCatalog>{
           visual: AnswerVisual.shape,
           teach: 'A circle is round and smooth — like a wheel! ⚪',
           teachOption: QuizOption('circle', color: _blue),
-          hint: 'A circle is perfectly round, with no corners. Look for the round one!',
+          hint: 'A circle is round like a wheel. Tap the round one!',
           options: [QuizOption('circle', color: _blue), QuizOption('square', color: _orange), QuizOption('triangle', color: _green)],
           answerIndex: 0,
         ),
         QuizQuestion(
-          prompt: 'Which shape has no corners?',
+          prompt: 'Tap the circle',
           visual: AnswerVisual.shape,
-          hint: 'Corners are the pointy bits. Which shape is smooth all the way round?',
+          spokenText: 'Tap the circle.',
+          hint: 'The circle is round and smooth. Tap the circle.',
           options: [QuizOption('square', color: _orange), QuizOption('circle', color: _blue), QuizOption('triangle', color: _green)],
           answerIndex: 1,
         ),
@@ -1661,9 +1667,10 @@ const worldCatalogs = <String, WorldCatalog>{
           answerIndex: 1,
         ),
         QuizQuestion(
-          prompt: 'Which shape has 4 equal sides?',
+          prompt: 'Tap the square',
           visual: AnswerVisual.shape,
-          hint: 'Count the sides: 1, 2, 3, 4. Which shape has 4 sides the same?',
+          spokenText: 'Tap the square.',
+          hint: 'The square has four equal sides. Tap the square.',
           options: [QuizOption('circle', color: _blue), QuizOption('triangle', color: _green), QuizOption('square', color: _orange)],
           answerIndex: 2,
         ),
@@ -1692,9 +1699,10 @@ const worldCatalogs = <String, WorldCatalog>{
           answerIndex: 2,
         ),
         QuizQuestion(
-          prompt: 'Which shape has 3 corners?',
+          prompt: 'Tap the triangle',
           visual: AnswerVisual.shape,
-          hint: 'Count the corners: 1, 2, 3. Which shape has exactly 3?',
+          spokenText: 'Tap the triangle.',
+          hint: 'The triangle has three corners. Tap the triangle.',
           options: [QuizOption('triangle', color: _green), QuizOption('square', color: _orange), QuizOption('circle', color: _blue)],
           answerIndex: 0,
         ),
@@ -1745,24 +1753,27 @@ const worldCatalogs = <String, WorldCatalog>{
       emoji: '🌕',
       questions: [
         QuizQuestion(
-          prompt: 'Which one is round?',
+          prompt: 'Tap the ball ⚽',
           visual: AnswerVisual.picture,
-          teach: 'Lots of things are round like a circle! Let\'s find some. 🌕',
-          hint: 'Round things have no corners. Which one rolls?',
+          teach: 'A ball is round like a circle! Let\'s tap it. ⚽',
+          spokenText: 'Tap the ball.',
+          hint: 'The ball is round. Tap the ball.',
           options: [QuizOption('Gift', emoji: '🎁'), QuizOption('Ball', emoji: '⚽'), QuizOption('Pizza slice', emoji: '🍕')],
           answerIndex: 1,
         ),
         QuizQuestion(
-          prompt: 'Which one is round?',
+          prompt: 'Tap the cookie 🍪',
           visual: AnswerVisual.picture,
-          hint: 'Round things have no corners.',
+          spokenText: 'Tap the cookie.',
+          hint: 'The cookie is round like a circle.',
           options: [QuizOption('Tent', emoji: '⛺'), QuizOption('Box', emoji: '📦'), QuizOption('Cookie', emoji: '🍪')],
           answerIndex: 2,
         ),
         QuizQuestion(
-          prompt: 'Which one is NOT round?',
+          prompt: 'Tap the gift 🎁',
           visual: AnswerVisual.picture,
-          hint: 'Round things roll. Which one has corners?',
+          spokenText: 'Tap the gift.',
+          hint: 'The gift has corners. Tap the gift.',
           options: [QuizOption('Gift', emoji: '🎁'), QuizOption('Moon', emoji: '🌕'), QuizOption('Orange', emoji: '🍊')],
           answerIndex: 0,
         ),
@@ -1863,6 +1874,7 @@ const worldCatalogs = <String, WorldCatalog>{
       sectionIndex: 2,
       title: 'Count the sides',
       emoji: '✋',
+      minAge: 5,
       questions: [
         QuizQuestion(
           prompt: 'How many sides does a triangle have?',
@@ -1894,6 +1906,7 @@ const worldCatalogs = <String, WorldCatalog>{
       sectionIndex: 2,
       title: 'Odd one out',
       emoji: '🧐',
+      minAge: 5,
       questions: [
         QuizQuestion(
           prompt: '🔴 🔴 🔺\nWhich shape is different?',
@@ -1954,6 +1967,7 @@ const worldCatalogs = <String, WorldCatalog>{
       sectionIndex: 2,
       title: 'Shape mix-up',
       emoji: '🧩',
+      minAge: 5,
       questions: [
         QuizQuestion(
           prompt: 'Which shape has 4 corners?',
@@ -2244,6 +2258,7 @@ const worldCatalogs = <String, WorldCatalog>{
       sectionIndex: 2,
       title: 'Red + Yellow',
       emoji: '🟠',
+      minAge: 5,
       questions: [
         QuizQuestion(
           prompt: 'What color do red and yellow make?',
@@ -2275,6 +2290,7 @@ const worldCatalogs = <String, WorldCatalog>{
       sectionIndex: 2,
       title: 'Blue + Yellow',
       emoji: '🟢',
+      minAge: 5,
       questions: [
         QuizQuestion(
           prompt: 'What color do blue and yellow make?',
@@ -2306,6 +2322,7 @@ const worldCatalogs = <String, WorldCatalog>{
       sectionIndex: 2,
       title: 'Red + Blue',
       emoji: '🟣',
+      minAge: 5,
       questions: [
         QuizQuestion(
           prompt: 'What color do red and blue make?',
@@ -2337,6 +2354,7 @@ const worldCatalogs = <String, WorldCatalog>{
       sectionIndex: 2,
       title: 'Rainbow',
       emoji: '🌈',
+      minAge: 5,
       questions: [
         QuizQuestion(
           prompt: 'Which color comes first in the rainbow? 🌈',

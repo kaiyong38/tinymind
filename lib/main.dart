@@ -697,6 +697,29 @@ class _ActivityTile extends StatelessWidget {
                     ),
                   ),
                 ),
+              if (activity.minAge > 3)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      child: Text(
+                        '${activity.minAge}+',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -1381,9 +1404,8 @@ class _QuizPageState extends State<QuizPage> {
         ? _teachLeadIns[_questionNumber % _teachLeadIns.length]
         : _leadIns[_questionNumber % _leadIns.length];
     final displayedText = _teaching ? _question.teach! : _question.prompt;
-    final speechText = _question.spokenText == null
-        ? null
-        : '$lead ${_question.spokenText}';
+    final speechText =
+        _question.spokenText == null ? null : '$lead ${_question.spokenText}';
     NarrationService.instance.speak(
       '$lead $displayedText',
       spokenText: speechText,
@@ -2225,7 +2247,8 @@ class _ProgressPageState extends State<ProgressPage>
                         style: const TextStyle(
                             fontSize: 21, fontWeight: FontWeight.w900)),
                     const SizedBox(height: 3),
-                    Text('${progress.daysLearned} days played • $accuracy% correct',
+                    Text(
+                        '${progress.daysLearned} days played • $accuracy% correct',
                         style: const TextStyle(fontSize: 15)),
                   ],
                 ),

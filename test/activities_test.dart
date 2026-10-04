@@ -28,6 +28,7 @@ void main() {
       for (final a in catalog.activities) {
         expect(ids.add(a.id), isTrue, reason: 'duplicate id ${a.id}');
         expect(a.sectionIndex, lessThan(catalog.sections.length));
+        expect(a.minAge, greaterThanOrEqualTo(3), reason: a.id);
         expect(a.questions.length, 3, reason: a.id);
         for (final q in a.questions) {
           expect(q.options.length, 3, reason: a.id);
@@ -110,6 +111,41 @@ void main() {
         bestStars: allowedColorActivities,
       ),
       isNull,
+    );
+  });
+
+  test('abstract activities require age 5 and remain available to older kids',
+      () {
+    const ageFiveActivityIds = {
+      'numbers_19',
+      'shapes_09',
+      'shapes_10',
+      'shapes_12',
+      'colors_09',
+      'colors_10',
+      'colors_11',
+      'colors_12',
+    };
+    for (final id in ageFiveActivityIds) {
+      expect(activityById(id)?.minAge, 5, reason: id);
+      expect(activityById(id), isNotNull, reason: 'Keep $id manually playable');
+    }
+
+    final allEarlierColorsHaveThreeStars = {
+      for (final activity in worldCatalogs['colors']!.activities)
+        if (activity.id != 'colors_09' &&
+            activity.id != 'colors_10' &&
+            activity.id != 'colors_11' &&
+            activity.id != 'colors_12')
+          activity.id: 3,
+    };
+    expect(
+      recommendedActivityId(
+        worldId: 'colors',
+        age: 5,
+        bestStars: allEarlierColorsHaveThreeStars,
+      ),
+      'colors_09',
     );
   });
 }
