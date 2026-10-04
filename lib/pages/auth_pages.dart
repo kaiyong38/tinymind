@@ -1,11 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../services/progress_store.dart';
 import '../widgets/bouncy_tap.dart';
 import '../theme/tinymind_colors.dart';
+import 'privacy_policy_page.dart';
 import 'parent_gate_pages.dart';
 
 class WelcomePage extends StatelessWidget {
@@ -371,6 +373,10 @@ class _LoginPageState extends State<LoginPage> {
               ),
               child: const Text('Create a parent account'),
             ),
+            TextButton(
+              onPressed: () => openPrivacyPolicy(context),
+              child: const Text('Privacy Policy'),
+            ),
           ],
         ),
       );
@@ -391,6 +397,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirmPassword = TextEditingController();
   String? _error;
   bool _busy = false;
+  bool _acceptedPrivacyPolicy = false;
 
   @override
   void dispose() {
@@ -401,6 +408,11 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _submit() async {
+    if (!_acceptedPrivacyPolicy) {
+      setState(() => _error =
+          'Please agree to the Privacy Policy before creating an account.');
+      return;
+    }
     if (_email.text.trim().isEmpty || _password.text.length < 6) {
       setState(() => _error = 'Use an email and a password of 6+ characters.');
       return;
@@ -435,6 +447,26 @@ class _RegisterPageState extends State<RegisterPage> {
         fields: [_email, _password, _confirmPassword],
         hints: const ['Email address', 'Password', 'Confirm password'],
         onSubmit: _submit,
+        footer: Column(
+          children: [
+            CheckboxListTile(
+              value: _acceptedPrivacyPolicy,
+              onChanged: _busy
+                  ? null
+                  : (value) =>
+                      setState(() => _acceptedPrivacyPolicy = value ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'I am a parent or guardian and I agree to the Privacy Policy',
+              ),
+            ),
+            TextButton(
+              onPressed: () => openPrivacyPolicy(context),
+              child: const Text('Privacy Policy'),
+            ),
+          ],
+        ),
       );
 }
 
@@ -599,6 +631,11 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
   }
 
   Future<void> _continue() async {
+    if (!isValidNickname(_name.text)) {
+      setState(() => _error =
+          'Please enter a nickname of up to 20 characters with no spaces.');
+      return;
+    }
     final parent = widget.auth.currentUser;
     if (parent == null) {
       await Navigator.push(
@@ -659,7 +696,7 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
                 const SizedBox(height: 10),
                 Text(
                   signedIn
-                      ? 'Choose an avatar and name for your child.'
+                      ? 'Choose an avatar and nickname for your child.'
                       : 'Please ask a parent or teacher to log in before setting up a child profile.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 18, color: Colors.black54),
@@ -668,10 +705,17 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
                   const SizedBox(height: 24),
                   TextField(
                     controller: _name,
+                    maxLength: 20,
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(20),
+                      FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                    ],
                     style: const TextStyle(fontSize: 18),
                     textInputAction: TextInputAction.done,
                     decoration: const InputDecoration(
-                      labelText: 'Child’s name',
+                      labelText: 'Nickname',
+                      helperText:
+                          "Please use a nickname, not your child's real name.",
                       prefixIcon: Icon(Icons.person_rounded),
                       border: OutlineInputBorder(),
                     ),
@@ -803,7 +847,11 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
       ),
     );
   }
+
 }
+
+bool isValidNickname(String value) =>
+    value.isNotEmpty && value.length <= 20 && !RegExp(r'\s').hasMatch(value);
 
 class _ParentAuthScaffold extends StatelessWidget {
   const _ParentAuthScaffold({

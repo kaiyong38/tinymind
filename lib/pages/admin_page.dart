@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/activities.dart';
 import '../models/learning.dart';
 import '../services/accessibility_settings.dart';
@@ -8,6 +9,7 @@ import '../services/narration_service.dart';
 import '../widgets/bouncy_tap.dart';
 import 'auth_pages.dart';
 import 'child_detail_page.dart';
+import 'privacy_policy_page.dart';
 
 class AdminPage extends StatelessWidget {
   AdminPage({
@@ -41,6 +43,10 @@ class AdminPage extends StatelessWidget {
                   if (context.mounted) {
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   }
+                } else if (value == 'privacy_policy') {
+                  await openPrivacyPolicy(context);
+                } else if (value == 'delete_account') {
+                  await _deleteAccount(context, auth);
                 }
               },
               itemBuilder: (context) => const [
@@ -51,6 +57,17 @@ class AdminPage extends StatelessWidget {
                 PopupMenuItem(
                   value: 'sign_out',
                   child: Text('Sign out'),
+                ),
+                PopupMenuItem(
+                  value: 'privacy_policy',
+                  child: Text('Privacy Policy'),
+                ),
+                PopupMenuItem(
+                  value: 'delete_account',
+                  child: Text(
+                    'Delete account and all data',
+                    style: TextStyle(color: Colors.red),
+                  ),
                 ),
               ],
             ),
@@ -142,6 +159,91 @@ class AdminPage extends StatelessWidget {
           ],
         ),
       );
+}
+
+Future<void> _deleteAccount(BuildContext context, AuthService auth) async {
+  final passwordController = TextEditingController();
+  final password = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Verify your password'),
+      content: TextField(
+        controller: passwordController,
+        obscureText: true,
+        autofocus: true,
+        decoration: const InputDecoration(labelText: 'Password'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, passwordController.text),
+          child: const Text('Continue'),
+        ),
+      ],
+    ),
+  );
+  passwordController.dispose();
+  if (password == null || !context.mounted) return;
+
+  try {
+    await auth.reauthenticate(password);
+  } on FirebaseAuthException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'Password check failed.')),
+      );
+    }
+    return;
+  }
+  if (!context.mounted) return;
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Delete account and all data?'),
+      content: const Text(
+        'This permanently deletes your account, all learner profiles and '
+        'their learning progress. This cannot be undone.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Delete everything'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  try {
+    await auth.deleteAccountAndData();
+    if (context.mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => LoginPage(auth: auth)),
+        (_) => false,
+      );
+    }
+  } on FirebaseAuthException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'Unable to delete account.')),
+      );
+    }
+  } on FirebaseException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to delete all data: ${error.message}')),
+      );
+    }
+  }
 }
 
 class _VoiceStatusRow extends StatelessWidget {

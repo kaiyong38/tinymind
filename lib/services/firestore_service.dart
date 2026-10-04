@@ -64,6 +64,27 @@ class FirestoreService {
     await batch.commit();
   }
 
+  Future<void> deleteParentData(String parentUid) async {
+    final children = await _children(parentUid).get();
+    final references = <DocumentReference<Map<String, dynamic>>>[
+      for (final child in children.docs) ...[
+        ...((await child.reference.collection('progress').get())
+            .docs
+            .map((document) => document.reference)),
+        child.reference,
+      ],
+    ];
+    references.add(_firestore.collection('parents').doc(parentUid));
+
+    for (var start = 0; start < references.length; start += 400) {
+      final batch = _firestore.batch();
+      for (final reference in references.skip(start).take(400)) {
+        batch.delete(reference);
+      }
+      await batch.commit();
+    }
+  }
+
   /// One-time repair for children created before their profile started
   /// mirroring `age`/`completedByModule` onto the top-level document (the
   /// bug where an older child, e.g. one added before this fix shipped,
