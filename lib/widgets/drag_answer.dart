@@ -4,18 +4,10 @@ import '../models/learning.dart';
 import '../services/narration_service.dart';
 import 'quiz_visuals.dart';
 
-/// A controlled (stateless) drag-and-drop answer area: one empty slot the
-/// child drags a tile into, with the tray of draggable option tiles below
-/// it. Replaces the old tap-a-pill mechanic everywhere — letters, numbers,
-/// shapes and colours all answer the same way now.
-///
-/// Dragging a tile (or just tapping it, for a no-commitment "what is
-/// this?" preview) speaks that one option's name aloud — "three", "blue",
-/// "triangle" — via [NarrationService]. Dropping a tile into the slot
-/// reports the pick back through [onDrop]; this widget never decides
-/// right/wrong itself; [answered]/[selectedIndex] come from the parent so
-/// a "try again" reset is just a rebuild, no separate state to desync.
-class DragAnswerArea extends StatelessWidget {
+/// A controlled answer area that supports both dragging and tapping options.
+/// A tap previews and selects an option; tapping it again or the answer slot
+/// confirms it through the same callback used by drag-and-drop.
+class DragAnswerArea extends StatefulWidget {
   const DragAnswerArea({
     required this.question,
     required this.selectedIndex,
@@ -31,59 +23,258 @@ class DragAnswerArea extends StatelessWidget {
   final Color moduleColor;
   final void Function(int index) onDrop;
 
-  bool get _isCorrect => answered && selectedIndex == question.answerIndex;
-  bool get _isWrong => answered && selectedIndex != null && !_isCorrect;
+  @override
+  State<DragAnswerArea> createState() => _DragAnswerAreaState();
+}
+
+class _DragAnswerAreaState extends State<DragAnswerArea>
+    with TickerProviderStateMixin {
+  late List<GlobalKey> _tileKeys;
+  final GlobalKey _slotKey = GlobalKey(debugLabel: 'drag-answer-slot');
+  late final AnimationController _flightController;
+  late final AnimationController _hintController;
+  OverlayEntry? _flightEntry;
+  int? _tapSelectedIndex;
+  int? _flightIndex;
+  bool _animating = false;
+  bool _submitted = false;
+
+  bool get _interactionLocked => widget.answered || _animating || _submitted;
+
+  @override
+  void initState() {
+    super.initState();
+    _tileKeys = _createTileKeys();
+    _flightController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _hintController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 550),
+      lowerBound: 0.4,
+      upperBound: 1,
+    );
+  }
+
+  List<GlobalKey> _createTileKeys() => List.generate(
+        widget.question.options.length,
+        (index) => GlobalKey(debugLabel: 'drag-answer-option-$index'),
+      );
+
+  @override
+  void didUpdateWidget(covariant DragAnswerArea oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.question != widget.question ||
+        oldWidget.answered && !widget.answered) {
+      _tapSelectedIndex = null;
+      _submitted = false;
+      _flightIndex = null;
+      _hintController.stop();
+      _hintController.value = _hintController.lowerBound;
+      if (oldWidget.question.options.length != widget.question.options.length) {
+        _tileKeys = _createTileKeys();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _flightEntry?.remove();
+    _flightEntry?.dispose();
+    _flightController.dispose();
+    _hintController.dispose();
+    super.dispose();
+  }
+
+  void _activateOption(int index) {
+    if (_interactionLocked) return;
+    if (_tapSelectedIndex == index) {
+      _confirmSelection(index);
+      return;
+    }
+
+    NarrationService.instance
+        .speak(spokenLabelFor(widget.question.options[index]));
+    setState(() => _tapSelectedIndex = index);
+    _hintController.repeat(reverse: true);
+  }
+
+  void _acceptDrop(int index) {
+    if (_interactionLocked) return;
+    _submitted = true;
+    _tapSelectedIndex = null;
+    _hintController.stop();
+    widget.onDrop(index);
+  }
+
+  Future<void> _confirmSelection(int index) async {
+    if (_interactionLocked) return;
+    final tileObject = _tileKeys[index].currentContext?.findRenderObject();
+    final slotObject = _slotKey.currentContext?.findRenderObject();
+    final overlay = Overlay.maybeOf(context);
+    final overlayObject = overlay?.context.findRenderObject();
+    if (tileObject is! RenderBox ||
+        slotObject is! RenderBox ||
+        overlayObject is! RenderBox ||
+        overlay == null) {
+      _acceptDrop(index);
+      return;
+    }
+
+    final start =
+        tileObject.localToGlobal(Offset.zero, ancestor: overlayObject) &
+            tileObject.size;
+    final end = slotObject.localToGlobal(Offset.zero, ancestor: overlayObject) &
+        slotObject.size;
+    final option = widget.question.options[index];
+    final visual = widget.question.visual;
+    final color = widget.moduleColor;
+    setState(() {
+      _animating = true;
+      _flightIndex = index;
+    });
+
+    final entry = OverlayEntry(
+      builder: (context) => AnimatedBuilder(
+        animation: _flightController,
+        builder: (context, child) {
+          final rect = Rect.lerp(start, end, _flightController.value)!;
+          return Positioned.fromRect(rect: rect, child: child!);
+        },
+        child: IgnorePointer(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: start.width,
+              height: start.height,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border:
+                    Border.all(color: color.withValues(alpha: 0.5), width: 2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 5,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: buildQuizVisual(option, visual, size: start.width * 0.65),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    _flightEntry = entry;
+    overlay.insert(entry);
+    try {
+      await _flightController.forward();
+    } finally {
+      if (identical(_flightEntry, entry)) {
+        _flightEntry = null;
+        entry.remove();
+        entry.dispose();
+      }
+      _flightController.reset();
+      if (mounted) {
+        setState(() {
+          _animating = false;
+          _flightIndex = null;
+        });
+      }
+    }
+
+    if (!mounted || widget.answered || _submitted) return;
+    _submitted = true;
+    _tapSelectedIndex = null;
+    _hintController.stop();
+    widget.onDrop(index);
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      final tileSize = ((constraints.maxHeight - 12) / 2.2)
-          .clamp(52.0, 84.0)
-          .toDouble();
+      final tileSize =
+          ((constraints.maxHeight - 16) / 2.15).clamp(64.0, 84.0).toDouble();
       final slotSize = tileSize * 1.15;
+      final displayedIndex = widget.selectedIndex ?? _tapSelectedIndex;
       final slot = _Slot(
-        option: selectedIndex == null ? null : question.options[selectedIndex!],
-        visual: question.visual,
-        correct: _isCorrect,
-        wrong: _isWrong,
-        moduleColor: moduleColor,
+        option: displayedIndex == null
+            ? null
+            : widget.question.options[displayedIndex],
+        visual: widget.question.visual,
+        correct: widget.answered &&
+            widget.selectedIndex == widget.question.answerIndex,
+        wrong: widget.answered &&
+            widget.selectedIndex != null &&
+            widget.selectedIndex != widget.question.answerIndex,
+        moduleColor: widget.moduleColor,
         size: slotSize,
+        targetKey: _slotKey,
+        hint: _tapSelectedIndex != null && !widget.answered,
+        hintOpacity: _hintController.value,
+        onTap: _tapSelectedIndex == null || _interactionLocked
+            ? null
+            : () => _confirmSelection(_tapSelectedIndex!),
       );
       final tray = Wrap(
         alignment: WrapAlignment.center,
-        spacing: 12,
-        runSpacing: 12,
+        spacing: 16,
+        runSpacing: 16,
         children: [
-          for (var i = 0; i < question.options.length; i++)
+          for (var i = 0; i < widget.question.options.length; i++)
             _Tile(
+              key: _tileKeys[i],
               index: i,
-              option: question.options[i],
-              visual: question.visual,
-              moduleColor: moduleColor,
-              // A tile that's currently sitting in the slot fades out of
-              // the tray instead of sitting there twice.
-              placed: selectedIndex == i,
-              draggable: !answered,
+              option: widget.question.options[i],
+              visual: widget.question.visual,
+              moduleColor: widget.moduleColor,
+              placed: widget.selectedIndex == i,
+              selected: _tapSelectedIndex == i,
+              inFlight: _flightIndex == i,
+              draggable: !_interactionLocked,
+              enabled: !_interactionLocked,
               size: tileSize,
+              onTap: () => _activateOption(i),
             ),
         ],
       );
       return SizedBox.expand(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              DragTarget<int>(
-                onWillAcceptWithDetails: (_) => !answered,
-                onAcceptWithDetails: (details) => onDrop(details.data),
-                builder: (context, candidates, rejected) =>
-                    candidates.isNotEmpty ? slot.highlighted() : slot,
+        child: Center(
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  DragTarget<int>(
+                    key: const ValueKey('drag-answer-slot'),
+                    onWillAcceptWithDetails: (_) => !_interactionLocked,
+                    onAcceptWithDetails: (details) => _acceptDrop(details.data),
+                    builder: (context, candidates, rejected) {
+                      final target =
+                          candidates.isNotEmpty ? slot.highlighted() : slot;
+                      return AnimatedBuilder(
+                        animation: _hintController,
+                        builder: (context, child) => Opacity(
+                          opacity: slot.hint ? _hintController.value : 1,
+                          child: child,
+                        ),
+                        child: target,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  tray,
+                ],
               ),
-              const SizedBox(height: 12),
-              tray,
-            ],
+            ),
           ),
         ),
       );
@@ -99,15 +290,23 @@ class _Slot extends StatelessWidget {
     required this.wrong,
     required this.moduleColor,
     required this.size,
+    required this.hint,
+    required this.hintOpacity,
+    required this.onTap,
+    required this.targetKey,
     this.highlight = false,
   });
 
+  final GlobalKey targetKey;
   final QuizOption? option;
   final AnswerVisual visual;
   final bool correct;
   final bool wrong;
   final Color moduleColor;
   final double size;
+  final bool hint;
+  final double hintOpacity;
+  final VoidCallback? onTap;
   final bool highlight;
 
   _Slot highlighted() => _Slot(
@@ -117,6 +316,10 @@ class _Slot extends StatelessWidget {
         wrong: wrong,
         moduleColor: moduleColor,
         size: size,
+        hint: hint,
+        hintOpacity: hintOpacity,
+        onTap: onTap,
+        targetKey: targetKey,
         highlight: true,
       );
 
@@ -126,7 +329,7 @@ class _Slot extends StatelessWidget {
         ? Colors.green
         : wrong
             ? Colors.red
-            : highlight
+            : highlight || hint
                 ? moduleColor
                 : Colors.black26;
     final fillColor = correct
@@ -136,56 +339,80 @@ class _Slot extends StatelessWidget {
             : option != null
                 ? moduleColor.withValues(alpha: 0.10)
                 : Colors.black.withValues(alpha: 0.04);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: fillColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: borderColor, width: 3),
-      ),
-      child: option == null
-          ? Icon(Icons.north_rounded,
-              color: Colors.black26, size: size * 0.3)
-          : Stack(
-              alignment: Alignment.center,
-              children: [
-                Padding(
-                  padding: EdgeInsets.all(size * 0.09),
-                  child: buildQuizVisual(option!, visual, size: size * 0.72),
-                ),
-                if (correct || wrong)
-                  Positioned(
-                    right: -4,
-                    bottom: -4,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                          color: Colors.white, shape: BoxShape.circle),
-                      child: Icon(
-                        correct ? Icons.check_circle : Icons.cancel,
-                        color: correct ? Colors.green : Colors.red,
-                        size: size * 0.25,
-                      ),
-                    ),
+    return GestureDetector(
+      key: targetKey,
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        key: const ValueKey('drag-answer-slot-target'),
+        width: size,
+        height: size,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: fillColor,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: borderColor, width: hint ? 4 : 3),
+          ),
+          child: option == null
+              ? Opacity(
+                  opacity: hint ? hintOpacity : 1,
+                  child: Icon(
+                    hint ? Icons.touch_app_rounded : Icons.north_rounded,
+                    color: hint ? moduleColor : Colors.black26,
+                    size: size * 0.3,
                   ),
-              ],
-            ),
+                )
+              : Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.all(size * 0.09),
+                      child:
+                          buildQuizVisual(option!, visual, size: size * 0.72),
+                    ),
+                    if (correct || wrong)
+                      Positioned(
+                        right: -4,
+                        bottom: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            correct ? Icons.check_circle : Icons.cancel,
+                            color: correct ? Colors.green : Colors.red,
+                            size: size * 0.25,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+      ),
     );
   }
 }
 
 class _Tile extends StatelessWidget {
   const _Tile({
+    super.key,
     required this.index,
     required this.option,
     required this.visual,
     required this.moduleColor,
     required this.placed,
+    required this.selected,
+    required this.inFlight,
     required this.draggable,
+    required this.enabled,
     required this.size,
+    required this.onTap,
   });
 
   final int index;
@@ -193,48 +420,81 @@ class _Tile extends StatelessWidget {
   final AnswerVisual visual;
   final Color moduleColor;
   final bool placed;
+  final bool selected;
+  final bool inFlight;
   final bool draggable;
+  final bool enabled;
   final double size;
+  final VoidCallback onTap;
 
   void _preview() => NarrationService.instance.speak(spokenLabelFor(option));
 
   @override
   Widget build(BuildContext context) {
-    final card = Container(
+    final card = AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
       width: size,
       height: size,
       alignment: Alignment.center,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: selected ? moduleColor.withValues(alpha: 0.15) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: moduleColor.withValues(alpha: 0.5), width: 2),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 3)),
+        border: Border.all(
+          color: selected ? moduleColor : moduleColor.withValues(alpha: 0.5),
+          width: selected ? 4 : 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color:
+                selected ? moduleColor.withValues(alpha: 0.24) : Colors.black12,
+            blurRadius: selected ? 9 : 5,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       child: buildQuizVisual(option, visual, size: size * 0.65),
     );
 
+    final tile = SizedBox(
+      width: size,
+      height: size,
+      child: Semantics(
+        key: ValueKey('drag-answer-option-$index'),
+        button: true,
+        label: 'Option: ${spokenLabelFor(option)}, double tap to answer',
+        onTap: enabled ? onTap : null,
+        child: ExcludeSemantics(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: enabled ? onTap : null,
+            child: AnimatedScale(
+              scale: selected ? 1.08 : 1,
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOutBack,
+              child: card,
+            ),
+          ),
+        ),
+      ),
+    );
+
     if (placed) {
-      // Still occupies its spot in the tray (keeps the layout stable) but
-      // fades out since the same tile is now shown, full-strength, in the
-      // slot above.
-      return Opacity(opacity: 0.25, child: card);
+      return Opacity(opacity: 0.25, child: tile);
     }
 
-    return Draggable<int>(
-      data: index,
-      maxSimultaneousDrags: draggable ? 1 : 0,
-      onDragStarted: _preview,
-      feedback: Material(
-        color: Colors.transparent,
-        child: Transform.scale(scale: 1.1, child: card),
-      ),
-      childWhenDragging: Opacity(opacity: 0.35, child: card),
-      child: GestureDetector(
-        onTap: _preview,
-        child: card,
+    return Opacity(
+      opacity: inFlight ? 0.2 : 1,
+      child: Draggable<int>(
+        data: index,
+        maxSimultaneousDrags: draggable ? 1 : 0,
+        onDragStarted: _preview,
+        feedback: Material(
+          color: Colors.transparent,
+          child: Transform.scale(scale: 1.1, child: card),
+        ),
+        childWhenDragging: Opacity(opacity: 0.35, child: tile),
+        child: tile,
       ),
     );
   }
