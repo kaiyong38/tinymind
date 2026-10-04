@@ -1,12 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tinymind/main.dart';
 import 'package:tinymind/models/activities.dart';
 import 'package:tinymind/models/learning.dart';
+import 'package:tinymind/pages/admin_page.dart';
 import 'package:tinymind/pages/auth_pages.dart';
 import 'package:tinymind/pages/child_detail_page.dart';
+import 'package:tinymind/pages/parent_settings_page.dart';
 import 'package:tinymind/services/auth_service.dart';
+import 'package:tinymind/services/accessibility_settings.dart';
+import 'package:tinymind/services/firestore_service.dart';
+import 'package:tinymind/services/parent_gate_service.dart';
 import 'package:tinymind/services/progress_store.dart';
 import 'package:tinymind/widgets/drag_answer.dart';
 
@@ -158,6 +164,59 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('admin dashboard shows a complete child card at 640x360',
+      (tester) async {
+    tester.view.physicalSize = const Size(640, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_adminApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ava'), findsOneWidget);
+    final card = tester.getRect(find.byType(Card).first);
+    final appBar = tester.getRect(find.byType(AppBar));
+    expect(card.top, greaterThanOrEqualTo(appBar.bottom));
+    expect(card.bottom, lessThanOrEqualTo(360));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tapping a child opens details with Share report',
+      (tester) async {
+    tester.view.physicalSize = const Size(640, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_adminApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ava'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChildDetailPage), findsOneWidget);
+    expect(find.text('Share report'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('settings button opens parent settings in compact landscape',
+      (tester) async {
+    tester.view.physicalSize = const Size(640, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_adminApp());
+    await tester.pumpAndSettle();
+
+    final settingsButton = find.byTooltip('Settings');
+    expect(tester.getSize(settingsButton), const Size(48, 48));
+    await tester.tap(settingsButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ParentSettingsPage), findsOneWidget);
+    expect(find.text('Grown-up lock'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 void _ignoreAnswer(int index) {}
@@ -168,4 +227,94 @@ class _TestAuthService implements AuthService {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+Widget _adminApp() {
+  final settings = AccessibilitySettings();
+  final gateService = ParentGateService(
+    storage: _TestGateStorage(),
+    phoneAuthenticator: _TestPhoneAuthenticator(),
+  );
+  return AccessibilitySettingsScope(
+    settings: settings,
+    child: MaterialApp(
+      home: AdminPage(
+        parentUid: 'parent-1',
+        firestore: _TestFirestoreService(),
+        auth: _TestAuthService(),
+        gateService: gateService,
+      ),
+    ),
+  );
+}
+
+class _TestFirestoreService extends Fake implements FirestoreService {
+  final _child = _TestChildDocument();
+
+  @override
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchChildren(String parentUid) =>
+      Stream.value(_TestChildrenSnapshot([_child]));
+
+  @override
+  Future<Map<String, dynamic>?> loadProgress(
+    String parentUid,
+    String childId,
+  ) async =>
+      null;
+
+  @override
+  Future<void> backfillProfileFromProgress(
+    String parentUid,
+    String childId,
+  ) async {}
+}
+
+// ignore: subtype_of_sealed_class
+class _TestChildrenSnapshot extends Fake
+    implements QuerySnapshot<Map<String, dynamic>> {
+  _TestChildrenSnapshot(this.docs);
+
+  @override
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
+}
+
+// ignore: subtype_of_sealed_class
+class _TestChildDocument extends Fake
+    implements QueryDocumentSnapshot<Map<String, dynamic>> {
+  @override
+  String get id => 'child-1';
+
+  @override
+  Map<String, dynamic> data() => {
+        'name': 'Ava',
+        'avatar': '🐱',
+        'age': 4,
+        'points': 12,
+        'totalQuestions': 8,
+        'correctAnswers': 6,
+        'activityStars': <String, int>{},
+        'dailyStats': <String, dynamic>{},
+      };
+}
+
+class _TestGateStorage extends Fake implements ParentGateStorage {
+  @override
+  Future<ParentLockMethod?> readMethod() async => null;
+
+  @override
+  Future<void> writeMethod(ParentLockMethod method) async {}
+
+  @override
+  Future<String?> readPinRecord() async => null;
+
+  @override
+  Future<void> writePinRecord(String record) async {}
+}
+
+class _TestPhoneAuthenticator extends Fake implements ParentPhoneAuthenticator {
+  @override
+  Future<bool> isDeviceSupported() async => false;
+
+  @override
+  Future<bool> authenticate() async => false;
 }

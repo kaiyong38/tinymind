@@ -4,7 +4,7 @@ class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
 
   static const lastUpdated = '4 October 2026';
-  static const contactEmail = '[YOUR CONTACT EMAIL]';
+  static const contactEmail = 'kaiyong38@gmail.com';
 
   static const sections = <MapEntry<String, String>>[
     MapEntry(

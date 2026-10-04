@@ -31,6 +31,7 @@ void main() {
       expect(find.text(title), findsOneWidget);
     }
     expect(find.text('Last updated: 4 October 2026'), findsOneWidget);
+    expect(find.textContaining('kaiyong38@gmail.com'), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsOneWidget);
   });
 

@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/activities.dart';
 import '../models/learning.dart';
-import '../services/accessibility_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
-import '../services/narration_service.dart';
 import '../services/parent_gate_service.dart';
 import '../widgets/bouncy_tap.dart';
 import 'auth_pages.dart';
 import 'child_detail_page.dart';
+import 'parent_settings_page.dart';
 import 'privacy_policy_page.dart';
 
 class AdminPage extends StatelessWidget {
@@ -31,6 +30,20 @@ class AdminPage extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Learning dashboard'),
           actions: [
+            IconButton(
+              tooltip: 'Settings',
+              constraints: const BoxConstraints(
+                minWidth: 48,
+                minHeight: 48,
+              ),
+              icon: const Icon(Icons.settings_rounded),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => ParentSettingsPage(gateService: gateService),
+                ),
+              ),
+            ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.account_circle_rounded),
               tooltip: 'Account',
@@ -78,212 +91,93 @@ class AdminPage extends StatelessWidget {
             ),
           ],
         ),
-        body: Column(
-          children: [
-            const _VoiceStatusRow(),
-            const _ColorFriendlyModeRow(),
-            _GrownUpLockSection(service: gateService),
-            Expanded(
-              child: StreamBuilder(
-                stream: firestore.watchChildren(parentUid),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'Unable to load children: ${snapshot.error}',
-                          textAlign: TextAlign.center,
-                        ),
+        body: StreamBuilder(
+          stream: firestore.watchChildren(parentUid),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Unable to load children: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final children = snapshot.data!.docs;
+            if (children.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'No child profiles yet.\nSet up a learner to see progress here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              );
+            }
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 700 ? 2 : 1;
+                final aspectRatio = columns == 2 ? 1.15 : 1.05;
+                const padding = 20.0;
+                const spacing = 16.0;
+                final cardHeight =
+                    (constraints.maxHeight - padding * 2).clamp(0.0, double.infinity);
+                final widthToFitHeight =
+                    cardHeight * aspectRatio * columns +
+                        spacing * (columns - 1) +
+                        padding * 2;
+                final gridWidth =
+                    widthToFitHeight < constraints.maxWidth
+                        ? widthToFitHeight
+                        : constraints.maxWidth;
+                return Center(
+                  child: SizedBox(
+                    width: gridWidth,
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(padding),
+                      itemCount: children.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        crossAxisSpacing: spacing,
+                        mainAxisSpacing: spacing,
+                        childAspectRatio: aspectRatio,
                       ),
-                    );
-                  }
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final children = snapshot.data!.docs;
-                  if (children.isEmpty) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text(
-                          'No child profiles yet.\nSet up a learner to see progress here.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      ),
-                    );
-                  }
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      final columns = constraints.maxWidth >= 700 ? 2 : 1;
-                      return GridView.builder(
-                        padding: const EdgeInsets.all(20),
-                        itemCount: children.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: columns,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          // Shorter (taller-relative-to-width) than before: the
-                          // card now also shows age, accuracy and a per-world
-                          // row, so it needs more vertical room to avoid
-                          // clipping its own content.
-                          childAspectRatio: columns == 2 ? 1.15 : 1.05,
-                        ),
-                        itemBuilder: (_, index) {
-                          final doc = children[index];
-                          final data = doc.data();
-                          if (data['age'] == null ||
-                              data['activityStars'] == null) {
-                            // Fire-and-forget: this child's profile predates the
-                            // age/activity sync, so pull it from saved progress.
-                            // The stream picks up the write automatically.
-                            firestore.backfillProfileFromProgress(
-                                parentUid, doc.id);
-                          }
-                          return BouncyTap(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute<void>(
-                                builder: (_) => ChildDetailPage(
-                                  parentUid: parentUid,
-                                  childId: doc.id,
-                                  summary: data,
-                                  firestore: firestore,
-                                ),
+                      itemBuilder: (_, index) {
+                        final doc = children[index];
+                        final data = doc.data();
+                        if (data['age'] == null ||
+                            data['activityStars'] == null) {
+                          firestore.backfillProfileFromProgress(
+                              parentUid, doc.id);
+                        }
+                        return BouncyTap(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => ChildDetailPage(
+                                parentUid: parentUid,
+                                childId: doc.id,
+                                summary: data,
+                                firestore: firestore,
                               ),
                             ),
-                            child: _ChildProgressCard(data: data),
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
-class _GrownUpLockSection extends StatefulWidget {
-  const _GrownUpLockSection({required this.service});
-
-  final ParentGateService service;
-
-  @override
-  State<_GrownUpLockSection> createState() => _GrownUpLockSectionState();
-}
-
-class _GrownUpLockSectionState extends State<_GrownUpLockSection> {
-  late Future<ParentLockMethod?> _method;
-  late Future<bool> _phoneSupported;
-
-  @override
-  void initState() {
-    super.initState();
-    _refresh();
-  }
-
-  void _refresh() {
-    _method = widget.service.selectedMethod;
-    _phoneSupported = widget.service.canUsePhoneUnlock;
-  }
-
-  Future<void> _showResult(String message) async {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _usePhone() async {
-    try {
-      final changed = await widget.service.usePhoneUnlock();
-      if (!mounted) return;
-      if (changed) {
-        setState(_refresh);
-      } else {
-        await _showResult('Set up a phone screen lock before choosing this.');
-      }
-    } catch (error) {
-      await _showResult('Could not change the grown-up lock: $error');
-    }
-  }
-
-  Future<void> _usePin() async {
-    try {
-      final changed = await widget.service.usePin(context);
-      if (!mounted || !changed) return;
-      setState(_refresh);
-    } catch (error) {
-      await _showResult('Could not save the PIN: $error');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-        child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Grown-up lock',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-              ),
-              FutureBuilder<ParentLockMethod?>(
-                future: _method,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return const Text('Current method: Could not load');
-                  }
-                  if (!snapshot.hasData) {
-                    return const Text('Current method: Loading...');
-                  }
-                  final label = switch (snapshot.data) {
-                    ParentLockMethod.phone => 'Phone unlock',
-                    ParentLockMethod.pin => '4-digit PIN',
-                    _ => 'Not set up',
-                  };
-                  return Text('Current method: $label');
-                },
-              ),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  FutureBuilder<bool>(
-                    future: _phoneSupported,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return Text(
-                          'Phone unlock is unavailable: ${snapshot.error}',
+                          ),
+                          child: _ChildProgressCard(data: data),
                         );
-                      }
-                      return OutlinedButton.icon(
-                        onPressed: snapshot.data == true ? _usePhone : null,
-                        icon: const Icon(Icons.fingerprint_rounded),
-                        label: const Text('Use phone unlock'),
-                      );
-                    },
+                      },
+                    ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: _usePin,
-                    icon: const Icon(Icons.dialpad_rounded),
-                    label: const Text('Use a 4-digit PIN'),
-                  ),
-                  TextButton(
-                    onPressed: _usePin,
-                    child: const Text('Change PIN'),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                );
+              },
+            );
+          },
         ),
       );
 }
@@ -375,81 +269,6 @@ Future<void> _deleteAccount(
         SnackBar(content: Text('Unable to delete all data: ${error.message}')),
       );
     }
-  }
-}
-
-class _VoiceStatusRow extends StatelessWidget {
-  const _VoiceStatusRow();
-
-  @override
-  Widget build(BuildContext context) {
-    final voiceAvailable = NarrationService.instance.voiceAvailable;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: Row(
-        children: [
-          Icon(
-            voiceAvailable ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-            color: voiceAvailable ? Colors.green : Colors.redAccent,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Voice: ${voiceAvailable ? 'Ready' : 'Not available'}',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-          OutlinedButton.icon(
-            onPressed: voiceAvailable
-                ? () => NarrationService.instance
-                    .speak('This is TinyMind. Can you hear me?')
-                : null,
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('Play test voice'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ColorFriendlyModeRow extends StatefulWidget {
-  const _ColorFriendlyModeRow();
-
-  @override
-  State<_ColorFriendlyModeRow> createState() => _ColorFriendlyModeRowState();
-}
-
-class _ColorFriendlyModeRowState extends State<_ColorFriendlyModeRow> {
-  bool _saving = false;
-
-  Future<void> _save(AccessibilitySettings settings, bool enabled) async {
-    setState(() => _saving = true);
-    try {
-      await settings.setColorFriendlyMode(enabled);
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save setting: $error')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final settings = AccessibilitySettingsScope.of(context);
-    return SwitchListTile(
-      title: const Text('Color-friendly mode'),
-      subtitle: const Text(
-        'Adds patterns and names to colors for children '
-        'who have trouble telling colors apart.',
-      ),
-      value: settings.colorFriendlyMode,
-      onChanged: _saving ? null : (enabled) => _save(settings, enabled),
-    );
   }
 }
 
@@ -698,10 +517,10 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: color, size: 23),
-        const SizedBox(width: 5),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+        Icon(icon, color: color, size: 20),
         const SizedBox(width: 4),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+        const SizedBox(width: 3),
         Flexible(
           child: Text(
             label,
