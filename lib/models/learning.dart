@@ -127,6 +127,8 @@ class UserProgress {
   final Map<String, List<int>> dailyStats;
   final Map<String, int> activityStars;
 
+  int get daysLearned => dailyStats.length;
+
   int get streak {
     final today = DateTime.now();
     final todayKey = _dateKey(today);
@@ -149,6 +151,7 @@ class UserProgress {
 
   Map<String, dynamic> toJson() => {
         'points': points,
+        'daysLearned': daysLearned,
         'streak': streak,
         'todayQuestions': todayQuestions,
         'totalQuestions': totalQuestions,

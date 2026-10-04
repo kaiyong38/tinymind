@@ -17,11 +17,25 @@ class NarrationService {
   static const MethodChannel _audioFocusChannel =
       MethodChannel('tinymind/speech_audio_focus');
   bool _ready = false;
+  bool _voiceAvailable = false;
   int _speakId = 0;
+
+  bool get voiceAvailable => _voiceAvailable;
 
   Future<void> init() async {
     if (_ready) return;
     _ready = true;
+    try {
+      final engines = await _tts.getEngines;
+      final hasEngine = engines is List && engines.isNotEmpty;
+      final hasEnglishVoice =
+          hasEngine && await _tts.isLanguageAvailable('en-US') == true;
+      _voiceAvailable = hasEngine && hasEnglishVoice;
+    } catch (_) {
+      _voiceAvailable = false;
+      // If the platform cannot report its TTS engine, treat voice as absent.
+    }
+    if (!_voiceAvailable) return;
     try {
       await _tts.setLanguage('en-US');
       await _tts.setSpeechRate(0.5);
@@ -29,8 +43,7 @@ class NarrationService {
       await _tts.setVolume(1.0);
       await _tts.awaitSpeakCompletion(true);
     } catch (_) {
-      // If the platform has no TTS engine available, narration silently
-      // becomes a no-op rather than crashing the app.
+      // Keep app startup working if an optional voice setting is unsupported.
     }
   }
 

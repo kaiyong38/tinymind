@@ -14,11 +14,11 @@ class AchievementPage extends StatelessWidget {
             icon: Icons.waving_hand,
             unlocked: progress.totalQuestions > 0),
         Achievement(
-            id: 'streak',
-            title: 'On a roll',
-            description: 'Build a 3-day streak',
-            icon: Icons.local_fire_department,
-            unlocked: progress.streak >= 3),
+            id: 'days_played',
+            title: 'Three-day explorer',
+            description: 'Play on 3 different days',
+            icon: Icons.calendar_month_rounded,
+            unlocked: progress.daysLearned >= 3),
         Achievement(
             id: 'stars',
             title: 'Star learner',

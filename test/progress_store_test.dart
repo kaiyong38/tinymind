@@ -52,6 +52,22 @@ void main() {
     );
   });
 
+  test('daysLearned counts distinct recorded days, even when not consecutive',
+      () {
+    final progress = UserProgress(dailyStats: {
+      '2026-01-01': [2, 1],
+      '2026-01-04': [5, 3],
+      '2026-02-12': [1, 1],
+    });
+    final sameDayMultipleAnswers = UserProgress(dailyStats: {
+      '2026-03-08': [8, 6],
+    });
+
+    expect(progress.daysLearned, 3);
+    expect(sameDayMultipleAnswers.daysLearned, 1);
+    expect(progress.toJson()['daysLearned'], 3);
+  });
+
   test('recordActivityResult only replaces a best score with more stars',
       () async {
     SharedPreferences.setMockInitialValues({});

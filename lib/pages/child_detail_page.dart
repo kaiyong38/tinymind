@@ -109,10 +109,10 @@ class _DetailBody extends StatelessWidget {
                     _MiniStat(Icons.star_rounded, '${progress.points}',
                         'points', const Color(0xFFFFB703)),
                     _MiniStat(
-                        Icons.local_fire_department_rounded,
-                        '${progress.streak}',
-                        'day streak',
-                        const Color(0xFFFF715B)),
+                        Icons.calendar_month_rounded,
+                        '${progress.daysLearned}',
+                        'Days played',
+                        const Color(0xFF4ECDC4)),
                   ],
                 ),
               ],
@@ -276,7 +276,7 @@ class _DetailBody extends StatelessWidget {
       parts.add('Not tried yet: ${untried.map((m) => m.title).join(', ')}.');
     }
     if (parts.isEmpty) {
-      parts.add('Great all-round progress — keep the daily streak going!');
+      parts.add('Great all-round progress — try another activity together!');
     }
     return parts.join(' ');
   }

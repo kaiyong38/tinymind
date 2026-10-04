@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'models/learning.dart';
@@ -141,9 +142,56 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
       // anything grown-up-only is reachable.
       home: _loading
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-          : WelcomePage(store: _store),
+          : _VoiceAvailabilityNotice(child: WelcomePage(store: _store)),
     );
   }
+}
+
+class _VoiceAvailabilityNotice extends StatefulWidget {
+  const _VoiceAvailabilityNotice({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_VoiceAvailabilityNotice> createState() =>
+      _VoiceAvailabilityNoticeState();
+}
+
+class _VoiceAvailabilityNoticeState extends State<_VoiceAvailabilityNotice> {
+  static const _noticeShownKey = 'tinymind_voice_unavailable_notice_shown';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkVoice());
+  }
+
+  Future<void> _checkVoice() async {
+    if (NarrationService.instance.voiceAvailable) return;
+    final preferences = await SharedPreferences.getInstance();
+    if (preferences.getBool(_noticeShownKey) == true || !mounted) return;
+    await preferences.setBool(_noticeShownKey, true);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Voice not available'),
+        content: const Text(
+          'This device has no voice installed. Ask a grown-up to install '
+          'Google Text-to-Speech, then restart TinyMind.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// The tabbed Play / Stars / Grown-ups shell for a specific, already
@@ -799,8 +847,8 @@ class _HomeHeader extends StatelessWidget {
                       text: '${progress.points}',
                     ),
                     _HeaderChip(
-                      icon: Icons.local_fire_department_rounded,
-                      text: '${progress.streak} day streak',
+                      icon: Icons.calendar_month_rounded,
+                      text: '${progress.daysLearned} days played',
                     ),
                   ],
                 ),
@@ -894,10 +942,10 @@ class _HomeStats extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _HomeStat(
-            icon: Icons.local_fire_department_rounded,
-            value: '${progress.streak}',
-            label: 'Streak',
-            color: const Color(0xFFFF715B),
+            icon: Icons.calendar_month_rounded,
+            value: '${progress.daysLearned}',
+            label: 'Days played',
+            color: const Color(0xFF4ECDC4),
           ),
         ),
         const SizedBox(width: 10),
@@ -2158,7 +2206,7 @@ class _ProgressPageState extends State<ProgressPage>
                         style: const TextStyle(
                             fontSize: 21, fontWeight: FontWeight.w900)),
                     const SizedBox(height: 3),
-                    Text('${progress.streak} day streak • $accuracy% correct',
+                    Text('${progress.daysLearned} days played • $accuracy% correct',
                         style: const TextStyle(fontSize: 15)),
                   ],
                 ),
@@ -2187,9 +2235,9 @@ class _ProgressPageState extends State<ProgressPage>
                 earned: progress.totalQuestions > 0,
               ),
               _BadgeData(
-                icon: Icons.local_fire_department,
-                label: 'On a roll',
-                earned: progress.streak >= 3,
+                icon: Icons.calendar_month_rounded,
+                label: 'Three-day explorer',
+                earned: progress.daysLearned >= 3,
               ),
               _BadgeData(
                 icon: Icons.star,
@@ -2316,8 +2364,8 @@ class ParentPage extends StatelessWidget {
                     value:
                         '${store.progress.totalQuestions == 0 ? 0 : (store.progress.correctAnswers / store.progress.totalQuestions * 100).round()}%'),
                 _OverviewRow(
-                    label: 'Current streak',
-                    value: '${store.progress.streak} days'),
+                    label: 'Days played',
+                    value: '${store.progress.daysLearned}'),
               ],
             ),
           ),

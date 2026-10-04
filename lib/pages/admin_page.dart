@@ -3,6 +3,7 @@ import '../models/activities.dart';
 import '../models/learning.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/narration_service.dart';
 import '../widgets/bouncy_tap.dart';
 import 'auth_pages.dart';
 import 'child_detail_page.dart';
@@ -54,82 +55,126 @@ class AdminPage extends StatelessWidget {
             ),
           ],
         ),
-        body: StreamBuilder(
-          stream: firestore.watchChildren(parentUid),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Unable to load children: ${snapshot.error}',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              );
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final children = snapshot.data!.docs;
-            if (children.isEmpty) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
-                    'No child profiles yet.\nSet up a learner to see progress here.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              );
-            }
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 700 ? 2 : 1;
-                return GridView.builder(
-                  padding: const EdgeInsets.all(20),
-                  itemCount: children.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    // Shorter (taller-relative-to-width) than before: the
-                    // card now also shows age, accuracy and a per-world
-                    // row, so it needs more vertical room to avoid
-                    // clipping its own content.
-                    childAspectRatio: columns == 2 ? 1.15 : 1.05,
-                  ),
-                  itemBuilder: (_, index) {
-                    final doc = children[index];
-                    final data = doc.data();
-                    if (data['age'] == null || data['activityStars'] == null) {
-                      // Fire-and-forget: this child's profile predates the
-                      // age/activity sync, so pull it from saved progress.
-                      // The stream picks up the write automatically.
-                      firestore.backfillProfileFromProgress(parentUid, doc.id);
-                    }
-                    return BouncyTap(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => ChildDetailPage(
-                            parentUid: parentUid,
-                            childId: doc.id,
-                            summary: data,
-                            firestore: firestore,
-                          ),
+        body: Column(
+          children: [
+            const _VoiceStatusRow(),
+            Expanded(
+              child: StreamBuilder(
+                stream: firestore.watchChildren(parentUid),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          'Unable to load children: ${snapshot.error}',
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                      child: _ChildProgressCard(data: data),
                     );
-                  },
-                );
-              },
-            );
-          },
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final children = snapshot.data!.docs;
+                  if (children.isEmpty) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'No child profiles yet.\nSet up a learner to see progress here.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    );
+                  }
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = constraints.maxWidth >= 700 ? 2 : 1;
+                      return GridView.builder(
+                        padding: const EdgeInsets.all(20),
+                        itemCount: children.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          // Shorter (taller-relative-to-width) than before: the
+                          // card now also shows age, accuracy and a per-world
+                          // row, so it needs more vertical room to avoid
+                          // clipping its own content.
+                          childAspectRatio: columns == 2 ? 1.15 : 1.05,
+                        ),
+                        itemBuilder: (_, index) {
+                          final doc = children[index];
+                          final data = doc.data();
+                          if (data['age'] == null ||
+                              data['activityStars'] == null) {
+                            // Fire-and-forget: this child's profile predates the
+                            // age/activity sync, so pull it from saved progress.
+                            // The stream picks up the write automatically.
+                            firestore.backfillProfileFromProgress(
+                                parentUid, doc.id);
+                          }
+                          return BouncyTap(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => ChildDetailPage(
+                                  parentUid: parentUid,
+                                  childId: doc.id,
+                                  summary: data,
+                                  firestore: firestore,
+                                ),
+                              ),
+                            ),
+                            child: _ChildProgressCard(data: data),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       );
+}
+
+class _VoiceStatusRow extends StatelessWidget {
+  const _VoiceStatusRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final voiceAvailable = NarrationService.instance.voiceAvailable;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      child: Row(
+        children: [
+          Icon(
+            voiceAvailable ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+            color: voiceAvailable ? Colors.green : Colors.redAccent,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Voice: ${voiceAvailable ? 'Ready' : 'Not available'}',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: voiceAvailable
+                ? () => NarrationService.instance
+                    .speak('This is TinyMind. Can you hear me?')
+                : null,
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text('Play test voice'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ChildProgressCard extends StatelessWidget {
@@ -143,9 +188,9 @@ class _ChildProgressCard extends StatelessWidget {
     final avatar = data['avatar'] as String? ?? '🧒';
     final age = _number(data['age']);
     final points = _number(data['points']);
-    final streak = UserProgress.fromJson({
+    final daysLearned = UserProgress.fromJson({
       'dailyStats': data['dailyStats'],
-    }).streak;
+    }).daysLearned;
     final totalQuestions = _number(data['totalQuestions']);
     final correctAnswers = _number(data['correctAnswers']);
     final accuracy =
@@ -234,10 +279,10 @@ class _ChildProgressCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _Stat(
-                      icon: Icons.local_fire_department_rounded,
-                      value: '$streak',
-                      label: 'Days',
-                      color: const Color(0xFFFF715B),
+                      icon: Icons.calendar_month_rounded,
+                      value: '$daysLearned',
+                      label: 'Days played',
+                      color: const Color(0xFF4ECDC4),
                     ),
                   ),
                   const SizedBox(width: 10),
