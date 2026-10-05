@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:tinymind/app_info.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
 
   static const lastUpdated = '4 October 2026';
-  static const contactEmail = 'kaiyong38@gmail.com';
 
   static const sections = <MapEntry<String, String>>[
     MapEntry(
@@ -54,7 +54,7 @@ class PrivacyPolicyPage extends StatelessWidget {
     ),
     MapEntry(
       'Contact',
-      'For privacy questions, contact us at $contactEmail.',
+      'For privacy questions, contact us at ${AppInfo.supportEmail}.',
     ),
   ];
 

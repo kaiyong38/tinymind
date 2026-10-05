@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tinymind/app_info.dart';
 
 import '../services/auth_service.dart';
 import '../services/progress_store.dart';
@@ -528,6 +529,25 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         error: _error,
         success: _success,
         busy: _busy,
+        footer: const Padding(
+          padding: EdgeInsets.only(top: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                "We'll email a reset link. Please check your Spam folder too.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Need help? Contact ${AppInfo.supportEmail}',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+            ],
+          ),
+        ),
         onSubmit: _submit,
       );
 }

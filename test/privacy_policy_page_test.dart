@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tinymind/app_info.dart';
 import 'package:tinymind/pages/auth_pages.dart';
 import 'package:tinymind/pages/privacy_policy_page.dart';
 import 'package:tinymind/services/auth_service.dart';
@@ -31,7 +32,28 @@ void main() {
       expect(find.text(title), findsOneWidget);
     }
     expect(find.text('Last updated: 4 October 2026'), findsOneWidget);
-    expect(find.textContaining('kaiyong38@gmail.com'), findsOneWidget);
+    expect(find.textContaining(AppInfo.supportEmail), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+  });
+
+  testWidgets('forgot password shows reset guidance and support email',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+          home: ForgotPasswordPage(
+              auth: AuthService(auth: _UnusedFirebaseAuth()))),
+    );
+
+    expect(
+      find.text(
+        "We'll email a reset link. Please check your Spam folder too.",
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Need help? Contact ${AppInfo.supportEmail}'),
+      findsOneWidget,
+    );
     expect(find.byType(SingleChildScrollView), findsOneWidget);
   });
 
