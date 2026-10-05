@@ -27,6 +27,7 @@ import 'package:tinymind/services/progress_store.dart';
 import 'package:tinymind/theme/app_theme.dart';
 import 'package:tinymind/widgets/drag_answer.dart';
 import 'package:tinymind/widgets/emoji_glyph.dart';
+import 'package:tinymind/widgets/question_cue_card.dart';
 import 'package:tinymind/widgets/text_scale_limit.dart';
 
 final _theme = buildAppTheme();
@@ -409,6 +410,59 @@ void main() {
           _expectClippedChildrenWithinParents(
             tester,
             '${screen.name}, $size, ${scale}x',
+          );
+        }
+      }
+    }
+  });
+
+  testWidgets('all Shape cue cards fit small landscape and 1.6 text scale',
+      (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const sizes = [Size(568, 320), Size(640, 360)];
+    final questions = worldCatalogs['shapes']!
+        .activities
+        .expand((activity) => activity.questions)
+        .toList();
+
+    for (final question in questions) {
+      for (final size in sizes) {
+        for (final scale in [1.0, 1.6]) {
+          await pumpScreen(
+            tester,
+            Scaffold(
+              appBar: AppBar(toolbarHeight: 48),
+              body: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: QuestionCueCard(
+                        question: question,
+                        worldColor: Colors.teal,
+                        onReplay: () {},
+                        revealDifference: question.cue is ShapeRowCue,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(flex: 4, child: SizedBox.shrink()),
+                  ],
+                ),
+              ),
+            ),
+            size,
+            scale,
+          );
+          _expectNoException(
+            tester,
+            'QuestionCueCard ${question.cue!.runtimeType}, $size, ${scale}x',
+          );
+          _expectClippedChildrenWithinParents(
+            tester,
+            'QuestionCueCard ${question.cue!.runtimeType}, $size, ${scale}x',
           );
         }
       }

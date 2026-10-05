@@ -9,6 +9,113 @@ enum AnswerVisual {
   picture,
 }
 
+enum PlayType {
+  lookListen,
+  findSame,
+  sayName,
+  realWorld,
+  concept,
+}
+
+enum CueShapeStyle {
+  solid,
+  silhouette,
+  dashed,
+}
+
+enum ShapeKind {
+  circle,
+  square,
+  triangle,
+  star,
+}
+
+sealed class QuizCue {
+  const QuizCue();
+
+  String get identityKey;
+}
+
+final class EmojiCue extends QuizCue {
+  const EmojiCue(this.emoji);
+
+  final String emoji;
+
+  @override
+  String get identityKey => 'emoji:$emoji';
+}
+
+final class ShapeCue extends QuizCue {
+  const ShapeCue(
+    this.shape, {
+    this.color = const Color(0xFF3A86FF),
+    this.style = CueShapeStyle.solid,
+    this.numberSides = false,
+    this.colorSides = false,
+    this.markCorners = false,
+  });
+
+  final ShapeKind shape;
+  final Color color;
+  final CueShapeStyle style;
+  final bool numberSides;
+  final bool colorSides;
+  final bool markCorners;
+
+  @override
+  String get identityKey => 'shape:${style.name}:${shape.name}';
+}
+
+final class ShapeRowCue extends QuizCue {
+  const ShapeRowCue({
+    required this.shapes,
+    required this.differentIndex,
+    required this.color,
+  });
+
+  final List<ShapeKind> shapes;
+  final int differentIndex;
+  final Color color;
+
+  @override
+  String get identityKey =>
+      'row:${shapes.map((shape) => shape.name).join(',')}:$differentIndex:${color.toARGB32()}';
+}
+
+final class NightSkyCue extends QuizCue {
+  const NightSkyCue({this.showMoon = true});
+
+  final bool showMoon;
+
+  @override
+  String get identityKey => 'scene:night-sky:moon=$showMoon';
+}
+
+final class CornerMarksCue extends QuizCue {
+  const CornerMarksCue(this.count);
+
+  final int count;
+
+  @override
+  String get identityKey => 'corner-marks:$count';
+}
+
+final class EdgeMarksCue extends QuizCue {
+  const EdgeMarksCue(this.count);
+
+  final int count;
+
+  @override
+  String get identityKey => 'edge-marks:$count';
+}
+
+final class RollingSlopeCue extends QuizCue {
+  const RollingSlopeCue();
+
+  @override
+  String get identityKey => 'rolling-slope';
+}
+
 class QuizOption {
   const QuizOption(this.label, {this.color, this.emoji, this.count});
 
@@ -16,6 +123,12 @@ class QuizOption {
   final Color? color;
   final String? emoji;
   final int? count;
+
+  String identityKeyFor(AnswerVisual visual) {
+    if (emoji != null) return 'emoji:$emoji';
+    if (visual == AnswerVisual.shape) return 'shape:solid:$label';
+    return 'label:${label.toLowerCase()}';
+  }
 }
 
 class QuizQuestion {
@@ -28,6 +141,8 @@ class QuizQuestion {
     this.spokenText,
     this.teachOption,
     this.hint,
+    this.playType,
+    this.cue,
   });
 
   final String prompt;
@@ -38,6 +153,8 @@ class QuizQuestion {
   final String? spokenText;
   final QuizOption? teachOption;
   final String? hint;
+  final PlayType? playType;
+  final QuizCue? cue;
 }
 
 class LearningModule {

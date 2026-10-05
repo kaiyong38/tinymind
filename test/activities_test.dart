@@ -22,6 +22,25 @@ void main() {
     expect(worldCatalogs['colors']!.activities.length, 12);
   });
 
+  test('activity ids match the stable ordered snapshot', () {
+    final expectedIds = [
+      ...'abcdefghijklmnopqrstuvwxyz'.split('').map((letter) => 'letters_$letter'),
+      for (var number = 1; number <= 20; number++)
+        'numbers_${number.toString().padLeft(2, '0')}',
+      for (var number = 1; number <= 12; number++)
+        'shapes_${number.toString().padLeft(2, '0')}',
+      for (var number = 1; number <= 12; number++)
+        'colors_${number.toString().padLeft(2, '0')}',
+    ];
+    expect(
+      worldCatalogs.values
+          .expand((catalog) => catalog.activities)
+          .map((activity) => activity.id)
+          .toList(),
+      expectedIds,
+    );
+  });
+
   test('ids are unique and every activity has 3 valid questions', () {
     final ids = <String>{};
     for (final catalog in worldCatalogs.values) {

@@ -5,11 +5,8 @@
 // Stars are earned from how many questions the child gets right on the first
 // try (see [starsForScore]); every activity can be replayed at any time.
 //
-// Reuses [QuizQuestion] / [QuizOption] / [AnswerVisual] from learning.dart.
-// REQUIRES one addition to learning.dart: a new `AnswerVisual.picture` value
-// that draws a single large emoji (QuizOption.emoji) with no letter/number
-// over it. Add that (and handle it in every `switch (visual)`) before
-// importing this file.
+// Reuses [QuizQuestion], [QuizOption], [AnswerVisual], and [QuizCue] from
+// learning.dart. Left-card cues are rendered independently from answer tiles.
 import 'package:flutter/material.dart';
 
 import 'learning.dart';
@@ -22,6 +19,7 @@ const _orange = Color(0xFFFF8C42);
 const _purple = Color(0xFFA78BFA);
 const _pink = Color(0xFFFF8FAB);
 const _brown = Color(0xFF8D6748);
+const _shapeRed = Color(0xFFE84855);
 
 /// A heading that groups several activities in the library grid.
 class LearningSection {
@@ -1619,380 +1617,666 @@ const worldCatalogs = <String, WorldCatalog>{
       LearningSection(title: 'Shape challenges', emoji: '🧩'),
     ],
     activities: [
-    Activity(
-      id: 'shapes_01',
-      sectionIndex: 0,
-      title: 'Circle',
-      emoji: '⚪',
-      questions: [
-        QuizQuestion(
-          prompt: 'Tap the circle',
-          visual: AnswerVisual.shape,
-          teach: 'A circle is round and smooth — like a wheel! ⚪',
-          teachOption: QuizOption('circle', color: _blue),
-          hint: 'A circle is round like a wheel. Tap the round one!',
-          options: [QuizOption('circle', color: _blue), QuizOption('square', color: _orange), QuizOption('triangle', color: _green)],
-          answerIndex: 0,
-        ),
-        QuizQuestion(
-          prompt: 'Tap the circle',
-          visual: AnswerVisual.shape,
-          spokenText: 'Tap the circle.',
-          hint: 'The circle is round and smooth. Tap the circle.',
-          options: [QuizOption('square', color: _orange), QuizOption('circle', color: _blue), QuizOption('triangle', color: _green)],
-          answerIndex: 1,
-        ),
-        QuizQuestion(
-          prompt: 'Which one is round like a circle?',
-          visual: AnswerVisual.picture,
-          hint: 'Look for the round one, like a circle.',
-          options: [QuizOption('Gift', emoji: '🎁'), QuizOption('Tent', emoji: '⛺'), QuizOption('Ball', emoji: '⚽')],
-          answerIndex: 2,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_02',
-      sectionIndex: 0,
-      title: 'Square',
-      emoji: '⬛',
-      questions: [
-        QuizQuestion(
-          prompt: 'Tap the square',
-          visual: AnswerVisual.shape,
-          teach: 'A square has 4 sides that are all the same length! ⬛',
-          teachOption: QuizOption('square', color: _orange),
-          hint: 'A square has 4 corners and 4 sides that are all the same length.',
-          options: [QuizOption('triangle', color: _green), QuizOption('square', color: _orange), QuizOption('circle', color: _blue)],
-          answerIndex: 1,
-        ),
-        QuizQuestion(
-          prompt: 'Tap the square',
-          visual: AnswerVisual.shape,
-          spokenText: 'Tap the square.',
-          hint: 'The square has four equal sides. Tap the square.',
-          options: [QuizOption('circle', color: _blue), QuizOption('triangle', color: _green), QuizOption('square', color: _orange)],
-          answerIndex: 2,
-        ),
-        QuizQuestion(
-          prompt: 'Which one looks like a square?',
-          visual: AnswerVisual.picture,
-          hint: 'A square box has 4 corners. Which one is like a box?',
-          options: [QuizOption('Gift', emoji: '🎁'), QuizOption('Cookie', emoji: '🍪'), QuizOption('Pizza slice', emoji: '🍕')],
-          answerIndex: 0,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_03',
-      sectionIndex: 0,
-      title: 'Triangle',
-      emoji: '🔺',
-      questions: [
-        QuizQuestion(
-          prompt: 'Tap the triangle',
-          visual: AnswerVisual.shape,
-          teach: 'A triangle has 3 sides and 3 pointy corners! 🔺',
-          teachOption: QuizOption('triangle', color: _green),
-          hint: 'A triangle has 3 pointy corners. Look for the pointy one!',
-          options: [QuizOption('star', color: _yellow), QuizOption('circle', color: _blue), QuizOption('triangle', color: _green)],
-          answerIndex: 2,
-        ),
-        QuizQuestion(
-          prompt: 'Tap the triangle',
-          visual: AnswerVisual.shape,
-          spokenText: 'Tap the triangle.',
-          hint: 'The triangle has three corners. Tap the triangle.',
-          options: [QuizOption('triangle', color: _green), QuizOption('square', color: _orange), QuizOption('circle', color: _blue)],
-          answerIndex: 0,
-        ),
-        QuizQuestion(
-          prompt: 'Which one looks like a triangle?',
-          visual: AnswerVisual.picture,
-          hint: 'A pizza slice has a pointy end, like a triangle.',
-          options: [QuizOption('Cookie', emoji: '🍪'), QuizOption('Pizza slice', emoji: '🍕'), QuizOption('Gift', emoji: '🎁')],
-          answerIndex: 1,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_04',
-      sectionIndex: 0,
-      title: 'Star',
-      emoji: '⭐',
-      questions: [
-        QuizQuestion(
-          prompt: 'Tap the star',
-          visual: AnswerVisual.shape,
-          teach: 'A star has pointy tips and twinkles in the sky! ⭐',
-          teachOption: QuizOption('star', color: _yellow),
-          hint: 'A star has pointy tips that stick out. Look for the twinkly one!',
-          options: [QuizOption('star', color: _yellow), QuizOption('circle', color: _blue), QuizOption('square', color: _orange)],
-          answerIndex: 0,
-        ),
-        QuizQuestion(
-          prompt: 'Which shape twinkles in the night sky?',
-          visual: AnswerVisual.shape,
-          hint: 'Look up at night! Which shape shines in the sky?',
-          options: [QuizOption('triangle', color: _green), QuizOption('star', color: _yellow), QuizOption('circle', color: _blue)],
-          answerIndex: 1,
-        ),
-        QuizQuestion(
-          prompt: 'Which one is a star?',
-          visual: AnswerVisual.picture,
-          hint: 'A star has pointy tips all around.',
-          options: [QuizOption('Moon', emoji: '🌕'), QuizOption('Cloud', emoji: '☁️'), QuizOption('Star', emoji: '⭐')],
-          answerIndex: 2,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_05',
-      sectionIndex: 1,
-      title: 'Round things',
-      emoji: '🌕',
-      questions: [
-        QuizQuestion(
-          prompt: 'Tap the ball ⚽',
-          visual: AnswerVisual.picture,
-          teach: 'A ball is round like a circle! Let\'s tap it. ⚽',
-          spokenText: 'Tap the ball.',
-          hint: 'The ball is round. Tap the ball.',
-          options: [QuizOption('Gift', emoji: '🎁'), QuizOption('Ball', emoji: '⚽'), QuizOption('Pizza slice', emoji: '🍕')],
-          answerIndex: 1,
-        ),
-        QuizQuestion(
-          prompt: 'Tap the cookie 🍪',
-          visual: AnswerVisual.picture,
-          spokenText: 'Tap the cookie.',
-          hint: 'The cookie is round like a circle.',
-          options: [QuizOption('Tent', emoji: '⛺'), QuizOption('Box', emoji: '📦'), QuizOption('Cookie', emoji: '🍪')],
-          answerIndex: 2,
-        ),
-        QuizQuestion(
-          prompt: 'Tap the gift 🎁',
-          visual: AnswerVisual.picture,
-          spokenText: 'Tap the gift.',
-          hint: 'The gift has corners. Tap the gift.',
-          options: [QuizOption('Gift', emoji: '🎁'), QuizOption('Moon', emoji: '🌕'), QuizOption('Orange', emoji: '🍊')],
-          answerIndex: 0,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_06',
-      sectionIndex: 1,
-      title: 'Square things',
-      emoji: '📦',
-      questions: [
-        QuizQuestion(
-          prompt: 'Which one is shaped like a square?',
-          visual: AnswerVisual.picture,
-          teach: 'Boxes and presents have square sides! 📦',
-          hint: 'A square has 4 corners. Look for a box shape.',
-          options: [QuizOption('Ball', emoji: '⚽'), QuizOption('Pizza slice', emoji: '🍕'), QuizOption('Gift', emoji: '🎁')],
-          answerIndex: 2,
-        ),
-        QuizQuestion(
-          prompt: 'Which one has corners?',
-          visual: AnswerVisual.picture,
-          hint: 'Corners are the pointy bits where sides meet.',
-          options: [QuizOption('Box', emoji: '📦'), QuizOption('Orange', emoji: '🍊'), QuizOption('Moon', emoji: '🌕')],
-          answerIndex: 0,
-        ),
-        QuizQuestion(
-          prompt: 'Which one looks like a square?',
-          visual: AnswerVisual.picture,
-          hint: 'A frame has 4 straight sides, like a square.',
-          options: [QuizOption('Ball', emoji: '⚽'), QuizOption('Picture frame', emoji: '🖼️'), QuizOption('Cookie', emoji: '🍪')],
-          answerIndex: 1,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_07',
-      sectionIndex: 1,
-      title: 'Pointy things',
-      emoji: '⛺',
-      questions: [
-        QuizQuestion(
-          prompt: 'Which one is pointy like a triangle?',
-          visual: AnswerVisual.picture,
-          teach: 'Some things are pointy like a triangle! ⛺',
-          hint: 'A triangle has pointy corners. Which one has a pointy end?',
-          options: [QuizOption('Pizza slice', emoji: '🍕'), QuizOption('Ball', emoji: '⚽'), QuizOption('Cookie', emoji: '🍪')],
-          answerIndex: 0,
-        ),
-        QuizQuestion(
-          prompt: 'Which one is like a triangle?',
-          visual: AnswerVisual.picture,
-          hint: 'A tent has a pointy top, just like a triangle.',
-          options: [QuizOption('Orange', emoji: '🍊'), QuizOption('Tent', emoji: '⛺'), QuizOption('Moon', emoji: '🌕')],
-          answerIndex: 1,
-        ),
-        QuizQuestion(
-          prompt: 'Which one is a triangle?',
-          visual: AnswerVisual.picture,
-          hint: 'A triangle has 3 corners.',
-          options: [QuizOption('Circle', emoji: '🔴'), QuizOption('Square', emoji: '⬛'), QuizOption('Triangle', emoji: '🔺')],
-          answerIndex: 2,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_08',
-      sectionIndex: 1,
-      title: 'Twinkly things',
-      emoji: '🌟',
-      questions: [
-        QuizQuestion(
-          prompt: 'Which one is a star shape?',
-          visual: AnswerVisual.picture,
-          teach: 'Stars twinkle in the night sky! 🌟',
-          hint: 'A star has pointy tips all around.',
-          options: [QuizOption('Ball', emoji: '⚽'), QuizOption('Star', emoji: '⭐'), QuizOption('Gift', emoji: '🎁')],
-          answerIndex: 1,
-        ),
-        QuizQuestion(
-          prompt: 'Which one is a star?',
-          visual: AnswerVisual.picture,
-          hint: 'Look for the pointy tips.',
-          options: [QuizOption('Cookie', emoji: '🍪'), QuizOption('Box', emoji: '📦'), QuizOption('Glowing star', emoji: '🌟')],
-          answerIndex: 2,
-        ),
-        QuizQuestion(
-          prompt: 'Which one shines in the night sky?',
-          visual: AnswerVisual.picture,
-          hint: 'Look up at night! What twinkles up there?',
-          options: [QuizOption('Star', emoji: '⭐'), QuizOption('Pizza slice', emoji: '🍕'), QuizOption('Gift', emoji: '🎁')],
-          answerIndex: 0,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_09',
-      sectionIndex: 2,
-      title: 'Count the sides',
-      emoji: '✋',
-      minAge: 5,
-      questions: [
-        QuizQuestion(
-          prompt: 'How many sides does a triangle have?',
-          visual: AnswerVisual.text,
-          teach: 'Sides are the straight edges of a shape. A triangle has 3 sides!',
-          teachOption: QuizOption('3'),
-          hint: 'Trace around the triangle with your finger: 1, 2, 3.',
-          options: [QuizOption('2'), QuizOption('4'), QuizOption('3')],
-          answerIndex: 2,
-        ),
-        QuizQuestion(
-          prompt: 'How many sides does a square have?',
-          visual: AnswerVisual.text,
-          hint: 'Trace around the square with your finger: 1, 2, 3, 4.',
-          options: [QuizOption('4'), QuizOption('3'), QuizOption('5')],
-          answerIndex: 0,
-        ),
-        QuizQuestion(
-          prompt: 'How many straight sides does a circle have?',
-          visual: AnswerVisual.text,
-          hint: 'A circle is round all the way — it has no straight sides.',
-          options: [QuizOption('1'), QuizOption('0'), QuizOption('2')],
-          answerIndex: 1,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_10',
-      sectionIndex: 2,
-      title: 'Odd one out',
-      emoji: '🧐',
-      minAge: 5,
-      questions: [
-        QuizQuestion(
-          prompt: '🔴 🔴 🔺\nWhich shape is different?',
-          visual: AnswerVisual.shape,
-          teach: 'Some shapes are the same and one is different. Let\'s spot it! 🧐',
-          hint: 'Two shapes are the same. Which one is not like the others?',
-          options: [QuizOption('triangle', color: _green), QuizOption('circle', color: _blue), QuizOption('square', color: _orange)],
-          answerIndex: 0,
-        ),
-        QuizQuestion(
-          prompt: '⬛ 🔺 ⬛\nWhich shape is different?',
-          visual: AnswerVisual.shape,
-          hint: 'Two shapes are the same. Which one is not like the others?',
-          options: [QuizOption('square', color: _orange), QuizOption('triangle', color: _green), QuizOption('circle', color: _blue)],
-          answerIndex: 1,
-        ),
-        QuizQuestion(
-          prompt: '🔺 🔺 🔴\nWhich shape is different?',
-          visual: AnswerVisual.shape,
-          hint: 'Two shapes are the same. Which one is not like the others?',
-          options: [QuizOption('triangle', color: _green), QuizOption('square', color: _orange), QuizOption('circle', color: _blue)],
-          answerIndex: 2,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_11',
-      sectionIndex: 2,
-      title: 'Same shape',
-      emoji: '👀',
-      questions: [
-        QuizQuestion(
-          prompt: 'Tap the same shape\n🔺',
-          visual: AnswerVisual.shape,
-          teach: 'Let\'s match shapes! Find the one that looks the same. 👀',
-          hint: 'Look at the shape at the top. Which one looks just like it?',
-          options: [QuizOption('circle', color: _blue), QuizOption('triangle', color: _green), QuizOption('square', color: _orange)],
-          answerIndex: 1,
-        ),
-        QuizQuestion(
-          prompt: 'Tap the same shape\n🔴',
-          visual: AnswerVisual.shape,
-          hint: 'Look at the shape at the top. Which one looks just like it?',
-          options: [QuizOption('square', color: _orange), QuizOption('triangle', color: _green), QuizOption('circle', color: _blue)],
-          answerIndex: 2,
-        ),
-        QuizQuestion(
-          prompt: 'Tap the same shape\n⬛',
-          visual: AnswerVisual.shape,
-          hint: 'Look at the shape at the top. Which one looks just like it?',
-          options: [QuizOption('square', color: _orange), QuizOption('circle', color: _blue), QuizOption('triangle', color: _green)],
-          answerIndex: 0,
-        ),
-      ],
-    ),
-    Activity(
-      id: 'shapes_12',
-      sectionIndex: 2,
-      title: 'Shape mix-up',
-      emoji: '🧩',
-      minAge: 5,
-      questions: [
-        QuizQuestion(
-          prompt: 'Which shape has 4 corners?',
-          visual: AnswerVisual.shape,
-          teach: 'Let\'s use everything we know about shapes! 🧩',
-          hint: 'Count the corners: 1, 2, 3, 4.',
-          options: [QuizOption('circle', color: _blue), QuizOption('triangle', color: _green), QuizOption('square', color: _orange)],
-          answerIndex: 2,
-        ),
-        QuizQuestion(
-          prompt: 'Which shape rolls the best?',
-          visual: AnswerVisual.shape,
-          hint: 'Shapes with corners get stuck. Which one is smooth and round?',
-          options: [QuizOption('circle', color: _blue), QuizOption('square', color: _orange), QuizOption('triangle', color: _green)],
-          answerIndex: 0,
-        ),
-        QuizQuestion(
-          prompt: 'Which shape has 3 sides?',
-          visual: AnswerVisual.shape,
-          hint: 'Count the sides: 1, 2, 3.',
-          options: [QuizOption('square', color: _orange), QuizOption('triangle', color: _green), QuizOption('circle', color: _blue)],
-          answerIndex: 1,
-        ),
-      ],
-    ),
+      Activity(
+        id: 'shapes_01',
+        sectionIndex: 0,
+        title: 'Circle',
+        emoji: '⚪',
+        questions: [
+          QuizQuestion(
+            prompt: 'Circle',
+            playType: PlayType.lookListen,
+            cue: ShapeCue(ShapeKind.circle, color: _blue),
+            visual: AnswerVisual.shape,
+            teach: 'A circle is round.',
+            spokenText: 'This is a circle. It is round like a wheel.',
+            teachOption: QuizOption('circle', color: _blue),
+            hint: 'Look for the round one.',
+            options: [
+              QuizOption('circle', color: _blue),
+              QuizOption('square', color: _orange),
+              QuizOption('triangle', color: _green)
+            ],
+            answerIndex: 0,
+          ),
+          QuizQuestion(
+            prompt: 'Match shape',
+            playType: PlayType.findSame,
+            cue: ShapeCue(
+              ShapeKind.circle,
+              style: CueShapeStyle.silhouette,
+            ),
+            visual: AnswerVisual.shape,
+            spokenText: 'Find the shape that matches this circle.',
+            hint: 'Match the dark circle.',
+            options: [
+              QuizOption('square', color: _orange),
+              QuizOption('circle', color: _blue),
+              QuizOption('triangle', color: _green)
+            ],
+            answerIndex: 1,
+          ),
+          QuizQuestion(
+            prompt: 'Which looks round?',
+            playType: PlayType.realWorld,
+            cue: ShapeCue(ShapeKind.circle, color: _blue),
+            visual: AnswerVisual.picture,
+            spokenText: 'Which object is round like this circle?',
+            hint: 'Look for the round object.',
+            options: [
+              QuizOption('Gift', emoji: '🎁'),
+              QuizOption('Tent', emoji: '⛺'),
+              QuizOption('Ball', emoji: '⚽')
+            ],
+            answerIndex: 2,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_02',
+        sectionIndex: 0,
+        title: 'Square',
+        emoji: '⬛',
+        questions: [
+          QuizQuestion(
+            prompt: 'Square',
+            playType: PlayType.lookListen,
+            cue: ShapeCue(ShapeKind.square, color: _orange),
+            visual: AnswerVisual.shape,
+            teach: 'A square has four equal sides.',
+            spokenText: 'This is a square. It has four equal sides.',
+            teachOption: QuizOption('square', color: _orange),
+            hint: 'Find four equal sides.',
+            options: [
+              QuizOption('triangle', color: _green),
+              QuizOption('square', color: _orange),
+              QuizOption('circle', color: _blue)
+            ],
+            answerIndex: 1,
+          ),
+          QuizQuestion(
+            prompt: 'Match shape',
+            playType: PlayType.findSame,
+            cue: ShapeCue(
+              ShapeKind.square,
+              style: CueShapeStyle.silhouette,
+            ),
+            visual: AnswerVisual.shape,
+            spokenText: 'Find the shape that matches this square.',
+            hint: 'Match the dark square.',
+            options: [
+              QuizOption('circle', color: _blue),
+              QuizOption('triangle', color: _green),
+              QuizOption('square', color: _orange)
+            ],
+            answerIndex: 2,
+          ),
+          QuizQuestion(
+            prompt: 'Which looks square?',
+            playType: PlayType.realWorld,
+            cue: ShapeCue(ShapeKind.square, color: _orange),
+            visual: AnswerVisual.picture,
+            spokenText: 'Which object looks like this square?',
+            hint: 'Look for four corners.',
+            options: [
+              QuizOption('Gift', emoji: '🎁'),
+              QuizOption('Cookie', emoji: '🍪'),
+              QuizOption('Pizza slice', emoji: '🍕')
+            ],
+            answerIndex: 0,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_03',
+        sectionIndex: 0,
+        title: 'Triangle',
+        emoji: '🔺',
+        questions: [
+          QuizQuestion(
+            prompt: 'Triangle',
+            playType: PlayType.lookListen,
+            cue: ShapeCue(ShapeKind.triangle, color: _green),
+            visual: AnswerVisual.shape,
+            teach: 'A triangle has three sides.',
+            spokenText: 'This is a triangle. It has three sides.',
+            teachOption: QuizOption('triangle', color: _green),
+            hint: 'Look for three pointy corners.',
+            options: [
+              QuizOption('star', color: _yellow),
+              QuizOption('circle', color: _blue),
+              QuizOption('triangle', color: _green)
+            ],
+            answerIndex: 2,
+          ),
+          QuizQuestion(
+            prompt: 'Match shape',
+            playType: PlayType.findSame,
+            cue: ShapeCue(
+              ShapeKind.triangle,
+              style: CueShapeStyle.silhouette,
+            ),
+            visual: AnswerVisual.shape,
+            spokenText: 'Find the shape that matches this triangle.',
+            hint: 'Match the dark triangle.',
+            options: [
+              QuizOption('triangle', color: _green),
+              QuizOption('square', color: _orange),
+              QuizOption('circle', color: _blue)
+            ],
+            answerIndex: 0,
+          ),
+          QuizQuestion(
+            prompt: 'Which looks pointy?',
+            playType: PlayType.realWorld,
+            cue: ShapeCue(ShapeKind.triangle, color: _green),
+            visual: AnswerVisual.picture,
+            spokenText: 'Which object is pointy like this shape?',
+            hint: 'Find the pointy object.',
+            options: [
+              QuizOption('Cookie', emoji: '🍪'),
+              QuizOption('Pizza slice', emoji: '🍕'),
+              QuizOption('Gift', emoji: '🎁')
+            ],
+            answerIndex: 1,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_04',
+        sectionIndex: 0,
+        title: 'Star',
+        emoji: '⭐',
+        questions: [
+          QuizQuestion(
+            prompt: 'Star',
+            playType: PlayType.lookListen,
+            cue: ShapeCue(ShapeKind.star, color: _yellow),
+            visual: AnswerVisual.shape,
+            teach: 'Stars twinkle in the sky.',
+            spokenText: 'This is a star. It twinkles in the sky.',
+            teachOption: QuizOption('star', color: _yellow),
+            hint: 'Look for the pointy tips.',
+            options: [
+              QuizOption('star', color: _yellow),
+              QuizOption('circle', color: _blue),
+              QuizOption('square', color: _orange)
+            ],
+            answerIndex: 0,
+          ),
+          QuizQuestion(
+            prompt: 'Match shape',
+            playType: PlayType.findSame,
+            cue: ShapeCue(
+              ShapeKind.star,
+              color: _shapeRed,
+              style: CueShapeStyle.silhouette,
+            ),
+            visual: AnswerVisual.shape,
+            spokenText: 'Find the shape that matches this star.',
+            hint: 'Match the dark star.',
+            options: [
+              QuizOption('triangle', color: _green),
+              QuizOption('star', color: _yellow),
+              QuizOption('circle', color: _blue)
+            ],
+            answerIndex: 1,
+          ),
+          QuizQuestion(
+            prompt: 'Twinkles?',
+            playType: PlayType.realWorld,
+            cue: EmojiCue('✨'),
+            visual: AnswerVisual.picture,
+            spokenText: 'Which one twinkles in the night sky?',
+            hint: 'Find what twinkles at night.',
+            options: [
+              QuizOption('Moon', emoji: '🌕'),
+              QuizOption('Cloud', emoji: '☁️'),
+              QuizOption('Star', emoji: '⭐')
+            ],
+            answerIndex: 2,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_05',
+        sectionIndex: 1,
+        title: 'Round things',
+        emoji: '🌕',
+        questions: [
+          QuizQuestion(
+            prompt: 'Which is round?',
+            playType: PlayType.lookListen,
+            cue: ShapeCue(ShapeKind.circle, color: _blue),
+            visual: AnswerVisual.picture,
+            teach: 'A ball is round.',
+            spokenText: 'This ball is round like a circle.',
+            hint: 'Find the round object.',
+            options: [
+              QuizOption('Gift', emoji: '🎁'),
+              QuizOption('Ball', emoji: '⚽'),
+              QuizOption('Pizza slice', emoji: '🍕')
+            ],
+            answerIndex: 1,
+          ),
+          QuizQuestion(
+            prompt: 'Find round!',
+            playType: PlayType.concept,
+            cue: ShapeCue(
+              ShapeKind.circle,
+              style: CueShapeStyle.silhouette,
+            ),
+            visual: AnswerVisual.picture,
+            spokenText: 'Which object is round like this circle?',
+            hint: 'Find the round object.',
+            options: [
+              QuizOption('Tent', emoji: '⛺'),
+              QuizOption('Box', emoji: '📦'),
+              QuizOption('Cookie', emoji: '🍪')
+            ],
+            answerIndex: 2,
+          ),
+          QuizQuestion(
+            prompt: 'Round one?',
+            playType: PlayType.realWorld,
+            cue: ShapeCue(
+              ShapeKind.circle,
+              style: CueShapeStyle.dashed,
+            ),
+            visual: AnswerVisual.picture,
+            spokenText: 'Which object is round like this outline?',
+            hint: 'Choose the round object.',
+            options: [
+              QuizOption('Gift', emoji: '🎁'),
+              QuizOption('Tent', emoji: '⛺'),
+              QuizOption('Orange', emoji: '🍊')
+            ],
+            answerIndex: 2,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_06',
+        sectionIndex: 1,
+        title: 'Square things',
+        emoji: '📦',
+        questions: [
+          QuizQuestion(
+            prompt: 'Which is square?',
+            playType: PlayType.lookListen,
+            cue: ShapeCue(ShapeKind.square, color: _orange),
+            visual: AnswerVisual.picture,
+            teach: 'Boxes have square sides.',
+            spokenText: 'Which object has a square shape?',
+            hint: 'Look for four square sides.',
+            options: [
+              QuizOption('Ball', emoji: '⚽'),
+              QuizOption('Pizza slice', emoji: '🍕'),
+              QuizOption('Gift', emoji: '🎁')
+            ],
+            answerIndex: 2,
+          ),
+          QuizQuestion(
+            prompt: 'Looks like this?',
+            playType: PlayType.findSame,
+            cue: ShapeCue(
+              ShapeKind.square,
+              style: CueShapeStyle.silhouette,
+            ),
+            visual: AnswerVisual.picture,
+            spokenText: 'Which object matches this square shape?',
+            hint: 'Find the matching object.',
+            options: [
+              QuizOption('Box', emoji: '📦'),
+              QuizOption('Orange', emoji: '🍊'),
+              QuizOption('Moon', emoji: '🌕')
+            ],
+            answerIndex: 0,
+          ),
+          QuizQuestion(
+            prompt: 'Frame shape?',
+            playType: PlayType.sayName,
+            cue: EmojiCue('🖼️'),
+            visual: AnswerVisual.shape,
+            spokenText: 'Which shape looks like this picture frame?',
+            hint: 'Choose the matching shape.',
+            options: [
+              QuizOption('circle', color: _blue),
+              QuizOption('square', color: _orange),
+              QuizOption('triangle', color: _green)
+            ],
+            answerIndex: 1,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_07',
+        sectionIndex: 1,
+        title: 'Pointy things',
+        emoji: '⛺',
+        questions: [
+          QuizQuestion(
+            prompt: 'Which is pointy?',
+            playType: PlayType.lookListen,
+            cue: ShapeCue(ShapeKind.triangle, color: _green),
+            visual: AnswerVisual.picture,
+            teach: 'Some things are pointy.',
+            spokenText: 'Which object has a pointy shape?',
+            hint: 'Find the pointy object.',
+            options: [
+              QuizOption('Pizza slice', emoji: '🍕'),
+              QuizOption('Ball', emoji: '⚽'),
+              QuizOption('Cookie', emoji: '🍪')
+            ],
+            answerIndex: 0,
+          ),
+          QuizQuestion(
+            prompt: 'Looks like this?',
+            playType: PlayType.findSame,
+            cue: ShapeCue(
+              ShapeKind.triangle,
+              style: CueShapeStyle.silhouette,
+            ),
+            visual: AnswerVisual.picture,
+            spokenText: 'Which object matches this pointy shape?',
+            hint: 'Find the matching object.',
+            options: [
+              QuizOption('Orange', emoji: '🍊'),
+              QuizOption('Tent', emoji: '⛺'),
+              QuizOption('Moon', emoji: '🌕')
+            ],
+            answerIndex: 1,
+          ),
+          QuizQuestion(
+            prompt: 'Which shape fits?',
+            playType: PlayType.sayName,
+            cue: EmojiCue('⛰️'),
+            visual: AnswerVisual.shape,
+            spokenText: 'Which shape has this pointy outline?',
+            hint: 'Choose the matching shape.',
+            options: [
+              QuizOption('circle', color: _blue),
+              QuizOption('square', color: _orange),
+              QuizOption('triangle', color: _green)
+            ],
+            answerIndex: 2,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_08',
+        sectionIndex: 1,
+        title: 'Twinkly things',
+        emoji: '🌟',
+        questions: [
+          QuizQuestion(
+            prompt: 'Find the star',
+            playType: PlayType.lookListen,
+            cue: ShapeCue(ShapeKind.star, color: _yellow),
+            visual: AnswerVisual.shape,
+            teach: 'Stars twinkle at night.',
+            spokenText: 'A star has pointy tips all around.',
+            teachOption: QuizOption('star', color: _yellow),
+            hint: 'Look for the pointy tips.',
+            options: [
+              QuizOption('circle', color: _blue),
+              QuizOption('star', color: _yellow),
+              QuizOption('square', color: _orange)
+            ],
+            answerIndex: 1,
+          ),
+          QuizQuestion(
+            prompt: 'Match star',
+            playType: PlayType.findSame,
+            cue: ShapeCue(
+              ShapeKind.star,
+              style: CueShapeStyle.silhouette,
+            ),
+            visual: AnswerVisual.picture,
+            spokenText: 'Find the picture that matches this star silhouette.',
+            hint: 'Find the matching picture.',
+            options: [
+              QuizOption('Cookie', emoji: '🍪'),
+              QuizOption('Box', emoji: '📦'),
+              QuizOption('Glowing star', emoji: '🌟')
+            ],
+            answerIndex: 2,
+          ),
+          QuizQuestion(
+            prompt: 'Night sky?',
+            playType: PlayType.realWorld,
+            cue: NightSkyCue(),
+            visual: AnswerVisual.picture,
+            spokenText: 'Which picture belongs in this night sky?',
+            hint: 'Choose a night-sky picture.',
+            options: [
+              QuizOption('Star', emoji: '⭐'),
+              QuizOption('Pizza slice', emoji: '🍕'),
+              QuizOption('Gift', emoji: '🎁')
+            ],
+            answerIndex: 0,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_09',
+        sectionIndex: 2,
+        title: 'Count the sides',
+        emoji: '✋',
+        minAge: 5,
+        questions: [
+          QuizQuestion(
+            prompt: 'How many sides?',
+            playType: PlayType.lookListen,
+            cue: ShapeCue(
+              ShapeKind.triangle,
+              color: _green,
+              numberSides: true,
+            ),
+            visual: AnswerVisual.text,
+            teach: 'A triangle has three sides.',
+            spokenText: 'How many sides does a triangle have?',
+            teachOption: QuizOption('3'),
+            hint: 'Count each marked side.',
+            options: [QuizOption('2'), QuizOption('4'), QuizOption('3')],
+            answerIndex: 2,
+          ),
+          QuizQuestion(
+            prompt: 'How many sides?',
+            playType: PlayType.concept,
+            cue: ShapeCue(
+              ShapeKind.square,
+              colorSides: true,
+            ),
+            visual: AnswerVisual.text,
+            spokenText: 'How many sides does a square have?',
+            hint: 'Count each colored side.',
+            options: [QuizOption('4'), QuizOption('3'), QuizOption('5')],
+            answerIndex: 0,
+          ),
+          QuizQuestion(
+            prompt: 'How many corners?',
+            playType: PlayType.sayName,
+            cue: ShapeCue(ShapeKind.square, markCorners: true),
+            visual: AnswerVisual.text,
+            spokenText: 'How many corners does a square have?',
+            hint: 'Count each marked corner.',
+            options: [QuizOption('3'), QuizOption('5'), QuizOption('4')],
+            answerIndex: 2,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_10',
+        sectionIndex: 2,
+        title: 'Odd one out',
+        emoji: '🧐',
+        minAge: 5,
+        questions: [
+          QuizQuestion(
+            prompt: 'Odd one out?',
+            playType: PlayType.concept,
+            cue: ShapeRowCue(
+              shapes: [ShapeKind.triangle, ShapeKind.circle, ShapeKind.circle],
+              differentIndex: 0,
+              color: _blue,
+            ),
+            visual: AnswerVisual.shape,
+            teach: 'Find the shape that is different.',
+            spokenText: 'Which shape is different in this row?',
+            hint: 'Two match. One is different.',
+            options: [
+              QuizOption('triangle', color: _green),
+              QuizOption('circle', color: _blue),
+              QuizOption('square', color: _orange)
+            ],
+            answerIndex: 0,
+          ),
+          QuizQuestion(
+            prompt: 'Odd one out?',
+            playType: PlayType.concept,
+            cue: ShapeRowCue(
+              shapes: [ShapeKind.square, ShapeKind.triangle, ShapeKind.square],
+              differentIndex: 1,
+              color: _blue,
+            ),
+            visual: AnswerVisual.shape,
+            spokenText: 'Which shape is different in this row?',
+            hint: 'Two match. One is different.',
+            options: [
+              QuizOption('square', color: _orange),
+              QuizOption('triangle', color: _green),
+              QuizOption('circle', color: _blue)
+            ],
+            answerIndex: 1,
+          ),
+          QuizQuestion(
+            prompt: 'Odd one out?',
+            playType: PlayType.concept,
+            cue: ShapeRowCue(
+              shapes: [
+                ShapeKind.triangle,
+                ShapeKind.triangle,
+                ShapeKind.circle
+              ],
+              differentIndex: 2,
+              color: _blue,
+            ),
+            visual: AnswerVisual.shape,
+            spokenText: 'Which shape is different in this row?',
+            hint: 'Two match. One is different.',
+            options: [
+              QuizOption('triangle', color: _green),
+              QuizOption('square', color: _orange),
+              QuizOption('circle', color: _blue)
+            ],
+            answerIndex: 2,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_11',
+        sectionIndex: 2,
+        title: 'Same shape',
+        emoji: '👀',
+        questions: [
+          QuizQuestion(
+            prompt: 'Match triangle',
+            playType: PlayType.findSame,
+            cue: ShapeCue(ShapeKind.triangle, color: _shapeRed),
+            visual: AnswerVisual.shape,
+            teach: 'Let\'s match shapes.',
+            spokenText: 'Find the triangle that matches the target.',
+            hint: 'Look at the shape at the top. Which one looks just like it?',
+            options: [
+              QuizOption('circle', color: _blue),
+              QuizOption('triangle', color: _green),
+              QuizOption('square', color: _orange)
+            ],
+            answerIndex: 1,
+          ),
+          QuizQuestion(
+            prompt: 'Match circle',
+            playType: PlayType.findSame,
+            cue: ShapeCue(ShapeKind.circle, color: _shapeRed),
+            visual: AnswerVisual.shape,
+            spokenText: 'Find the circle that matches the target.',
+            hint: 'Look at the shape at the top. Which one looks just like it?',
+            options: [
+              QuizOption('square', color: _orange),
+              QuizOption('triangle', color: _green),
+              QuizOption('circle', color: _blue)
+            ],
+            answerIndex: 2,
+          ),
+          QuizQuestion(
+            prompt: 'Match square',
+            playType: PlayType.findSame,
+            cue: ShapeCue(ShapeKind.square, color: _shapeRed),
+            visual: AnswerVisual.shape,
+            spokenText: 'Find the square that matches the target.',
+            hint: 'Look at the shape at the top. Which one looks just like it?',
+            options: [
+              QuizOption('square', color: _orange),
+              QuizOption('circle', color: _blue),
+              QuizOption('triangle', color: _green)
+            ],
+            answerIndex: 0,
+          ),
+        ],
+      ),
+      Activity(
+        id: 'shapes_12',
+        sectionIndex: 2,
+        title: 'Shape mix-up',
+        emoji: '🧩',
+        minAge: 5,
+        questions: [
+          QuizQuestion(
+            prompt: '4 corners?',
+            playType: PlayType.lookListen,
+            cue: CornerMarksCue(4),
+            visual: AnswerVisual.shape,
+            teach: 'Let\'s explore shapes.',
+            spokenText: 'Which shape has four corners?',
+            hint: 'Count the four corners.',
+            options: [
+              QuizOption('circle', color: _blue),
+              QuizOption('triangle', color: _green),
+              QuizOption('square', color: _orange)
+            ],
+            answerIndex: 2,
+          ),
+          QuizQuestion(
+            prompt: 'Rolls best?',
+            playType: PlayType.concept,
+            cue: RollingSlopeCue(),
+            visual: AnswerVisual.shape,
+            spokenText: 'Which shape rolls smoothly down a slope?',
+            hint: 'Look for the smooth shape.',
+            options: [
+              QuizOption('circle', color: _blue),
+              QuizOption('square', color: _orange),
+              QuizOption('triangle', color: _green)
+            ],
+            answerIndex: 0,
+          ),
+          QuizQuestion(
+            prompt: '3 sides?',
+            playType: PlayType.sayName,
+            cue: EdgeMarksCue(3),
+            visual: AnswerVisual.shape,
+            spokenText: 'Which shape has three sides?',
+            hint: 'Count the three edge marks.',
+            options: [
+              QuizOption('square', color: _orange),
+              QuizOption('triangle', color: _green),
+              QuizOption('circle', color: _blue)
+            ],
+            answerIndex: 1,
+          ),
+        ],
+      ),
     ],
   ),
   // ===== Color Garden (12 activities) =====

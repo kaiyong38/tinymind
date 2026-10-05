@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../models/learning.dart';
@@ -142,6 +144,358 @@ Widget buildQuizVisual(
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: size * 0.4, fontWeight: FontWeight.w900));
   }
+}
+
+Widget buildQuestionCue(
+  QuizCue cue, {
+  required double size,
+  bool revealDifference = false,
+}) {
+  return switch (cue) {
+    EmojiCue(:final emoji) => EmojiGlyph(emoji, size * 0.76),
+    ShapeCue() => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _ShapeCuePainter(cue)),
+      ),
+    ShapeRowCue() => _ShapeRow(cue: cue, size: size, reveal: revealDifference),
+    NightSkyCue() => _NightSky(cue: cue, size: size),
+    CornerMarksCue(:final count) => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _CornerMarksPainter(count)),
+      ),
+    EdgeMarksCue(:final count) => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _EdgeMarksPainter(count)),
+      ),
+    RollingSlopeCue() => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _RollingSlopePainter()),
+      ),
+  };
+}
+
+class _ShapeRow extends StatelessWidget {
+  const _ShapeRow({
+    required this.cue,
+    required this.size,
+    required this.reveal,
+  });
+
+  final ShapeRowCue cue;
+  final double size;
+  final bool reveal;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          for (var index = 0; index < cue.shapes.length; index++)
+            Container(
+              width: size * 0.29,
+              height: size * 0.76,
+              alignment: Alignment.center,
+              decoration: reveal && index == cue.differentIndex
+                  ? BoxDecoration(
+                      border: Border.all(color: Colors.amber, width: 4),
+                      borderRadius: BorderRadius.circular(14),
+                    )
+                  : null,
+              child: ShapeGlyph(
+                kind: cue.shapes[index].name,
+                color: cue.color,
+                size: size * 0.42,
+              ),
+            ),
+        ],
+      );
+}
+
+class _NightSky extends StatelessWidget {
+  const _NightSky({required this.cue, required this.size});
+
+  final NightSkyCue cue;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: size,
+        height: size,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(size * 0.08),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF182447), Color(0xFF465A85)],
+            ),
+          ),
+          child: cue.showMoon
+              ? CustomPaint(painter: _MoonPainter())
+              : const SizedBox.expand(),
+        ),
+      );
+}
+
+class _ShapeCuePainter extends CustomPainter {
+  _ShapeCuePainter(this.cue);
+
+  final ShapeCue cue;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final inset = size.shortestSide * 0.16;
+    final rect = Rect.fromLTWH(
+      inset,
+      inset,
+      size.width - inset * 2,
+      size.height - inset * 2,
+    );
+    final vertices = _verticesFor(cue.shape, rect);
+    final path = _pathFor(cue.shape, rect, vertices);
+    final paintColor =
+        cue.style == CueShapeStyle.silhouette ? Colors.blueGrey.shade800 : cue.color;
+
+    if (cue.colorSides && vertices.length == 4) {
+      canvas.drawPath(path, Paint()..color = Colors.white);
+      for (var index = 0; index < vertices.length; index++) {
+        canvas.drawLine(
+          vertices[index],
+          vertices[(index + 1) % vertices.length],
+          Paint()
+            ..color = index.isEven
+                ? const Color(0xFF3A86FF)
+                : const Color(0xFFFF8C42)
+            ..strokeWidth = size.shortestSide * 0.055
+            ..strokeCap = StrokeCap.round,
+        );
+      }
+    } else if (cue.style == CueShapeStyle.dashed) {
+      final dashedPaint = Paint()
+        ..color = paintColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.shortestSide * 0.055
+        ..strokeCap = StrokeCap.round;
+      for (final metric in path.computeMetrics()) {
+        var distance = 0.0;
+        final dash = size.shortestSide * 0.09;
+        while (distance < metric.length) {
+          canvas.drawPath(
+            metric.extractPath(
+              distance,
+              (distance + dash).clamp(0, metric.length).toDouble(),
+            ),
+            dashedPaint,
+          );
+          distance += dash * 1.8;
+        }
+      }
+    } else if (cue.numberSides || cue.markCorners) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = Colors.black54
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = size.shortestSide * 0.025,
+      );
+    } else {
+      canvas.drawPath(path, Paint()..color = paintColor);
+    }
+
+    if (cue.numberSides) {
+      for (var index = 0; index < vertices.length; index++) {
+        final start = vertices[index];
+        final end = vertices[(index + 1) % vertices.length];
+        final midpoint = Offset.lerp(start, end, 0.5)!;
+        final center = Offset(
+          midpoint.dx + (midpoint.dx - size.width / 2) * 0.14,
+          midpoint.dy + (midpoint.dy - size.height / 2) * 0.14,
+        );
+        _drawLabel(canvas, '${index + 1}', center, size.shortestSide * 0.14);
+      }
+    }
+    if (cue.markCorners) {
+      for (final point in vertices) {
+        canvas.drawCircle(
+          point,
+          size.shortestSide * 0.045,
+          Paint()..color = const Color(0xFFE84855),
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ShapeCuePainter oldDelegate) =>
+      cue != oldDelegate.cue;
+}
+
+List<Offset> _verticesFor(ShapeKind shape, Rect rect) {
+  switch (shape) {
+    case ShapeKind.circle:
+      return [];
+    case ShapeKind.square:
+      return [
+        rect.topLeft,
+        rect.topRight,
+        rect.bottomRight,
+        rect.bottomLeft,
+      ];
+    case ShapeKind.triangle:
+      return [
+        Offset(rect.center.dx, rect.top),
+        rect.bottomRight,
+        rect.bottomLeft,
+      ];
+    case ShapeKind.star:
+      return List.generate(10, (index) {
+        final angle = -math.pi / 2 + index * math.pi / 5;
+        final radius = rect.shortestSide * (index.isEven ? 0.5 : 0.22);
+        return Offset(
+          rect.center.dx + math.cos(angle) * radius,
+          rect.center.dy + math.sin(angle) * radius,
+        );
+      });
+  }
+}
+
+Path _pathFor(ShapeKind shape, Rect rect, List<Offset> vertices) {
+  if (shape == ShapeKind.circle) return Path()..addOval(rect);
+  final path = Path()..moveTo(vertices.first.dx, vertices.first.dy);
+  for (final point in vertices.skip(1)) {
+    path.lineTo(point.dx, point.dy);
+  }
+  return path..close();
+}
+
+void _drawLabel(Canvas canvas, String label, Offset center, double fontSize) {
+  final painter = TextPainter(
+    text: TextSpan(
+      text: label,
+      style: TextStyle(
+        color: Colors.black87,
+        fontSize: fontSize,
+        fontWeight: FontWeight.w900,
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  painter.paint(
+    canvas,
+    center - Offset(painter.width / 2, painter.height / 2),
+  );
+}
+
+class _NightSkyPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawCircle(
+      Offset(size.width * 0.7, size.height * 0.42),
+      size.shortestSide * 0.18,
+      Paint()..color = const Color(0xFFFFE082),
+    );
+    canvas.drawCircle(
+      Offset(size.width * 0.77, size.height * 0.34),
+      size.shortestSide * 0.17,
+      Paint()..color = const Color(0xFF263B66),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _NightSkyPainter oldDelegate) => false;
+}
+
+class _MoonPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    _NightSkyPainter().paint(canvas, size);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MoonPainter oldDelegate) => false;
+}
+
+class _CornerMarksPainter extends CustomPainter {
+  _CornerMarksPainter(this.count);
+
+  final int count;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const points = [
+      Offset(0.23, 0.23),
+      Offset(0.77, 0.23),
+      Offset(0.77, 0.77),
+      Offset(0.23, 0.77),
+    ];
+    for (final point in points.take(count.clamp(0, points.length).toInt())) {
+      canvas.drawCircle(
+        Offset(point.dx * size.width, point.dy * size.height),
+        size.shortestSide * 0.075,
+        Paint()..color = const Color(0xFFE84855),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CornerMarksPainter oldDelegate) =>
+      count != oldDelegate.count;
+}
+
+class _EdgeMarksPainter extends CustomPainter {
+  _EdgeMarksPainter(this.count);
+
+  final int count;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF3A86FF)
+      ..strokeWidth = size.shortestSide * 0.07
+      ..strokeCap = StrokeCap.round;
+    for (var index = 0; index < count.clamp(0, 4).toInt(); index++) {
+      final top = size.height * (0.2 + index * 0.18);
+      canvas.drawLine(
+        Offset(size.width * 0.25, top),
+        Offset(size.width * 0.75, top),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _EdgeMarksPainter oldDelegate) =>
+      count != oldDelegate.count;
+}
+
+class _RollingSlopePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final slopeStart = Offset(size.width * 0.16, size.height * 0.78);
+    final slopeEnd = Offset(size.width * 0.84, size.height * 0.42);
+    final linePaint = Paint()
+      ..color = const Color(0xFF3A86FF)
+      ..strokeWidth = size.shortestSide * 0.055
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(slopeStart, slopeEnd, linePaint);
+    final arrowTip = Offset(size.width * 0.84, size.height * 0.78);
+    canvas.drawLine(
+      Offset(size.width * 0.54, size.height * 0.78),
+      arrowTip,
+      Paint()
+        ..color = const Color(0xFFE84855)
+        ..strokeWidth = size.shortestSide * 0.04
+        ..strokeCap = StrokeCap.round,
+    );
+    final arrow = Path()
+      ..moveTo(arrowTip.dx, arrowTip.dy)
+      ..lineTo(arrowTip.dx - size.width * 0.12, arrowTip.dy - size.height * 0.08)
+      ..lineTo(arrowTip.dx - size.width * 0.12, arrowTip.dy + size.height * 0.08)
+      ..close();
+    canvas.drawPath(arrow, Paint()..color = const Color(0xFFE84855));
+  }
+
+  @override
+  bool shouldRepaint(covariant _RollingSlopePainter oldDelegate) => false;
 }
 
 enum _ColorPattern {

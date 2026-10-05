@@ -24,6 +24,7 @@ import 'widgets/quiz_visuals.dart';
 import 'theme/tinymind_colors.dart';
 import 'theme/app_theme.dart';
 import 'widgets/emoji_glyph.dart';
+import 'widgets/question_cue_card.dart';
 import 'widgets/text_scale_limit.dart';
 
 void main() async {
@@ -1642,23 +1643,12 @@ class _QuizPageState extends State<QuizPage> {
     _narrate();
   }
 
-  Widget _questionCard() {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        child: Center(
-          child: EmojiText(
-            _question.prompt,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-                fontSize: 22, height: 1.15, fontWeight: FontWeight.w900),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _questionCard() => QuestionCueCard(
+        question: _question,
+        worldColor: _world.color,
+        onReplay: _narrate,
+        revealDifference: _answered,
+      );
 
   Widget _answerArea() {
     return DragAnswerArea(
