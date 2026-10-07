@@ -128,15 +128,21 @@ Widget buildQuizVisual(
               ),
       );
     case AnswerVisual.numberDots:
-      return Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 2,
-        runSpacing: 2,
-        children: List.generate(
-          option.count ?? 0,
-          (_) => option.emoji == null
-              ? Text('•', style: TextStyle(fontSize: size * 0.42))
-              : EmojiGlyph(option.emoji!, size * 0.42),
+      return SizedBox.square(
+        dimension: size,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 2,
+            runSpacing: 2,
+            children: List.generate(
+              option.count ?? 0,
+              (_) => option.emoji == null
+                  ? Text('•', style: TextStyle(fontSize: size * 0.42))
+                  : EmojiGlyph(option.emoji!, size * 0.42),
+            ),
+          ),
         ),
       );
     case AnswerVisual.colorPair:
@@ -229,6 +235,9 @@ Widget buildQuestionCue(
         child: CustomPaint(painter: _EdgeMarksPainter(count)),
       ),
     RollingSlopeCue() => _RollingSlopeView(size: size),
+    ItemCountCue() => _ItemCountCueView(cue: cue, size: size),
+    EquationPictureCue() => _EquationPictureView(cue: cue, size: size),
+    TenFrameCue() => _TenFrameView(cue: cue, size: size),
     ColorWordCue() => _ColorWordView(cue: cue, size: size),
     ColorSwatchCue() => _ColorSwatchView(
         name: cue.name,
@@ -251,7 +260,9 @@ class _ColorWordView extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
           final width = math.min(
-            constraints.hasBoundedWidth ? constraints.maxWidth * 0.9 : size * 1.8,
+            constraints.hasBoundedWidth
+                ? constraints.maxWidth * 0.9
+                : size * 1.8,
             size * 1.8,
           );
           return SizedBox(
@@ -305,6 +316,304 @@ class _NumberCueView extends StatelessWidget {
       );
 }
 
+class _ItemCountCueView extends StatelessWidget {
+  const _ItemCountCueView({required this.cue, required this.size});
+
+  final ItemCountCue cue;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width =
+              constraints.hasBoundedWidth ? constraints.maxWidth : size;
+          final height =
+              constraints.hasBoundedHeight ? constraints.maxHeight : size;
+          final canvasSize = Size(width, height);
+          final rects = cue.itemRectsFor(canvasSize);
+          return SizedBox(
+            key: ValueKey('item-count-cue-${cue.identityKey}'),
+            width: width,
+            height: height,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                for (var index = 0; index < rects.length; index++)
+                  Positioned.fromRect(
+                    rect: rects[index],
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        EmojiGlyph(cue.emoji, rects[index].width),
+                        if (index >= cue.count - cue.removedCount)
+                          CustomPaint(painter: _CrossOutPainter()),
+                      ],
+                    ),
+                  ),
+                if (cue.showResult)
+                  Positioned(
+                    right: 4,
+                    bottom: 4,
+                    child: _QuestionBadge(size: math.min(42, height * 0.24)),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+}
+
+class _EquationPictureView extends StatelessWidget {
+  const _EquationPictureView({required this.cue, required this.size});
+
+  final EquationPictureCue cue;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width =
+              constraints.hasBoundedWidth ? constraints.maxWidth : size;
+          final height =
+              constraints.hasBoundedHeight ? constraints.maxHeight : size;
+          return SizedBox(
+            width: width,
+            height: height,
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _EmojiGroup(emoji: cue.emoji, count: cue.firstCount),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        '+',
+                        style: TextStyle(
+                          fontSize: 54,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    _EmojiGroup(emoji: cue.emoji, count: cue.secondCount),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        '=',
+                        style: TextStyle(
+                          fontSize: 54,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const _QuestionBadge(size: 52),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+}
+
+class _EmojiGroup extends StatelessWidget {
+  const _EmojiGroup({required this.emoji, required this.count});
+
+  final String emoji;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+        alignment: WrapAlignment.center,
+        runAlignment: WrapAlignment.center,
+        spacing: 2,
+        runSpacing: 2,
+        children: List.generate(count, (_) => EmojiGlyph(emoji, 42)),
+      );
+}
+
+class _QuestionBadge extends StatelessWidget {
+  const _QuestionBadge({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          color: Color(0xFFE4E7EB),
+          shape: BoxShape.circle,
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '?',
+            style: TextStyle(
+              color: const Color(0xFF626B75),
+              fontSize: size * 0.7,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+        ),
+      );
+}
+
+class _TenFrameView extends StatelessWidget {
+  const _TenFrameView({required this.cue, required this.size});
+
+  final TenFrameCue cue;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width =
+              constraints.hasBoundedWidth ? constraints.maxWidth : size;
+          final height =
+              constraints.hasBoundedHeight ? constraints.maxHeight : size;
+          return CustomPaint(
+            size: Size(width, height),
+            painter: _TenFramePainter(cue),
+          );
+        },
+      );
+}
+
+class _CrossOutPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFE84855)
+      ..strokeWidth = size.shortestSide * 0.1
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset.zero, Offset(size.width, size.height), paint);
+    canvas.drawLine(
+      Offset(size.width, 0),
+      Offset(0, size.height),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CrossOutPainter oldDelegate) => false;
+}
+
+class _TenFramePainter extends CustomPainter {
+  const _TenFramePainter(this.cue);
+
+  final TenFrameCue cue;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final isTeen = cue.mode == TenFrameMode.teenNumber;
+    final boardWidth = isTeen
+        ? math.min(size.width * 0.38, size.height * 1.45)
+        : math.min(size.width * 0.72, size.height * 1.55);
+    final boardHeight = boardWidth * 0.42;
+    final gap = size.width * 0.035;
+    final boardCount = isTeen ? 2 : 1;
+    final totalWidth = boardCount * boardWidth + (boardCount - 1) * gap;
+    final left = (size.width - totalWidth) / 2;
+    final top = (size.height - boardHeight) / 2 -
+        (cue.mode == TenFrameMode.makeTen ? size.height * 0.08 : 0);
+    final outline = Paint()
+      ..color = const Color(0xFF8A949E)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.5, boardWidth * 0.008);
+
+    for (var board = 0; board < boardCount; board++) {
+      final x = left + board * (boardWidth + gap);
+      final cellWidth = boardWidth / 5;
+      final cellHeight = boardHeight / 2;
+      for (var cell = 0; cell < 10; cell++) {
+        final rect = Rect.fromLTWH(
+          x + (cell % 5) * cellWidth,
+          top + (cell ~/ 5) * cellHeight,
+          cellWidth,
+          cellHeight,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect.deflate(1), const Radius.circular(5)),
+          outline,
+        );
+
+        final filledCount = switch (cue.mode) {
+          TenFrameMode.addition =>
+            board == 0 ? cue.firstCount : cue.firstCount + cue.secondCount,
+          TenFrameMode.subtraction => cue.firstCount,
+          TenFrameMode.makeTen => cue.firstCount,
+          TenFrameMode.teenNumber => board == 0 ? 10 : cue.secondCount,
+        };
+        final shouldFill = cell < filledCount;
+        if (shouldFill) {
+          final crossed = cue.mode == TenFrameMode.subtraction &&
+              cell >= cue.firstCount - cue.secondCount;
+          final color =
+              cue.mode == TenFrameMode.addition && cell >= cue.firstCount
+                  ? const Color(0xFF3A86FF)
+                  : const Color(0xFFE84855);
+          final center = rect.center;
+          final radius = math.min(cellWidth, cellHeight) * 0.28;
+          canvas.drawCircle(
+            center,
+            radius,
+            Paint()..color = color,
+          );
+          if (crossed) {
+            final cross = Paint()
+              ..color = const Color(0xFF4A3F3F)
+              ..strokeWidth = radius * 0.18
+              ..strokeCap = StrokeCap.round;
+            canvas.drawLine(
+              center - Offset(radius * 0.65, radius * 0.65),
+              center + Offset(radius * 0.65, radius * 0.65),
+              cross,
+            );
+            canvas.drawLine(
+              center + Offset(radius * 0.65, -radius * 0.65),
+              center + Offset(-radius * 0.65, radius * 0.65),
+              cross,
+            );
+          }
+        }
+      }
+    }
+
+    if (!isTeen) {
+      final badgeSize = math.min(42.0, size.height * 0.22);
+      final center = Offset(size.width * 0.88, size.height * 0.84);
+      canvas.drawCircle(
+        center,
+        badgeSize / 2,
+        Paint()..color = const Color(0xFFE4E7EB),
+      );
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '?',
+          style: TextStyle(
+            color: const Color(0xFF626B75),
+            fontSize: badgeSize * 0.68,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainter.paint(
+        canvas,
+        center - Offset(textPainter.width / 2, textPainter.height / 2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TenFramePainter oldDelegate) =>
+      cue.identityKey != oldDelegate.cue.identityKey;
+}
+
 class _ColorSwatchView extends StatelessWidget {
   const _ColorSwatchView({
     required this.name,
@@ -329,7 +638,8 @@ class _ColorSwatchView extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.black.withValues(alpha: 0.1), width: 3),
+        border:
+            Border.all(color: Colors.black.withValues(alpha: 0.1), width: 3),
       ),
       child: friendly
           ? ClipOval(
@@ -385,7 +695,9 @@ class _ColorMixView extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
           final width = math.min(
-            constraints.hasBoundedWidth ? constraints.maxWidth * 0.95 : size * 1.9,
+            constraints.hasBoundedWidth
+                ? constraints.maxWidth * 0.95
+                : size * 1.9,
             size * 1.9,
           );
           final diameter = width * 0.2;
@@ -439,7 +751,9 @@ class _RainbowView extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
           final width = math.min(
-            constraints.hasBoundedWidth ? constraints.maxWidth * 0.95 : size * 1.7,
+            constraints.hasBoundedWidth
+                ? constraints.maxWidth * 0.95
+                : size * 1.7,
             size * 1.7,
           );
           return SizedBox(
@@ -543,7 +857,8 @@ class _ShapeRow extends StatelessWidget {
                         padding: EdgeInsets.all(glyph * 0.12),
                         decoration: reveal && index == cue.differentIndex
                             ? BoxDecoration(
-                                border: Border.all(color: Colors.amber, width: 4),
+                                border:
+                                    Border.all(color: Colors.amber, width: 4),
                                 borderRadius: BorderRadius.circular(14),
                               )
                             : null,
@@ -606,8 +921,9 @@ class _ShapeCuePainter extends CustomPainter {
     );
     final vertices = _verticesFor(cue.shape, rect);
     final path = _pathFor(cue.shape, rect, vertices);
-    final paintColor =
-        cue.style == CueShapeStyle.silhouette ? Colors.blueGrey.shade800 : cue.color;
+    final paintColor = cue.style == CueShapeStyle.silhouette
+        ? Colors.blueGrey.shade800
+        : cue.color;
 
     if (cue.colorSides) {
       canvas.drawPath(path, Paint()..color = Colors.white);
@@ -679,7 +995,8 @@ class _ShapeCuePainter extends CustomPainter {
         final center = midpoint + outward / length * (fontSize * 1.15);
         // Number the sides clockwise, starting from the left side of a triangle.
         final number = vertices.length == 3 ? (index + 1) % 3 + 1 : index + 1;
-        canvas.drawCircle(center, fontSize * 0.85, Paint()..color = Colors.white);
+        canvas.drawCircle(
+            center, fontSize * 0.85, Paint()..color = Colors.white);
         canvas.drawCircle(
           center,
           fontSize * 0.85,
@@ -917,9 +1234,11 @@ class _RollingSlopePainter extends CustomPainter {
       final curve = Path()
         ..moveTo(start.dx, start.dy)
         ..quadraticBezierTo(
-          start.dx + direction.dx * shortSide * 0.035 +
+          start.dx +
+              direction.dx * shortSide * 0.035 +
               normal.dx * shortSide * 0.025,
-          start.dy + direction.dy * shortSide * 0.035 +
+          start.dy +
+              direction.dy * shortSide * 0.035 +
               normal.dy * shortSide * 0.025,
           end.dx,
           end.dy,

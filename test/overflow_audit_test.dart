@@ -469,6 +469,66 @@ void main() {
     }
   });
 
+  testWidgets('Numbers cue cards fit at compact sizes and enlarged text',
+      (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const sizes = [Size(568, 320), Size(640, 360)];
+    final uniqueQuestions = <String, QuizQuestion>{};
+    for (final question in worldCatalogs['numbers']!
+        .activities
+        .expand((activity) => activity.questions)) {
+      if (question.cue is ItemCountCue ||
+          question.cue is EquationPictureCue ||
+          question.cue is TenFrameCue) {
+        uniqueQuestions.putIfAbsent(
+          question.cue!.identityKey,
+          () => question,
+        );
+      }
+    }
+
+    for (final question in uniqueQuestions.values) {
+      for (final size in sizes) {
+        for (final scale in [1.0, 1.3]) {
+          await pumpScreen(
+            tester,
+            Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: QuestionCueCard(
+                        question: question,
+                        worldColor: Colors.orange,
+                        onReplay: () {},
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(flex: 4, child: SizedBox.shrink()),
+                  ],
+                ),
+              ),
+            ),
+            size,
+            scale,
+          );
+          _expectNoException(
+            tester,
+            'Numbers ${question.cue!.runtimeType}, $size, ${scale}x',
+          );
+          _expectClippedChildrenWithinParents(
+            tester,
+            'Numbers ${question.cue!.runtimeType}, $size, ${scale}x',
+          );
+        }
+      }
+    }
+  });
+
   testWidgets('parent gate setup and PIN entry fit landscape text matrix',
       (tester) async {
     addTearDown(tester.view.resetPhysicalSize);

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 enum AnswerVisual {
@@ -96,6 +98,119 @@ final class NumberCue extends QuizCue {
 
   @override
   String get identityKey => 'number:$value';
+}
+
+enum ItemCountArrangement {
+  ordered,
+  scattered,
+}
+
+final class ItemCountCue extends QuizCue {
+  const ItemCountCue({
+    required this.emoji,
+    required this.count,
+    this.arrangement = ItemCountArrangement.ordered,
+    this.rows = 0,
+    this.removedCount = 0,
+    this.showResult = false,
+  });
+
+  final String emoji;
+  final int count;
+  final ItemCountArrangement arrangement;
+  final int rows;
+  final int removedCount;
+  final bool showResult;
+
+  @override
+  String get identityKey =>
+      'item-count:$emoji:$count:${arrangement.name}:$rows:$removedCount:$showResult';
+
+  List<Rect> itemRectsFor(Size size) {
+    const scatteredCenters = [
+      Offset(0.14, 0.28),
+      Offset(0.38, 0.20),
+      Offset(0.62, 0.32),
+      Offset(0.86, 0.24),
+      Offset(0.24, 0.68),
+      Offset(0.50, 0.78),
+      Offset(0.76, 0.64),
+      Offset(0.88, 0.82),
+    ];
+    final rowCount = rows > 0
+        ? rows
+        : arrangement == ItemCountArrangement.scattered
+            ? 2
+            : count > 5
+                ? (count / 5).ceil()
+                : 1;
+    final columns =
+        rows > 0 ? (count / rowCount).ceil() : math.min(5, count);
+    final itemSize = arrangement == ItemCountArrangement.scattered
+        ? math.max(
+            28.0,
+            math.min(46.0, math.min(size.width / 10, size.height / 5)),
+          )
+        : math.max(
+            28.0,
+            math.min(64.0, math.min(size.width / (columns + 1), size.height / (rowCount + 1))),
+          );
+    return List.generate(count, (index) {
+      final center = arrangement == ItemCountArrangement.scattered
+          ? Offset(
+              scatteredCenters[index].dx * size.width,
+              scatteredCenters[index].dy * size.height,
+            )
+          : Offset(
+              size.width * ((index % columns) + 1) / (columns + 1),
+              size.height * ((index ~/ columns) + 1) / (rowCount + 1),
+            );
+      return Rect.fromCenter(
+        center: center,
+        width: itemSize,
+        height: itemSize,
+      );
+    });
+  }
+}
+
+final class EquationPictureCue extends QuizCue {
+  const EquationPictureCue({
+    required this.emoji,
+    required this.firstCount,
+    required this.secondCount,
+  });
+
+  final String emoji;
+  final int firstCount;
+  final int secondCount;
+
+  @override
+  String get identityKey =>
+      'equation-picture:$emoji:$firstCount+$secondCount';
+}
+
+enum TenFrameMode {
+  addition,
+  subtraction,
+  makeTen,
+  teenNumber,
+}
+
+final class TenFrameCue extends QuizCue {
+  const TenFrameCue({
+    required this.mode,
+    required this.firstCount,
+    this.secondCount = 0,
+  });
+
+  final TenFrameMode mode;
+  final int firstCount;
+  final int secondCount;
+
+  @override
+  String get identityKey =>
+      'ten-frame:${mode.name}:$firstCount:$secondCount';
 }
 
 final class NightSkyCue extends QuizCue {
