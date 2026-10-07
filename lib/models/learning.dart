@@ -116,6 +116,53 @@ final class RollingSlopeCue extends QuizCue {
   String get identityKey => 'rolling-slope';
 }
 
+final class ColorWordCue extends QuizCue {
+  const ColorWordCue(this.name);
+
+  final String name;
+
+  @override
+  String get identityKey => 'color-word:${name.toLowerCase()}';
+}
+
+final class ColorSwatchCue extends QuizCue {
+  const ColorSwatchCue(this.name, this.color);
+
+  final String name;
+  final Color color;
+
+  @override
+  String get identityKey => 'color-swatch:${name.toLowerCase()}';
+}
+
+final class ColorMixCue extends QuizCue {
+  const ColorMixCue({
+    required this.firstName,
+    required this.first,
+    required this.secondName,
+    required this.second,
+  });
+
+  final String firstName;
+  final Color first;
+  final String secondName;
+  final Color second;
+
+  @override
+  String get identityKey =>
+      'color-mix:${firstName.toLowerCase()}+${secondName.toLowerCase()}';
+}
+
+final class RainbowCue extends QuizCue {
+  const RainbowCue({required this.bands, required this.missingIndex});
+
+  final List<Color> bands;
+  final int missingIndex;
+
+  @override
+  String get identityKey => 'rainbow:$missingIndex';
+}
+
 class QuizOption {
   const QuizOption(this.label, {this.color, this.emoji, this.count});
 

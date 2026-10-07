@@ -1,9 +1,8 @@
 # TinyMind question bank redesign
 
-This is a staged proposal. Only Shapes (36 questions) is specified in this
-review stage; Colors, Numbers, and Letters rows will be added in that order
-after the preceding world's proposal is confirmed. No question-bank code is
-changed before its world is approved.
+This is a staged proposal. Shapes (36 questions) and Colors (36 questions) are
+specified and implemented; Numbers and Letters rows are added next, in that
+order, after the preceding world's proposal is confirmed.
 
 ## Shapes — 36 questions
 
@@ -81,3 +80,53 @@ repeat their play type; their prompts, cues, and correct answers vary.
   three questions: a drawn star shape, glowing-star emoji, and star-picture
   emoji. `shapes_11` targets intentionally use different colors from the
   corresponding shape choices; the match is by shape, not color.
+
+## Colors — 36 questions
+
+Colors keep the same rules as Shapes: prompts use at most three words, the full sentence is spoken, and the correct answer never appears in the prompt or the speech (except in the teaching question). Basic colors (colors_01–08) use *name → swatch*, *swatch → picture*, *picture → swatch*. Mixing (colors_09–11) and the rainbow (colors_12) are 5+ activities that show the idea as color swatches instead of sentences. Color-friendly mode (patterns and names) still applies to every swatch option and swatch cue.
+
+| Activity | Q | PlayType | Current prompt | New short prompt | Cue | Options (correct marked) | Original correct answer | Answer change reason | spokenText |
+|---|---:|---|---|---|---|---|---|---|---|
+| colors_01 | 1 | 看和听 | Tap the color RED | Tap the color | 颜色名大字（不放色块）：RED | Red ✓ / Blue / Orange | Red | — | This is red. Say it with me: red! Now tap the color red. |
+| colors_01 | 2 | 生活中的物品 | Which one is red? | Which is red? | 大色块：Red | Wave / Apple ✓ / Carrot | Apple | — | Which picture is red? |
+| colors_01 | 3 | 生活中的物品 | Tap the color of a strawberry 🍓 | What color? | 物品 🍓 | Yellow / Pink / Red ✓ | Red | — | What color is a strawberry? |
+| colors_02 | 1 | 看和听 | Tap the color BLUE | Tap the color | 颜色名大字（不放色块）：BLUE | Yellow / Blue ✓ / Purple | Blue | — | This is blue. Say it with me: blue! Now tap the color blue. |
+| colors_02 | 2 | 生活中的物品 | Which one is blue? | Which is blue? | 大色块：Blue | Banana / Apple / Water drop ✓ | Water drop | — | Which picture is blue? |
+| colors_02 | 3 | 生活中的物品 | Tap the color of the sky ☁️ | What color? | 物品 🐳 | Blue ✓ / Green / Brown | Blue | — | What color is a whale? |
+| colors_03 | 1 | 看和听 | Tap the color YELLOW | Tap the color | 颜色名大字（不放色块）：YELLOW | Green / Pink / Yellow ✓ | Yellow | — | This is yellow. Say it with me: yellow! Now tap the color yellow. |
+| colors_03 | 2 | 生活中的物品 | Which one is yellow? | Which is yellow? | 大色块：Yellow | Chick ✓ / Frog / Pig | Chick | — | Which picture is yellow? |
+| colors_03 | 3 | 生活中的物品 | Tap the color of a banana 🍌 | What color? | 物品 🍌 | Orange / Yellow ✓ / Red | Yellow | — | What color is a banana? |
+| colors_04 | 1 | 看和听 | Tap the color GREEN | Tap the color | 颜色名大字（不放色块）：GREEN | Green ✓ / Orange / Brown | Green | — | This is green. Say it with me: green! Now tap the color green. |
+| colors_04 | 2 | 生活中的物品 | Which one is green? | Which is green? | 大色块：Green | Orange / Frog ✓ / Chocolate | Frog | — | Which picture is green? |
+| colors_04 | 3 | 生活中的物品 | Tap the color of grass 🌿 | What color? | 物品 🌿 | Purple / Blue / Green ✓ | Green | — | What color is the grass? |
+| colors_05 | 1 | 看和听 | Tap the color ORANGE | Tap the color | 颜色名大字（不放色块）：ORANGE | Red / Orange ✓ / Green | Orange | — | This is orange. Say it with me: orange! Now tap the color orange. |
+| colors_05 | 2 | 生活中的物品 | Which one is orange? | Which is orange? | 大色块：Orange | Apple / Tree / Fox ✓ | Orange | Orange 🍊 as a picture option is confusing next to the color name, so the answer is now the orange Fox 🦊. | Which picture is orange? |
+| colors_05 | 3 | 生活中的物品 | Tap the color of a carrot 🥕 | What color? | 物品 🥕 | Orange ✓ / Blue / Pink | Orange | — | What color is a carrot? |
+| colors_06 | 1 | 看和听 | Tap the color PURPLE | Tap the color | 颜色名大字（不放色块）：PURPLE | Blue / Orange / Purple ✓ | Purple | — | This is purple. Say it with me: purple! Now tap the color purple. |
+| colors_06 | 2 | 生活中的物品 | Which one is purple? | Which is purple? | 大色块：Purple | Crystal ball ✓ / Wave / Carrot | Crystal ball | — | Which picture is purple? |
+| colors_06 | 3 | 生活中的物品 | Tap the color of grapes 🍇 | What color? | 物品 🍇 | Yellow / Purple ✓ / Brown | Purple | — | What color are grapes? |
+| colors_07 | 1 | 看和听 | Tap the color PINK | Tap the color | 颜色名大字（不放色块）：PINK | Pink ✓ / Yellow / Purple | Pink | — | This is pink. Say it with me: pink! Now tap the color pink. |
+| colors_07 | 2 | 生活中的物品 | Which one is pink? | Which is pink? | 大色块：Pink | Banana / Ribbon ✓ / Frog | Ribbon | — | Which picture is pink? |
+| colors_07 | 3 | 生活中的物品 | Tap the color of a pig 🐷 | What color? | 物品 🐷 | Green / Red / Pink ✓ | Pink | — | What color is a pig? |
+| colors_08 | 1 | 看和听 | Tap the color BROWN | Tap the color | 颜色名大字（不放色块）：BROWN | Green / Brown ✓ / Pink | Brown | — | This is brown. Say it with me: brown! Now tap the color brown. |
+| colors_08 | 2 | 生活中的物品 | Which one is brown? | Which is brown? | 大色块：Brown | Frog / Pig / Bear ✓ | Bear | — | Which picture is brown? |
+| colors_08 | 3 | 生活中的物品 | Tap the color of a teddy bear 🧸 | What color? | 物品 🧸 | Brown ✓ / Orange / Blue | Brown | — | What color is a teddy bear? |
+| colors_09 | 1 | 看和听 | What color do red and yellow make? | What color? | 色块算式：Red + Yellow = ? | Green / Purple / Orange ✓ | Orange | — | What color do red and yellow make? |
+| colors_09 | 2 | 概念 | Which two colors make orange? | Make orange? | 大色块：Orange | Red + Yellow ✓ / Blue + Yellow / Red + Blue | Red + Yellow | — | Which two colors make orange? |
+| colors_09 | 3 | 生活中的物品 | Tap the color of a carrot 🥕 | What color? | 物品 🎃 | Blue / Orange ✓ / Pink | Orange | — | What color is a pumpkin? |
+| colors_10 | 1 | 看和听 | What color do blue and yellow make? | What color? | 色块算式：Blue + Yellow = ? | Green ✓ / Orange / Pink | Green | — | What color do blue and yellow make? |
+| colors_10 | 2 | 概念 | Which two colors make green? | Make green? | 大色块：Green | Red + Yellow / Blue + Yellow ✓ / Red + Blue | Blue + Yellow | — | Which two colors make green? |
+| colors_10 | 3 | 生活中的物品 | Tap the color of a frog 🐸 | What color? | 物品 🐢 | Purple / Red / Green ✓ | Green | — | What color is a turtle? |
+| colors_11 | 1 | 看和听 | What color do red and blue make? | What color? | 色块算式：Red + Blue = ? | Green / Purple ✓ / Brown | Purple | — | What color do red and blue make? |
+| colors_11 | 2 | 概念 | Which two colors make purple? | Make purple? | 大色块：Purple | Blue + Yellow / Red + Yellow / Red + Blue ✓ | Red + Blue | — | Which two colors make purple? |
+| colors_11 | 3 | 生活中的物品 | Tap the color of grapes 🍇 | What color? | 物品 💜 | Purple ✓ / Yellow / Orange | Purple | — | What color is the heart? |
+| colors_12 | 1 | 看和听 | Which color comes first in the rainbow? 🌈 | First color? | 彩虹条（红橙黄绿蓝紫），缺「红」带 ? | Green / Blue / Red ✓ | Red | — | Which color is first in the rainbow? |
+| colors_12 | 2 | 概念 | Tap the color that is NOT in a rainbow | What is next? | 彩虹条（红橙黄绿蓝紫），缺「绿」带 ? | Blue / Green ✓ / Red | Brown | The old NOT-in-the-rainbow question is replaced by "which color comes after yellow". | Which color comes after yellow? |
+| colors_12 | 3 | 概念 | Which color is between red and yellow in a rainbow? | What is missing? | 彩虹条（红橙黄绿蓝紫），缺「橙」带 ? | Green / Orange ✓ / Purple | Orange | — | Which color is between red and yellow? |
+
+### Colors notes
+
+- Object cues are all different across Colors: strawberry, whale (replaces the white cloud for blue), banana, grass, carrot, grapes, pig, teddy bear, pumpkin, turtle, purple heart. Pumpkin replaces the second carrot (colors_09) and the heart replaces the second grapes (colors_11).
+- colors_02 Q2 and colors_07 Q2 replace the crystal-ball distractor, which can look blue or pink, with Apple and Frog.
+- Mixing options are pair cards (🔴🟡, 🔵🟡, 🔴🔵) with the labels Red + Yellow, Blue + Yellow, Red + Blue.
+- The rainbow uses only the app palette (red, orange, yellow, green, blue, purple); the missing band is grey with a ? badge. The answer is checked against that band's color by a test.

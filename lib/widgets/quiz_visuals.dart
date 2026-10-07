@@ -171,7 +171,237 @@ Widget buildQuestionCue(
         dimension: size,
         child: CustomPaint(painter: _RollingSlopePainter()),
       ),
+    ColorWordCue() => _ColorWordView(cue: cue, size: size),
+    ColorSwatchCue() => _ColorSwatchView(
+        name: cue.name,
+        color: cue.color,
+        diameter: size * 0.62,
+      ),
+    ColorMixCue() => _ColorMixView(cue: cue, size: size),
+    RainbowCue() => _RainbowView(cue: cue, size: size),
   };
+}
+
+class _ColorWordView extends StatelessWidget {
+  const _ColorWordView({required this.cue, required this.size});
+
+  final ColorWordCue cue;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: size,
+        height: size * 0.5,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            cue.name.toUpperCase(),
+            maxLines: 1,
+            softWrap: false,
+            style: const TextStyle(
+              fontSize: 64,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.5,
+              color: Color(0xFF4A3F3F),
+            ),
+          ),
+        ),
+      );
+}
+
+class _ColorSwatchView extends StatelessWidget {
+  const _ColorSwatchView({
+    required this.name,
+    required this.color,
+    required this.diameter,
+  });
+
+  final String name;
+  final Color color;
+  final double diameter;
+
+  @override
+  Widget build(BuildContext context) {
+    final friendly = context
+            .dependOnInheritedWidgetOfExactType<AccessibilitySettingsScope>()
+            ?.notifier
+            ?.colorFriendlyMode ??
+        false;
+    return Container(
+      width: diameter,
+      height: diameter,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.black.withValues(alpha: 0.1), width: 3),
+      ),
+      child: friendly
+          ? ClipOval(
+              child: CustomPaint(
+                size: Size.square(diameter),
+                painter: ColorPatternPainter(name, color),
+              ),
+            )
+          : null,
+    );
+  }
+}
+
+class _MysteryCircle extends StatelessWidget {
+  const _MysteryCircle({required this.diameter});
+
+  final double diameter;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: diameter,
+        height: diameter,
+        alignment: Alignment.center,
+        padding: EdgeInsets.all(diameter * 0.14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1EDED),
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFB8B0B0), width: 3),
+        ),
+        child: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '?',
+            maxLines: 1,
+            softWrap: false,
+            style: TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF8A8080),
+            ),
+          ),
+        ),
+      );
+}
+
+class _ColorMixView extends StatelessWidget {
+  const _ColorMixView({required this.cue, required this.size});
+
+  final ColorMixCue cue;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final diameter = size * 0.3;
+    final gap = SizedBox(width: size * 0.04);
+    final symbol = TextStyle(
+      fontSize: size * 0.2,
+      fontWeight: FontWeight.w900,
+      color: const Color(0xFF4A3F3F),
+    );
+    return SizedBox(
+      width: size,
+      height: size * 0.42,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _ColorSwatchView(
+              name: cue.firstName,
+              color: cue.first,
+              diameter: diameter,
+            ),
+            gap,
+            Text('+', style: symbol),
+            gap,
+            _ColorSwatchView(
+              name: cue.secondName,
+              color: cue.second,
+              diameter: diameter,
+            ),
+            gap,
+            Text('=', style: symbol),
+            gap,
+            _MysteryCircle(diameter: diameter),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RainbowView extends StatelessWidget {
+  const _RainbowView({required this.cue, required this.size});
+
+  final RainbowCue cue;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: size,
+        height: size * 0.6,
+        child: CustomPaint(painter: _RainbowPainter(cue)),
+      );
+}
+
+class _RainbowPainter extends CustomPainter {
+  _RainbowPainter(this.cue);
+
+  final RainbowCue cue;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final count = cue.bands.length;
+    final center = Offset(size.width / 2, size.height * 0.95);
+    final outer = math.min(size.width / 2, size.height * 0.95) - 2;
+    final thickness = outer * 0.84 / count;
+    Offset? missingTop;
+    for (var index = 0; index < count; index++) {
+      final radius = outer - thickness * (index + 0.5);
+      final missing = index == cue.missingIndex;
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = thickness + 0.6
+        ..color = missing ? const Color(0xFFE6E1E1) : cue.bands[index];
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        math.pi,
+        math.pi,
+        false,
+        paint,
+      );
+      if (missing) missingTop = Offset(center.dx, center.dy - radius);
+    }
+    if (missingTop != null) {
+      final badge = thickness * 0.95;
+      canvas.drawCircle(missingTop, badge, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        missingTop,
+        badge,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..color = const Color(0xFFB8B0B0),
+      );
+      final painter = TextPainter(
+        text: TextSpan(
+          text: '?',
+          style: TextStyle(
+            fontSize: badge * 1.4,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF8A8080),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painter.paint(
+        canvas,
+        missingTop - Offset(painter.width / 2, painter.height / 2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RainbowPainter oldDelegate) =>
+      oldDelegate.cue.missingIndex != cue.missingIndex ||
+      oldDelegate.cue.bands != cue.bands;
 }
 
 class _ShapeRow extends StatelessWidget {
