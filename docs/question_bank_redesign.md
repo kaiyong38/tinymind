@@ -48,7 +48,7 @@ repeat their play type; their prompts, cues, and correct answers vary.
 | shapes_11 | 2 | 找一样的 | Tap the same shape / 🔴 | Match circle | 红色圆形目标；选项形状组件颜色保持原样（蓝色圆形） | square / triangle / circle ✓ | circle | — | Find the circle that matches the target. |
 | shapes_11 | 3 | 找一样的 | Tap the same shape / ⬛ | Match square | 红色正方形目标；选项形状组件颜色保持原样（橙色正方形） | square ✓ / circle / triangle | square | — | Find the square that matches the target. |
 | shapes_12 | 1 | 看和听 | Which shape has 4 corners? | 4 corners? | 大数字 4；选项形状上标出红色角点（圆形没有点） | circle / triangle / square ✓ | square | — | Which shape has four corners? |
-| shapes_12 | 2 | 概念 | Which shape rolls the best? | Rolls best? | 斜坡加滚动箭头，无形状图案 | circle ✓ / square / triangle | circle | — | Which shape rolls smoothly down a slope? |
+| shapes_12 | 2 | 概念 | Which shape rolls down the hill? | Rolls down? | 满幅场景：浅绿色地面、浅棕色直角斜坡、深色下坡箭头与三条速度线，右侧地面延伸虚线；不含形状物体 | circle ✓ / square / triangle | circle | — | Which shape rolls down the hill? |
 | shapes_12 | 3 | 说名字 | Which shape has 3 sides? | 3 sides? | 大数字 3；选项形状的每条边用不同颜色（圆形只有一条灰色轮廓） | square / triangle ✓ / circle | triangle | — | Which shape has three sides? |
 
 ### Shapes cue and answer notes

@@ -228,10 +228,7 @@ Widget buildQuestionCue(
         dimension: size,
         child: CustomPaint(painter: _EdgeMarksPainter(count)),
       ),
-    RollingSlopeCue() => SizedBox.square(
-        dimension: size,
-        child: CustomPaint(painter: _RollingSlopePainter()),
-      ),
+    RollingSlopeCue() => _RollingSlopeView(size: size),
     ColorWordCue() => _ColorWordView(cue: cue, size: size),
     ColorSwatchCue() => _ColorSwatchView(
         name: cue.name,
@@ -863,31 +860,105 @@ class _EdgeMarksPainter extends CustomPainter {
       count != oldDelegate.count;
 }
 
+class _RollingSlopeView extends StatelessWidget {
+  const _RollingSlopeView({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width =
+              constraints.hasBoundedWidth ? constraints.maxWidth : size;
+          final height =
+              constraints.hasBoundedHeight ? constraints.maxHeight : size;
+          return CustomPaint(
+            size: Size(width, height),
+            painter: _RollingSlopePainter(),
+          );
+        },
+      );
+}
+
 class _RollingSlopePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final slopeStart = Offset(size.width * 0.16, size.height * 0.78);
-    final slopeEnd = Offset(size.width * 0.84, size.height * 0.42);
-    final linePaint = Paint()
-      ..color = const Color(0xFF3A86FF)
-      ..strokeWidth = size.shortestSide * 0.055
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(slopeStart, slopeEnd, linePaint);
-    final arrowTip = Offset(size.width * 0.84, size.height * 0.78);
-    canvas.drawLine(
-      Offset(size.width * 0.54, size.height * 0.78),
-      arrowTip,
-      Paint()
-        ..color = const Color(0xFFE84855)
-        ..strokeWidth = size.shortestSide * 0.04
-        ..strokeCap = StrokeCap.round,
+    final groundY = size.height * 0.82;
+    final slopeTop = Offset(size.width * 0.1, size.height * 0.14);
+    final slopeFoot = Offset(size.width * 0.72, groundY);
+    final groundPaint = Paint()..color = const Color(0xFFDDF2D5);
+    canvas.drawRect(
+      Rect.fromLTRB(0, groundY, size.width, size.height),
+      groundPaint,
     );
-    final arrow = Path()
-      ..moveTo(arrowTip.dx, arrowTip.dy)
-      ..lineTo(arrowTip.dx - size.width * 0.12, arrowTip.dy - size.height * 0.08)
-      ..lineTo(arrowTip.dx - size.width * 0.12, arrowTip.dy + size.height * 0.08)
+
+    final slope = Path()
+      ..moveTo(slopeTop.dx, slopeTop.dy)
+      ..lineTo(slopeFoot.dx, slopeFoot.dy)
+      ..lineTo(slopeTop.dx, groundY)
       ..close();
-    canvas.drawPath(arrow, Paint()..color = const Color(0xFFE84855));
+    canvas.drawPath(slope, Paint()..color = const Color(0xFFD7B28A));
+
+    final slopeVector = slopeFoot - slopeTop;
+    final slopeLength = slopeVector.distance;
+    final direction = slopeVector / slopeLength;
+    final normal = Offset(direction.dy, -direction.dx);
+    final shortSide = size.shortestSide;
+
+    final speedPaint = Paint()
+      ..color = const Color(0xFF72543D)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = shortSide * 0.025
+      ..strokeCap = StrokeCap.round;
+    for (var index = 0; index < 3; index++) {
+      final t = 0.12 + index * 0.09;
+      final start = slopeTop + slopeVector * t + normal * (shortSide * 0.055);
+      final end = start + direction * (shortSide * 0.075);
+      final curve = Path()
+        ..moveTo(start.dx, start.dy)
+        ..quadraticBezierTo(
+          start.dx + direction.dx * shortSide * 0.035 +
+              normal.dx * shortSide * 0.025,
+          start.dy + direction.dy * shortSide * 0.035 +
+              normal.dy * shortSide * 0.025,
+          end.dx,
+          end.dy,
+        );
+      canvas.drawPath(curve, speedPaint);
+    }
+
+    final arrowStart = slopeTop + slopeVector * 0.36;
+    final arrowTip = slopeTop + slopeVector * 0.76;
+    final arrowPaint = Paint()
+      ..color = const Color(0xFF4E3B2D)
+      ..strokeWidth = shortSide * 0.055
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(arrowStart, arrowTip, arrowPaint);
+    final arrowHeadLength = shortSide * 0.12;
+    final arrowHeadHalfWidth = shortSide * 0.075;
+    for (final side in [-1.0, 1.0]) {
+      final headEnd = arrowTip -
+          direction * arrowHeadLength +
+          normal * (arrowHeadHalfWidth * side);
+      canvas.drawLine(arrowTip, headEnd, arrowPaint);
+    }
+
+    final dashPaint = Paint()
+      ..color = const Color(0xFF72543D)
+      ..strokeWidth = shortSide * 0.022
+      ..strokeCap = StrokeCap.round;
+    final dashLength = shortSide * 0.07;
+    final dashGap = shortSide * 0.045;
+    for (var x = slopeFoot.dx + size.width * 0.025;
+        x < size.width * 0.97;
+        x += dashLength + dashGap) {
+      canvas.drawLine(
+        Offset(x, groundY),
+        Offset(math.min(x + dashLength, size.width * 0.98), groundY),
+        dashPaint,
+      );
+    }
   }
 
   @override

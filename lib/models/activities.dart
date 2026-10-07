@@ -2273,12 +2273,12 @@ const worldCatalogs = <String, WorldCatalog>{
             answerIndex: 2,
           ),
           QuizQuestion(
-            prompt: 'Rolls best?',
+            prompt: 'Rolls down?',
             playType: PlayType.concept,
             cue: RollingSlopeCue(),
             visual: AnswerVisual.shape,
-            spokenText: 'Which shape rolls smoothly down a slope?',
-            hint: 'Look for the smooth shape.',
+            spokenText: 'Which shape rolls down the hill?',
+            hint: 'Think of a ball.',
             options: [
               QuizOption('circle', color: _blue),
               QuizOption('square', color: _orange),

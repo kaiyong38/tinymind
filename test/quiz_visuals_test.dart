@@ -6,9 +6,61 @@ import 'package:tinymind/models/activities.dart';
 import 'package:tinymind/models/learning.dart';
 import 'package:tinymind/services/accessibility_settings.dart';
 import 'package:tinymind/widgets/drag_answer.dart';
+import 'package:tinymind/widgets/question_cue_card.dart';
 import 'package:tinymind/widgets/quiz_visuals.dart';
 
 void main() {
+  testWidgets('shapes_12 Q2 hill cue renders across landscape card sizes',
+      (tester) async {
+    final activity = worldCatalogs['shapes']!
+        .activities
+        .singleWhere((activity) => activity.id == 'shapes_12');
+    final question = activity.questions[1];
+
+    expect(question.cue, isA<RollingSlopeCue>());
+    expect(question.prompt, 'Rolls down?');
+    expect(question.spokenText, 'Which shape rolls down the hill?');
+    expect(question.hint, 'Think of a ball.');
+    expect(question.playType, PlayType.concept);
+    expect(question.answerIndex, 0);
+    expect(
+      question.options.map((option) => option.label).toList(),
+      ['circle', 'square', 'triangle'],
+    );
+
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    for (final dimensions in [const Size(568, 320), const Size(640, 360)]) {
+      tester.view.physicalSize = dimensions;
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: QuestionCueCard(
+              question: question,
+              worldColor: Colors.blue,
+              onReplay: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final cuePaint = find.byWidgetPredicate(
+        (widget) =>
+            widget is CustomPaint &&
+            widget.size.width > 400,
+      );
+      expect(cuePaint, findsOneWidget);
+      final paint = tester.renderObject<RenderCustomPaint>(
+        cuePaint,
+      );
+      expect(paint.size.width, greaterThan(400));
+      expect(paint.size.height, greaterThan(100));
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('color-friendly mode toggles swatch patterns and names',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
