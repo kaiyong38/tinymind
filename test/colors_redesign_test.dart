@@ -100,6 +100,22 @@ void main() {
     }
   });
 
+  test('first-question speech is the instruction, the intro reads the screen',
+      () {
+    for (var number = 1; number <= 8; number++) {
+      final first = colorActivities[number - 1].questions.first;
+      expect(first.spokenText, startsWith('Tap the color'));
+      expect(first.teach, isNotNull);
+    }
+  });
+
+  test('pink uses a clearly pink picture, not a red-looking ribbon', () {
+    final pink = colorActivities.singleWhere((a) => a.id == 'colors_07');
+    final labels = pink.questions[1].options.map((o) => o.label).toList();
+    expect(labels, contains('Flamingo'));
+    expect(labels, isNot(contains('Ribbon')));
+  });
+
   test('object cues are unique across the Colors world', () {
     final emojis = <String>[];
     for (final question in questions) {
@@ -146,6 +162,7 @@ void main() {
           .toLowerCase()
           .replaceAll(' ', '');
       expect(mix[pair], result, reason: id);
+      expect(q2.visual, AnswerVisual.colorPair, reason: id);
       expect(activity.minAge, 5, reason: id);
     }
   });

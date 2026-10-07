@@ -7,6 +7,9 @@ enum AnswerVisual {
   letterPicture,
   numberDots,
   picture,
+  colorPair,
+  shapeCorners,
+  shapeSides,
 }
 
 enum PlayType {
@@ -71,15 +74,28 @@ final class ShapeRowCue extends QuizCue {
     required this.shapes,
     required this.differentIndex,
     required this.color,
+    this.differentColor,
   });
 
   final List<ShapeKind> shapes;
   final int differentIndex;
   final Color color;
 
+  /// Colour of the odd shape. When null it uses the same colour as the rest.
+  final Color? differentColor;
+
   @override
   String get identityKey =>
-      'row:${shapes.map((shape) => shape.name).join(',')}:$differentIndex:${color.toARGB32()}';
+      'row:${shapes.map((shape) => shape.name).join(',')}:$differentIndex:${color.toARGB32()}:${differentColor?.toARGB32()}';
+}
+
+final class NumberCue extends QuizCue {
+  const NumberCue(this.value);
+
+  final int value;
+
+  @override
+  String get identityKey => 'number:$value';
 }
 
 final class NightSkyCue extends QuizCue {
@@ -164,16 +180,20 @@ final class RainbowCue extends QuizCue {
 }
 
 class QuizOption {
-  const QuizOption(this.label, {this.color, this.emoji, this.count});
+  const QuizOption(this.label,
+      {this.color, this.color2, this.emoji, this.count});
 
   final String label;
   final Color? color;
+  final Color? color2;
   final String? emoji;
   final int? count;
 
   String identityKeyFor(AnswerVisual visual) {
     if (emoji != null) return 'emoji:$emoji';
     if (visual == AnswerVisual.shape) return 'shape:solid:$label';
+    if (visual == AnswerVisual.shapeCorners) return 'shape:corners:$label';
+    if (visual == AnswerVisual.shapeSides) return 'shape:sides:$label';
     return 'label:${label.toLowerCase()}';
   }
 }

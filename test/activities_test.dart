@@ -167,4 +167,39 @@ void main() {
       'colors_09',
     );
   });
+  group('nextActivityId', () {
+    test('follows the order of the world, even for finished activities', () {
+      expect(
+        nextActivityId(worldId: 'colors', age: 5, currentId: 'colors_01'),
+        'colors_02',
+      );
+      expect(
+        nextActivityId(worldId: 'shapes', age: 4, currentId: 'shapes_01'),
+        'shapes_02',
+      );
+    });
+
+    test('skips activities that are too advanced for the child', () {
+      // colors_09 to colors_12 are for ages 5 and up.
+      expect(
+        nextActivityId(worldId: 'colors', age: 3, currentId: 'colors_08'),
+        isNull,
+      );
+      expect(
+        nextActivityId(worldId: 'colors', age: 5, currentId: 'colors_08'),
+        'colors_09',
+      );
+    });
+
+    test('returns null for the last activity or an unknown id', () {
+      expect(
+        nextActivityId(worldId: 'colors', age: 6, currentId: 'colors_12'),
+        isNull,
+      );
+      expect(
+        nextActivityId(worldId: 'colors', age: 6, currentId: 'nope'),
+        isNull,
+      );
+    });
+  });
 }

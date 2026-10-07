@@ -4,6 +4,7 @@ import 'package:tinymind/models/activities.dart';
 import 'package:tinymind/models/learning.dart';
 import 'package:tinymind/services/tts_text_helper.dart';
 import 'package:tinymind/widgets/question_cue_card.dart';
+import 'package:tinymind/widgets/quiz_visuals.dart';
 
 void main() {
   final shapeActivities = worldCatalogs['shapes']!.activities;
@@ -176,7 +177,7 @@ void main() {
     }
   });
 
-  testWidgets('question card tap and speaker replay; odd shape reveals later',
+  testWidgets('question card tap replays; odd shape reveals later',
       (tester) async {
     final question = shapeActivities
         .singleWhere((activity) => activity.id == 'shapes_10')
@@ -209,12 +210,126 @@ void main() {
     await tester.pump();
     expect(replayCount, 1);
 
-    await tester.tap(find.byTooltip('Read question again'));
-    await tester.pump();
-    expect(replayCount, 2);
+    // The read-aloud button lives in the page header, not in the card.
+    expect(find.byTooltip('Read question again'), findsNothing);
+    expect(find.byIcon(Icons.volume_up_rounded), findsNothing);
 
     await tester.pumpWidget(card(reveal: true));
     expect(highlightedShape, findsOneWidget);
+  });
+
+  test('Moon is no longer used as an answer picture in Shapes', () {
+    for (final activity in shapeActivities) {
+      for (final question in activity.questions) {
+        for (final option in question.options) {
+          expect(option.emoji, isNot('🌕'), reason: activity.id);
+        }
+      }
+    }
+  });
+
+  test('odd one out: the different shape has its own colour', () {
+    final activity = shapeActivities.singleWhere((a) => a.id == 'shapes_10');
+    for (final question in activity.questions) {
+      final cue = question.cue! as ShapeRowCue;
+      expect(cue.differentColor, isNotNull);
+      expect(cue.differentColor, isNot(cue.color));
+      final correct = question.options[question.answerIndex];
+      expect(correct.color, cue.differentColor, reason: question.prompt);
+    }
+  });
+
+  test('shapes_12 shows a number and marks the corners or sides on the answers',
+      () {
+    final activity = shapeActivities.singleWhere((a) => a.id == 'shapes_12');
+    final corners = activity.questions[0];
+    final sides = activity.questions[2];
+    expect((corners.cue! as NumberCue).value, 4);
+    expect(corners.visual, AnswerVisual.shapeCorners);
+    expect(corners.options[corners.answerIndex].label, 'square');
+    expect((sides.cue! as NumberCue).value, 3);
+    expect(sides.visual, AnswerVisual.shapeSides);
+    expect(sides.options[sides.answerIndex].label, 'triangle');
+  });
+
+  test('first-question speech is a question, not the intro sentence', () {
+    for (final activity in shapeActivities) {
+      final first = activity.questions.first;
+      expect(first.spokenText, isNot(startsWith('This is a')),
+          reason: activity.id);
+    }
+  });
+
+  testWidgets('answer pictures with marked corners, sides and pairs render',
+      (tester) async {
+    tester.view.physicalSize = const Size(640, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Widget visual(AnswerVisual kind, QuizOption option) => MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Builder(
+                builder: (context) =>
+                    buildQuizVisual(context, option, kind, size: 80),
+              ),
+            ),
+          ),
+        );
+
+    for (final label in ['circle', 'triangle', 'square']) {
+      await tester.pumpWidget(
+          visual(AnswerVisual.shapeCorners, QuizOption(label)));
+      expect(tester.takeException(), isNull, reason: 'corners $label');
+      await tester.pumpWidget(
+          visual(AnswerVisual.shapeSides, QuizOption(label)));
+      expect(tester.takeException(), isNull, reason: 'sides $label');
+    }
+    await tester.pumpWidget(visual(
+      AnswerVisual.colorPair,
+      const QuizOption('Red + Yellow',
+          color: Color(0xFFE84855), color2: Color(0xFFFFC93C)),
+    ));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('triangle in the odd-one-out row is not squeezed',
+      (tester) async {
+    tester.view.physicalSize = const Size(640, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final question = shapeActivities
+        .singleWhere((a) => a.id == 'shapes_10')
+        .questions
+        .first;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 300,
+              height: 170,
+              child: QuestionCueCard(
+                question: question,
+                worldColor: Colors.green,
+                onReplay: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final triangle = find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is TrianglePainter,
+    );
+    expect(triangle, findsWidgets);
+    final size = tester.getSize(triangle.first);
+    expect(size.width, closeTo(size.height, 1));
+    expect(tester.takeException(), isNull);
   });
 }
 

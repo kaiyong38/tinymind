@@ -35,9 +35,11 @@ class QuestionCueCard extends StatelessWidget {
                 final metrics =
                     AdaptiveMetrics.fromConstraints(context, constraints);
                 final cue = question.cue;
+                // The read-aloud button lives in the page header, so the cue can
+                // use the whole card.
                 final cueSize = math.min(
-                  constraints.maxWidth * 0.62,
-                  constraints.maxHeight * 0.58,
+                  constraints.maxWidth * 0.8,
+                  constraints.maxHeight * 0.7,
                 );
                 if (cue == null) {
                   return Column(
@@ -55,14 +57,13 @@ class QuestionCueCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      _replayButton(),
                     ],
                   );
                 }
                 return Column(
                   children: [
                     Expanded(
-                      flex: 7,
+                      flex: 8,
                       child: Center(
                         child: buildQuestionCue(
                           cue,
@@ -87,19 +88,11 @@ class QuestionCueCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    _replayButton(),
                   ],
                 );
               },
             ),
           ),
         ),
-      );
-
-  Widget _replayButton() => IconButton(
-        tooltip: 'Read question again',
-        onPressed: onReplay,
-        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-        icon: Icon(Icons.volume_up_rounded, color: worldColor),
       );
 }

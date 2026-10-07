@@ -600,12 +600,20 @@ class _LibraryPageState extends State<LibraryPage> {
   void initState() {
     super.initState();
     BackgroundMusicService.instance.play(MusicTrack.forModule(widget.world.id));
+    widget.store.addListener(_onProgressChanged);
   }
 
   @override
   void dispose() {
+    widget.store.removeListener(_onProgressChanged);
     BackgroundMusicService.instance.play(MusicTrack.playtime);
     super.dispose();
+  }
+
+  /// Keeps the stars up to date even when the child chains several activities
+  /// with the "Next" button instead of coming back to this page in between.
+  void _onProgressChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _openActivity(Activity activity) async {
@@ -1517,8 +1525,11 @@ class _QuizPageState extends State<QuizPage> {
         ? _teachLeadIns[_questionNumber % _teachLeadIns.length]
         : _leadIns[_questionNumber % _leadIns.length];
     final displayedText = _teaching ? _question.teach! : _question.prompt;
-    final speechText =
-        _question.spokenText == null ? null : '$lead ${_question.spokenText}';
+    // The intro screen reads the text shown on it; only the question itself
+    // uses the longer spokenText sentence.
+    final speechText = _teaching || _question.spokenText == null
+        ? null
+        : '$lead ${_question.spokenText}';
     NarrationService.instance.speak(
       '$lead $displayedText',
       spokenText: speechText,
@@ -1535,7 +1546,11 @@ class _QuizPageState extends State<QuizPage> {
       case AnswerVisual.colorSwatch:
         return "That's ${option.label.toLowerCase()}.";
       case AnswerVisual.shape:
+      case AnswerVisual.shapeCorners:
+      case AnswerVisual.shapeSides:
         return "That's a ${option.label}.";
+      case AnswerVisual.colorPair:
+        return "That's ${option.label.toLowerCase()}.";
       case AnswerVisual.letterPicture:
         return "That's the letter ${option.label}.";
       case AnswerVisual.numberDots:
@@ -2138,11 +2153,18 @@ class ResultPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final excellent = stars == 3;
-    final nextId = recommendedActivityId(
+    final sequentialId = nextActivityId(
+      worldId: world.id,
+      age: store.progress.childAge,
+      currentId: activity.id,
+    );
+    final recommendedId = recommendedActivityId(
       worldId: world.id,
       age: store.progress.childAge,
       bestStars: store.progress.activityStars,
     );
+    final nextId = sequentialId ??
+        (recommendedId == activity.id ? null : recommendedId);
     final nextActivity = nextId == null ? null : activityById(nextId);
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBF0),

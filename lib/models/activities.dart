@@ -127,6 +127,28 @@ String? recommendedActivityId({
   return null;
 }
 
+/// The activity that follows [currentId] in the world's order, skipping only
+/// the activities that are not suitable for the child's age.
+String? nextActivityId({
+  required String worldId,
+  required int age,
+  required String currentId,
+}) {
+  final catalog = worldCatalogs[worldId];
+  if (catalog == null) return null;
+  final activities = catalog.activities;
+  final index = activities.indexWhere((activity) => activity.id == currentId);
+  if (index < 0) return null;
+  for (var i = index + 1; i < activities.length; i++) {
+    final activity = activities[i];
+    if (age >= activity.minAge &&
+        (age > 4 || activity.sectionIndex <= catalog.youngMaxSection)) {
+      return activity.id;
+    }
+  }
+  return null;
+}
+
 const worldCatalogs = <String, WorldCatalog>{
 
   // ===== Letter Land (26 activities) =====
@@ -1629,7 +1651,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ShapeCue(ShapeKind.circle, color: _blue),
             visual: AnswerVisual.shape,
             teach: 'A circle is round.',
-            spokenText: 'This is a circle. It is round like a wheel.',
+            spokenText: 'Tap the circle.',
             teachOption: QuizOption('circle', color: _blue),
             hint: 'Look for the round one.',
             options: [
@@ -1684,7 +1706,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ShapeCue(ShapeKind.square, color: _orange),
             visual: AnswerVisual.shape,
             teach: 'A square has four equal sides.',
-            spokenText: 'This is a square. It has four equal sides.',
+            spokenText: 'Tap the square.',
             teachOption: QuizOption('square', color: _orange),
             hint: 'Find four equal sides.',
             options: [
@@ -1739,7 +1761,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ShapeCue(ShapeKind.triangle, color: _green),
             visual: AnswerVisual.shape,
             teach: 'A triangle has three sides.',
-            spokenText: 'This is a triangle. It has three sides.',
+            spokenText: 'Tap the triangle.',
             teachOption: QuizOption('triangle', color: _green),
             hint: 'Look for three pointy corners.',
             options: [
@@ -1794,7 +1816,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ShapeCue(ShapeKind.star, color: _yellow),
             visual: AnswerVisual.shape,
             teach: 'Stars twinkle in the sky.',
-            spokenText: 'This is a star. It twinkles in the sky.',
+            spokenText: 'Tap the star.',
             teachOption: QuizOption('star', color: _yellow),
             hint: 'Look for the pointy tips.',
             options: [
@@ -1830,7 +1852,7 @@ const worldCatalogs = <String, WorldCatalog>{
             spokenText: 'Which one twinkles in the night sky?',
             hint: 'Find what twinkles at night.',
             options: [
-              QuizOption('Moon', emoji: '🌕'),
+              QuizOption('Rainbow', emoji: '🌈'),
               QuizOption('Cloud', emoji: '☁️'),
               QuizOption('Star', emoji: '⭐')
             ],
@@ -1850,7 +1872,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ShapeCue(ShapeKind.circle, color: _blue),
             visual: AnswerVisual.picture,
             teach: 'A ball is round.',
-            spokenText: 'This ball is round like a circle.',
+            spokenText: 'Which object is round like this circle?',
             hint: 'Find the round object.',
             options: [
               QuizOption('Gift', emoji: '🎁'),
@@ -1929,7 +1951,7 @@ const worldCatalogs = <String, WorldCatalog>{
             options: [
               QuizOption('Box', emoji: '📦'),
               QuizOption('Orange', emoji: '🍊'),
-              QuizOption('Moon', emoji: '🌕')
+              QuizOption('Cookie', emoji: '🍪')
             ],
             answerIndex: 0,
           ),
@@ -1983,7 +2005,7 @@ const worldCatalogs = <String, WorldCatalog>{
             options: [
               QuizOption('Orange', emoji: '🍊'),
               QuizOption('Tent', emoji: '⛺'),
-              QuizOption('Moon', emoji: '🌕')
+              QuizOption('Ball', emoji: '⚽')
             ],
             answerIndex: 1,
           ),
@@ -2015,7 +2037,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ShapeCue(ShapeKind.star, color: _yellow),
             visual: AnswerVisual.shape,
             teach: 'Stars twinkle at night.',
-            spokenText: 'A star has pointy tips all around.',
+            spokenText: 'Find the star shape.',
             teachOption: QuizOption('star', color: _yellow),
             hint: 'Look for the pointy tips.',
             options: [
@@ -2120,6 +2142,7 @@ const worldCatalogs = <String, WorldCatalog>{
               shapes: [ShapeKind.triangle, ShapeKind.circle, ShapeKind.circle],
               differentIndex: 0,
               color: _blue,
+              differentColor: _green,
             ),
             visual: AnswerVisual.shape,
             teach: 'Find the shape that is different.',
@@ -2138,7 +2161,8 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ShapeRowCue(
               shapes: [ShapeKind.square, ShapeKind.triangle, ShapeKind.square],
               differentIndex: 1,
-              color: _blue,
+              color: _orange,
+              differentColor: _green,
             ),
             visual: AnswerVisual.shape,
             spokenText: 'Which shape is different in this row?',
@@ -2160,7 +2184,8 @@ const worldCatalogs = <String, WorldCatalog>{
                 ShapeKind.circle
               ],
               differentIndex: 2,
-              color: _blue,
+              color: _green,
+              differentColor: _blue,
             ),
             visual: AnswerVisual.shape,
             spokenText: 'Which shape is different in this row?',
@@ -2187,7 +2212,7 @@ const worldCatalogs = <String, WorldCatalog>{
             visual: AnswerVisual.shape,
             teach: 'Let\'s match shapes.',
             spokenText: 'Find the triangle that matches the target.',
-            hint: 'Look at the shape at the top. Which one looks just like it?',
+            hint: 'Find the same shape.',
             options: [
               QuizOption('circle', color: _blue),
               QuizOption('triangle', color: _green),
@@ -2201,7 +2226,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ShapeCue(ShapeKind.circle, color: _shapeRed),
             visual: AnswerVisual.shape,
             spokenText: 'Find the circle that matches the target.',
-            hint: 'Look at the shape at the top. Which one looks just like it?',
+            hint: 'Find the same shape.',
             options: [
               QuizOption('square', color: _orange),
               QuizOption('triangle', color: _green),
@@ -2215,7 +2240,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ShapeCue(ShapeKind.square, color: _shapeRed),
             visual: AnswerVisual.shape,
             spokenText: 'Find the square that matches the target.',
-            hint: 'Look at the shape at the top. Which one looks just like it?',
+            hint: 'Find the same shape.',
             options: [
               QuizOption('square', color: _orange),
               QuizOption('circle', color: _blue),
@@ -2235,11 +2260,11 @@ const worldCatalogs = <String, WorldCatalog>{
           QuizQuestion(
             prompt: '4 corners?',
             playType: PlayType.lookListen,
-            cue: CornerMarksCue(4),
-            visual: AnswerVisual.shape,
-            teach: 'Let\'s explore shapes.',
+            cue: NumberCue(4),
+            visual: AnswerVisual.shapeCorners,
+            teach: 'Shapes have corners and sides.',
             spokenText: 'Which shape has four corners?',
-            hint: 'Count the four corners.',
+            hint: 'Count the red dots.',
             options: [
               QuizOption('circle', color: _blue),
               QuizOption('triangle', color: _green),
@@ -2264,10 +2289,10 @@ const worldCatalogs = <String, WorldCatalog>{
           QuizQuestion(
             prompt: '3 sides?',
             playType: PlayType.sayName,
-            cue: EdgeMarksCue(3),
-            visual: AnswerVisual.shape,
+            cue: NumberCue(3),
+            visual: AnswerVisual.shapeSides,
             spokenText: 'Which shape has three sides?',
-            hint: 'Count the three edge marks.',
+            hint: 'Count the colored sides.',
             options: [
               QuizOption('square', color: _orange),
               QuizOption('triangle', color: _green),
@@ -2301,7 +2326,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ColorWordCue('Red'),
             visual: AnswerVisual.colorSwatch,
             teach: 'This is red! 🔴 Say it with me.',
-            spokenText: 'This is red. Say it with me: red! Now tap the color red.',
+            spokenText: 'Tap the color red.',
             teachOption: QuizOption('Red', color: _red),
             hint: 'Look for red.',
             options: [QuizOption('Red', color: _red), QuizOption('Blue', color: _blue), QuizOption('Orange', color: _orange)],
@@ -2341,7 +2366,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ColorWordCue('Blue'),
             visual: AnswerVisual.colorSwatch,
             teach: 'This is blue! 🔵 Say it with me.',
-            spokenText: 'This is blue. Say it with me: blue! Now tap the color blue.',
+            spokenText: 'Tap the color blue.',
             teachOption: QuizOption('Blue', color: _blue),
             hint: 'Look for blue.',
             options: [QuizOption('Yellow', color: _yellow), QuizOption('Blue', color: _blue), QuizOption('Purple', color: _purple)],
@@ -2381,7 +2406,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ColorWordCue('Yellow'),
             visual: AnswerVisual.colorSwatch,
             teach: 'This is yellow! 🟡 Say it with me.',
-            spokenText: 'This is yellow. Say it with me: yellow! Now tap the color yellow.',
+            spokenText: 'Tap the color yellow.',
             teachOption: QuizOption('Yellow', color: _yellow),
             hint: 'Look for yellow.',
             options: [QuizOption('Green', color: _green), QuizOption('Pink', color: _pink), QuizOption('Yellow', color: _yellow)],
@@ -2421,7 +2446,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ColorWordCue('Green'),
             visual: AnswerVisual.colorSwatch,
             teach: 'This is green! 🟢 Say it with me.',
-            spokenText: 'This is green. Say it with me: green! Now tap the color green.',
+            spokenText: 'Tap the color green.',
             teachOption: QuizOption('Green', color: _green),
             hint: 'Look for green.',
             options: [QuizOption('Green', color: _green), QuizOption('Orange', color: _orange), QuizOption('Brown', color: _brown)],
@@ -2461,7 +2486,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ColorWordCue('Orange'),
             visual: AnswerVisual.colorSwatch,
             teach: 'This is orange! 🟠 Say it with me.',
-            spokenText: 'This is orange. Say it with me: orange! Now tap the color orange.',
+            spokenText: 'Tap the color orange.',
             teachOption: QuizOption('Orange', color: _orange),
             hint: 'Look for orange.',
             options: [QuizOption('Red', color: _red), QuizOption('Orange', color: _orange), QuizOption('Green', color: _green)],
@@ -2501,7 +2526,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ColorWordCue('Purple'),
             visual: AnswerVisual.colorSwatch,
             teach: 'This is purple! 🟣 Say it with me.',
-            spokenText: 'This is purple. Say it with me: purple! Now tap the color purple.',
+            spokenText: 'Tap the color purple.',
             teachOption: QuizOption('Purple', color: _purple),
             hint: 'Look for purple.',
             options: [QuizOption('Blue', color: _blue), QuizOption('Orange', color: _orange), QuizOption('Purple', color: _purple)],
@@ -2541,7 +2566,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ColorWordCue('Pink'),
             visual: AnswerVisual.colorSwatch,
             teach: 'This is pink! 🌸 Say it with me.',
-            spokenText: 'This is pink. Say it with me: pink! Now tap the color pink.',
+            spokenText: 'Tap the color pink.',
             teachOption: QuizOption('Pink', color: _pink),
             hint: 'Look for pink.',
             options: [QuizOption('Pink', color: _pink), QuizOption('Yellow', color: _yellow), QuizOption('Purple', color: _purple)],
@@ -2554,7 +2579,7 @@ const worldCatalogs = <String, WorldCatalog>{
             visual: AnswerVisual.picture,
             spokenText: 'Which picture is pink?',
             hint: 'Find something pink.',
-            options: [QuizOption('Banana', emoji: '🍌'), QuizOption('Ribbon', emoji: '🎀'), QuizOption('Frog', emoji: '🐸')],
+            options: [QuizOption('Banana', emoji: '🍌'), QuizOption('Flamingo', emoji: '🦩'), QuizOption('Frog', emoji: '🐸')],
             answerIndex: 1,
           ),
           QuizQuestion(
@@ -2581,7 +2606,7 @@ const worldCatalogs = <String, WorldCatalog>{
             cue: ColorWordCue('Brown'),
             visual: AnswerVisual.colorSwatch,
             teach: 'This is brown! 🟤 Say it with me.',
-            spokenText: 'This is brown. Say it with me: brown! Now tap the color brown.',
+            spokenText: 'Tap the color brown.',
             teachOption: QuizOption('Brown', color: _brown),
             hint: 'Look for brown.',
             options: [QuizOption('Green', color: _green), QuizOption('Brown', color: _brown), QuizOption('Pink', color: _pink)],
@@ -2632,10 +2657,10 @@ const worldCatalogs = <String, WorldCatalog>{
             prompt: 'Make orange?',
             playType: PlayType.concept,
             cue: ColorSwatchCue('Orange', _orange),
-            visual: AnswerVisual.picture,
+            visual: AnswerVisual.colorPair,
             spokenText: 'Which two colors make orange?',
             hint: 'Think of mixing paint.',
-            options: [QuizOption('Red + Yellow', emoji: '🔴🟡'), QuizOption('Blue + Yellow', emoji: '🔵🟡'), QuizOption('Red + Blue', emoji: '🔴🔵')],
+            options: [QuizOption('Red + Yellow', color: _red, color2: _yellow), QuizOption('Blue + Yellow', color: _blue, color2: _yellow), QuizOption('Red + Blue', color: _red, color2: _blue)],
             answerIndex: 0,
           ),
           QuizQuestion(
@@ -2673,10 +2698,10 @@ const worldCatalogs = <String, WorldCatalog>{
             prompt: 'Make green?',
             playType: PlayType.concept,
             cue: ColorSwatchCue('Green', _green),
-            visual: AnswerVisual.picture,
+            visual: AnswerVisual.colorPair,
             spokenText: 'Which two colors make green?',
             hint: 'Think of mixing paint.',
-            options: [QuizOption('Red + Yellow', emoji: '🔴🟡'), QuizOption('Blue + Yellow', emoji: '🔵🟡'), QuizOption('Red + Blue', emoji: '🔴🔵')],
+            options: [QuizOption('Red + Yellow', color: _red, color2: _yellow), QuizOption('Blue + Yellow', color: _blue, color2: _yellow), QuizOption('Red + Blue', color: _red, color2: _blue)],
             answerIndex: 1,
           ),
           QuizQuestion(
@@ -2714,10 +2739,10 @@ const worldCatalogs = <String, WorldCatalog>{
             prompt: 'Make purple?',
             playType: PlayType.concept,
             cue: ColorSwatchCue('Purple', _purple),
-            visual: AnswerVisual.picture,
+            visual: AnswerVisual.colorPair,
             spokenText: 'Which two colors make purple?',
             hint: 'Think of mixing paint.',
-            options: [QuizOption('Blue + Yellow', emoji: '🔵🟡'), QuizOption('Red + Yellow', emoji: '🔴🟡'), QuizOption('Red + Blue', emoji: '🔴🔵')],
+            options: [QuizOption('Blue + Yellow', color: _blue, color2: _yellow), QuizOption('Red + Yellow', color: _red, color2: _yellow), QuizOption('Red + Blue', color: _red, color2: _blue)],
             answerIndex: 2,
           ),
           QuizQuestion(

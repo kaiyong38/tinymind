@@ -1,12 +1,15 @@
 import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/learning.dart';
 import 'firestore_service.dart';
 
-class ProgressStore {
+/// Holds the learner's progress. It notifies listeners whenever the progress
+/// changes, so pages such as the activity library refresh their stars at once.
+class ProgressStore extends ChangeNotifier {
   static const _storageKey = 'tinymind_progress';
   static const _childIdKey = 'tinymind_child_id';
   UserProgress progress = UserProgress();
@@ -77,6 +80,7 @@ class ProgressStore {
         // The cached snapshot remains available when Firebase is offline.
       }
     }
+    notifyListeners();
   }
 
   Future<void> recordAnswer(String moduleId, bool correct) async {
@@ -142,6 +146,9 @@ class ProgressStore {
   }
 
   Future<void> _save() async {
+    // The in-memory progress has already changed; tell the screens now rather
+    // than after the (slower) disk and cloud writes.
+    notifyListeners();
     final preferences = await SharedPreferences.getInstance();
     await _saveCache(preferences);
     if (_parentUid != null && _childId != null) {

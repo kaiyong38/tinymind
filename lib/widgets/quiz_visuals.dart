@@ -139,6 +139,67 @@ Widget buildQuizVisual(
               : EmojiGlyph(option.emoji!, size * 0.42),
         ),
       );
+    case AnswerVisual.colorPair:
+      final colorFriendlyPair = context
+              .dependOnInheritedWidgetOfExactType<AccessibilitySettingsScope>()
+              ?.notifier
+              ?.colorFriendlyMode ??
+          false;
+      final pairNames = option.label.split(' + ');
+      final pairDotSize = size * 0.4;
+      Widget pairDot(Color color, String name) => Container(
+            width: pairDotSize,
+            height: pairDotSize,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.black.withValues(alpha: 0.1),
+                width: 2,
+              ),
+            ),
+            child: colorFriendlyPair
+                ? ClipOval(
+                    child: CustomPaint(
+                      size: Size.square(pairDotSize),
+                      painter: ColorPatternPainter(name, color),
+                    ),
+                  )
+                : null,
+          );
+      return SizedBox.square(
+        dimension: size,
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                pairDot(option.color ?? Colors.grey, pairNames.first),
+                SizedBox(width: size * 0.06),
+                pairDot(
+                  option.color2 ?? Colors.grey,
+                  pairNames.length > 1 ? pairNames[1] : pairNames.first,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    case AnswerVisual.shapeCorners:
+    case AnswerVisual.shapeSides:
+      return SizedBox.square(
+        dimension: size,
+        child: CustomPaint(
+          painter: _ShapeCuePainter(
+            ShapeCue(
+              _shapeKindFor(option.label),
+              markCorners: visual == AnswerVisual.shapeCorners,
+              colorSides: visual == AnswerVisual.shapeSides,
+            ),
+          ),
+        ),
+      );
     case AnswerVisual.text:
       return Text(option.label,
           textAlign: TextAlign.center,
@@ -175,8 +236,9 @@ Widget buildQuestionCue(
     ColorSwatchCue() => _ColorSwatchView(
         name: cue.name,
         color: cue.color,
-        diameter: size * 0.62,
+        diameter: size * 0.85,
       ),
+    NumberCue() => _NumberCueView(cue: cue, size: size),
     ColorMixCue() => _ColorMixView(cue: cue, size: size),
     RainbowCue() => _RainbowView(cue: cue, size: size),
   };
@@ -189,20 +251,57 @@ class _ColorWordView extends StatelessWidget {
   final double size;
 
   @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width = math.min(
+            constraints.hasBoundedWidth ? constraints.maxWidth * 0.9 : size * 1.8,
+            size * 1.8,
+          );
+          return SizedBox(
+            width: width,
+            height: width * 0.4,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                cue.name.toUpperCase(),
+                maxLines: 1,
+                softWrap: false,
+                style: const TextStyle(
+                  fontSize: 64,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                  color: Color(0xFF4A3F3F),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+}
+
+class _NumberCueView extends StatelessWidget {
+  const _NumberCueView({required this.cue, required this.size});
+
+  final NumberCue cue;
+  final double size;
+
+  @override
   Widget build(BuildContext context) => SizedBox(
         width: size,
-        height: size * 0.5,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            cue.name.toUpperCase(),
-            maxLines: 1,
-            softWrap: false,
-            style: const TextStyle(
-              fontSize: 64,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.5,
-              color: Color(0xFF4A3F3F),
+        height: size,
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '${cue.value}',
+              maxLines: 1,
+              softWrap: false,
+              style: const TextStyle(
+                fontSize: 160,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF3A86FF),
+              ),
             ),
           ),
         ),
@@ -286,45 +385,51 @@ class _ColorMixView extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) {
-    final diameter = size * 0.3;
-    final gap = SizedBox(width: size * 0.04);
-    final symbol = TextStyle(
-      fontSize: size * 0.2,
-      fontWeight: FontWeight.w900,
-      color: const Color(0xFF4A3F3F),
-    );
-    return SizedBox(
-      width: size,
-      height: size * 0.42,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _ColorSwatchView(
-              name: cue.firstName,
-              color: cue.first,
-              diameter: diameter,
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width = math.min(
+            constraints.hasBoundedWidth ? constraints.maxWidth * 0.95 : size * 1.9,
+            size * 1.9,
+          );
+          final diameter = width * 0.2;
+          final gap = SizedBox(width: width * 0.03);
+          final symbol = TextStyle(
+            fontSize: diameter * 0.75,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF4A3F3F),
+          );
+          return SizedBox(
+            width: width,
+            height: diameter * 1.2,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _ColorSwatchView(
+                    name: cue.firstName,
+                    color: cue.first,
+                    diameter: diameter,
+                  ),
+                  gap,
+                  Text('+', style: symbol),
+                  gap,
+                  _ColorSwatchView(
+                    name: cue.secondName,
+                    color: cue.second,
+                    diameter: diameter,
+                  ),
+                  gap,
+                  Text('=', style: symbol),
+                  gap,
+                  _MysteryCircle(diameter: diameter),
+                ],
+              ),
             ),
-            gap,
-            Text('+', style: symbol),
-            gap,
-            _ColorSwatchView(
-              name: cue.secondName,
-              color: cue.second,
-              diameter: diameter,
-            ),
-            gap,
-            Text('=', style: symbol),
-            gap,
-            _MysteryCircle(diameter: diameter),
-          ],
-        ),
-      ),
-    );
-  }
+          );
+        },
+      );
 }
 
 class _RainbowView extends StatelessWidget {
@@ -334,10 +439,18 @@ class _RainbowView extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        width: size,
-        height: size * 0.6,
-        child: CustomPaint(painter: _RainbowPainter(cue)),
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width = math.min(
+            constraints.hasBoundedWidth ? constraints.maxWidth * 0.95 : size * 1.7,
+            size * 1.7,
+          );
+          return SizedBox(
+            width: width,
+            height: width * 0.56,
+            child: CustomPaint(painter: _RainbowPainter(cue)),
+          );
+        },
       );
 }
 
@@ -416,27 +529,41 @@ class _ShapeRow extends StatelessWidget {
   final bool reveal;
 
   @override
-  Widget build(BuildContext context) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          for (var index = 0; index < cue.shapes.length; index++)
-            Container(
-              width: size * 0.29,
-              height: size * 0.76,
-              alignment: Alignment.center,
-              decoration: reveal && index == cue.differentIndex
-                  ? BoxDecoration(
-                      border: Border.all(color: Colors.amber, width: 4),
-                      borderRadius: BorderRadius.circular(14),
-                    )
-                  : null,
-              child: ShapeGlyph(
-                kind: cue.shapes[index].name,
-                color: cue.color,
-                size: size * 0.42,
-              ),
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final available =
+              constraints.hasBoundedWidth ? constraints.maxWidth : size * 1.6;
+          final cell = available / cue.shapes.length;
+          final glyph = math.min(cell * 0.7, size * 0.62);
+          return SizedBox(
+            width: available,
+            child: Row(
+              children: [
+                for (var index = 0; index < cue.shapes.length; index++)
+                  Expanded(
+                    child: Center(
+                      child: Container(
+                        padding: EdgeInsets.all(glyph * 0.12),
+                        decoration: reveal && index == cue.differentIndex
+                            ? BoxDecoration(
+                                border: Border.all(color: Colors.amber, width: 4),
+                                borderRadius: BorderRadius.circular(14),
+                              )
+                            : null,
+                        child: ShapeGlyph(
+                          kind: cue.shapes[index].name,
+                          color: index == cue.differentIndex
+                              ? (cue.differentColor ?? cue.color)
+                              : cue.color,
+                          size: glyph,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-        ],
+          );
+        },
       );
 }
 
@@ -473,7 +600,7 @@ class _ShapeCuePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final inset = size.shortestSide * 0.16;
+    final inset = size.shortestSide * (cue.numberSides ? 0.24 : 0.16);
     final rect = Rect.fromLTWH(
       inset,
       inset,
@@ -485,19 +612,27 @@ class _ShapeCuePainter extends CustomPainter {
     final paintColor =
         cue.style == CueShapeStyle.silhouette ? Colors.blueGrey.shade800 : cue.color;
 
-    if (cue.colorSides && vertices.length == 4) {
+    if (cue.colorSides) {
       canvas.drawPath(path, Paint()..color = Colors.white);
-      for (var index = 0; index < vertices.length; index++) {
-        canvas.drawLine(
-          vertices[index],
-          vertices[(index + 1) % vertices.length],
+      if (vertices.isEmpty) {
+        canvas.drawPath(
+          path,
           Paint()
-            ..color = index.isEven
-                ? const Color(0xFF3A86FF)
-                : const Color(0xFFFF8C42)
-            ..strokeWidth = size.shortestSide * 0.055
-            ..strokeCap = StrokeCap.round,
+            ..color = Colors.black45
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = size.shortestSide * 0.055,
         );
+      } else {
+        for (var index = 0; index < vertices.length; index++) {
+          canvas.drawLine(
+            vertices[index],
+            vertices[(index + 1) % vertices.length],
+            Paint()
+              ..color = _sideColors[index % _sideColors.length]
+              ..strokeWidth = size.shortestSide * 0.06
+              ..strokeCap = StrokeCap.round,
+          );
+        }
       }
     } else if (cue.style == CueShapeStyle.dashed) {
       final dashedPaint = Paint()
@@ -531,16 +666,32 @@ class _ShapeCuePainter extends CustomPainter {
       canvas.drawPath(path, Paint()..color = paintColor);
     }
 
-    if (cue.numberSides) {
+    if (cue.numberSides && vertices.isNotEmpty) {
+      var sum = Offset.zero;
+      for (final vertex in vertices) {
+        sum += vertex;
+      }
+      final centroid = sum / vertices.length.toDouble();
+      final fontSize = size.shortestSide * 0.12;
       for (var index = 0; index < vertices.length; index++) {
         final start = vertices[index];
         final end = vertices[(index + 1) % vertices.length];
         final midpoint = Offset.lerp(start, end, 0.5)!;
-        final center = Offset(
-          midpoint.dx + (midpoint.dx - size.width / 2) * 0.14,
-          midpoint.dy + (midpoint.dy - size.height / 2) * 0.14,
+        final outward = midpoint - centroid;
+        final length = outward.distance == 0 ? 1.0 : outward.distance;
+        final center = midpoint + outward / length * (fontSize * 1.15);
+        // Number the sides clockwise, starting from the left side of a triangle.
+        final number = vertices.length == 3 ? (index + 1) % 3 + 1 : index + 1;
+        canvas.drawCircle(center, fontSize * 0.85, Paint()..color = Colors.white);
+        canvas.drawCircle(
+          center,
+          fontSize * 0.85,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2
+            ..color = Colors.black26,
         );
-        _drawLabel(canvas, '${index + 1}', center, size.shortestSide * 0.14);
+        _drawLabel(canvas, '$number', center, fontSize);
       }
     }
     if (cue.markCorners) {
@@ -558,6 +709,21 @@ class _ShapeCuePainter extends CustomPainter {
   bool shouldRepaint(covariant _ShapeCuePainter oldDelegate) =>
       cue != oldDelegate.cue;
 }
+
+const _sideColors = [
+  Color(0xFF3A86FF),
+  Color(0xFFFF8C42),
+  Color(0xFF2EC27E),
+  Color(0xFFE84855),
+];
+
+ShapeKind _shapeKindFor(String label) => switch (label.toLowerCase()) {
+      'circle' => ShapeKind.circle,
+      'square' => ShapeKind.square,
+      'triangle' => ShapeKind.triangle,
+      'star' => ShapeKind.star,
+      _ => ShapeKind.square,
+    };
 
 List<Offset> _verticesFor(ShapeKind shape, Rect rect) {
   switch (shape) {

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../models/learning.dart';
@@ -215,11 +217,17 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
       final minTileSize = colorFriendly
           ? 76.0
           : metrics.size(56).clamp(56.0, double.infinity).toDouble();
-      final maxTileSize = (metrics.size(84)).clamp(minTileSize, 110.0);
-      final tileSize = ((constraints.maxHeight - metrics.size(16)) / 2.15)
+      final maxTileSize = (metrics.size(104)).clamp(minTileSize, 132.0);
+      final gap = metrics.size(16);
+      final optionCount = widget.question.options.length;
+      final heightLimit = (constraints.maxHeight - gap) / 1.95;
+      final widthLimit =
+          (constraints.maxWidth - gap * (optionCount - 1)) / optionCount;
+      final tileSize = math
+          .min(heightLimit, widthLimit)
           .clamp(minTileSize, maxTileSize)
           .toDouble();
-      final slotSize = tileSize * 1.15;
+      final slotSize = tileSize * 0.95;
       final displayedIndex = widget.selectedIndex ?? _tapSelectedIndex;
       final slot = _Slot(
         option: displayedIndex == null
