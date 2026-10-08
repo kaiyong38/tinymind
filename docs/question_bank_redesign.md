@@ -248,6 +248,159 @@ frame red, second frame `?` dots for the second addend.
 | numbers_20 | 2 | 概念 | 10 + 5 = ? | 10 + 5 = ? | 两个十格框：第一个填满，第二个填 5 格，结果 ? | 16 / 14 / 15 ✓ | 15 | 改用两个十格框显示十和额外点数；数字选项和正确答案不变。 | Ten dots and five more dots. How many dots altogether? | — |
 | numbers_20 | 3 | 说名字 | 10 + 8 = ? | 10 + 8 = ? | 两个十格框：第一个填满，第二个填 8 格，结果 ? | 18 ✓ / 19 / 17 | 18 | 改用两个十格框显示十和额外点数；数字选项和正确答案不变。 | Ten dots and eight more dots. How many dots altogether? | — |
 
+## Letters — 78 questions (proposal)
+
+The 26 activity ids and their order remain unchanged. Every activity uses Q1
+看和听, Q2 找一样的, and Q3 说名字. Q1 teaches the letter name and an example
+word; the question itself asks the child to identify the letter from an object
+picture. Q2 alternates case direction alphabetically: odd-positioned letters
+show a capital cue and lowercase choices; even-positioned letters show a
+lowercase cue and capital choices. Q3 shows the letter cue and three pictures.
+The X activity is the only exception: Q3 asks for a picture ending in X, and
+its `Xx` letter cue does not show the fox.
+
+The `Teach / teachOption` column gives the intro screen text and its existing
+letter-plus-picture option. The intro speaks only the teach sentence; Q1
+`spokenText` is a separate question. Hints can use `Say the word slowly.` for
+Q1, `Look at each letter.` for Q2, and `Say each picture.` for Q3 (4, 4, and
+3 words). Every prompt below has at most 3 words, and every teach sentence has
+at most 8 words. Letters are spoken as letter names, never phonetic syllables.
+The Q3 option words, initials, and initial sounds are also listed separately
+below so the distractors can be reviewed independently.
+
+| Activity | Q | PlayType | Current prompt | New short prompt | Cue | Options (correct marked) | Original correct answer | Answer change reason | spokenText | Teach / teachOption |
+|---|---:|---|---|---|---|---|---|---|---|---|
+| letters_a | 1 | 看和听 | Tap the letter that matches 🍎 | Which letter? | 🍎 | A 🍎 ✓ / E 🐘 / L 🦁 | A | 改为物品 cue 和简短识字提示。 | Which letter is for apple? | A is for apple. / A + 🍎 |
+| letters_a | 2 | 找一样的 | Find the letter A | Same letter? | 大写 A | a ✓ / e / o | A | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital A. | — |
+| letters_a | 3 | 说名字 | Which picture starts with the letter A? | Starts with A? | Aa | ant 🐜 ✓ / book 📖 / cup 🥤 | Apple | 使用不与本世界 Q1 cue 重复的 A 词图片。 | Which picture starts with the letter A? | — |
+| letters_b | 1 | 看和听 | Tap the letter that matches ⚽ | Which letter? | ⚽ | B ⚽ ✓ / F 🐟 / M 🌙 | B | 改为物品 cue 和简短识字提示。 | Which letter is for ball? | B is for ball. / B + ⚽ |
+| letters_b | 2 | 找一样的 | Find the letter B | Same letter? | 小写 b | B ✓ / E / T | B | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small b. | — |
+| letters_b | 3 | 说名字 | Which picture starts with the letter B? | Starts with B? | Bb | banana 🍌 ✓ / duck 🦆 / flower 🌼 | Ball | 使用不与本世界 Q1 cue 重复的 B 词图片。 | Which picture starts with the letter B? | — |
+| letters_c | 1 | 看和听 | Tap the letter that matches 🐱 | Which letter? | 🐱 | C 🐱 ✓ / G 🍇 / N 👃 | C | 改为物品 cue 和简短识字提示。 | Which letter is for cat? | C is for cat. / C + 🐱 |
+| letters_c | 2 | 找一样的 | Find the letter C | Same letter? | 大写 C | c ✓ / f / r | C | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital C. | — |
+| letters_c | 3 | 说名字 | Which picture starts with the letter C? | Starts with C? | Cc | crab 🦀 ✓ / train 🚆 / map 🗺️ | Cat | 使用不与本世界 Q1 cue 重复的 C 词图片。 | Which picture starts with the letter C? | — |
+| letters_d | 1 | 看和听 | Tap the letter that matches 🐶 | Which letter? | 🐶 | D 🐶 ✓ / H 🎩 / O 🍊 | D | 改为物品 cue 和简短识字提示。 | Which letter is for dog? | D is for dog. / D + 🐶 |
+| letters_d | 2 | 找一样的 | Find the letter D | Same letter? | 小写 d | D ✓ / A / M | D | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small d. | — |
+| letters_d | 3 | 说名字 | Which picture starts with the letter D? | Starts with D? | Dd | drum 🥁 ✓ / gift 🎁 / candle 🕯️ | Dog | 使用不与本世界 Q1 cue 重复的 D 词图片。 | Which picture starts with the letter D? | — |
+| letters_e | 1 | 看和听 | Tap the letter that matches 🐘 | Which letter? | 🐘 | E 🐘 ✓ / I 🍦 / P 🍕 | E | 改为物品 cue 和简短识字提示。 | Which letter is for elephant? | E is for elephant. / E + 🐘 |
+| letters_e | 2 | 找一样的 | Find the letter E | Same letter? | 大写 E | e ✓ / l / y | E | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital E. | — |
+| letters_e | 3 | 说名字 | Which picture starts with the letter E? | Starts with E? | Ee | egg 🥚 ✓ / rabbit 🐇 / tiger 🐅 | Elephant | 使用不与本世界 Q1 cue 重复的 E 词图片。 | Which picture starts with the letter E? | — |
+| letters_f | 1 | 看和听 | Tap the letter that matches 🐟 | Which letter? | 🐟 | F 🐟 ✓ / J 👖 / Q 👸 | F | 改为物品 cue 和简短识字提示。 | Which letter is for fish? | F is for fish. / F + 🐟 |
+| letters_f | 2 | 找一样的 | Find the letter F | Same letter? | 小写 f | F ✓ / R / T | F | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small f. | — |
+| letters_f | 3 | 说名字 | Which picture starts with the letter F? | Starts with F? | Ff | frog 🐸 ✓ / crown 👑 / bear 🐻 | Fish | 使用不与本世界 Q1 cue 重复的 F 词图片。 | Which picture starts with the letter F? | — |
+| letters_g | 1 | 看和听 | Tap the letter that matches 🍇 | Which letter? | 🍇 | G 🍇 ✓ / K 🔑 / R 🌈 | G | 改为物品 cue 和简短识字提示。 | Which letter is for grapes? | G is for grapes. / G + 🍇 |
+| letters_g | 2 | 找一样的 | Find the letter G | Same letter? | 大写 G | g ✓ / c / o | G | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital G. | — |
+| letters_g | 3 | 说名字 | Which picture starts with the letter G? | Starts with G? | Gg | goat 🐐 ✓ / shoes 👟 / clock 🕒 | Grapes | 使用不与本世界 Q1 cue 重复的 G 词图片。 | Which picture starts with the letter G? | — |
+| letters_h | 1 | 看和听 | Tap the letter that matches 🎩 | Which letter? | 🎩 | H 🎩 ✓ / L 🦁 / S ☀️ | H | 改为物品 cue 和简短识字提示。 | Which letter is for hat? | H is for hat. / H + 🎩 |
+| letters_h | 2 | 找一样的 | Find the letter H | Same letter? | 小写 h | H ✓ / L / N | H | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small h. | — |
+| letters_h | 3 | 说名字 | Which picture starts with the letter H? | Starts with H? | Hh | house 🏠 ✓ / mushroom 🍄 / kite 🪁 | Hat | 使用不与本世界 Q1 cue 重复的 H 词图片。 | Which picture starts with the letter H? | — |
+| letters_i | 1 | 看和听 | Tap the letter that matches 🍦 | Which letter? | 🍦 | I 🍦 ✓ / M 🌙 / T 🌳 | I | 改为物品 cue 和简短识字提示。 | Which letter is for ice cream? | I is for ice cream. / I + 🍦 |
+| letters_i | 2 | 找一样的 | Find the letter I | Same letter? | 大写 I | i ✓ / a / e | I | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital I. | — |
+| letters_i | 3 | 说名字 | Which picture starts with the letter I? | Starts with I? | Ii | ice 🧊 ✓ / boat ⛵ / cake 🍰 | Ice cream | 使用 ice cube 表示 ice，避免复用冰淇淋 cue。 | Which picture starts with the letter I? | — |
+| letters_j | 1 | 看和听 | Tap the letter that matches 👖 | Which letter? | 👖 | J 👖 ✓ / N 👃 / U ☂️ | J | 改为物品 cue 和简短识字提示。 | Which letter is for jeans? | J is for jeans. / J + 👖 |
+| letters_j | 2 | 找一样的 | Find the small letter j | Same letter? | 小写 j | J ✓ / A / C | J | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small j. | — |
+| letters_j | 3 | 说名字 | Which picture starts with the letter J? | Starts with J? | Jj | juice 🧃 ✓ / donut 🍩 / chicken 🐔 | Jeans | 使用不与本世界 Q1 cue 重复的 J 词图片。 | Which picture starts with the letter J? | — |
+| letters_k | 1 | 看和听 | Tap the letter that matches 🔑 | Which letter? | 🔑 | K 🔑 ✓ / O 🍊 / V 🎻 | K | 改为物品 cue 和简短识字提示。 | Which letter is for key? | K is for key. / K + 🔑 |
+| letters_k | 2 | 找一样的 | Find the small letter k | Same letter? | 大写 K | k ✓ / f / w | K | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital K. | — |
+| letters_k | 3 | 说名字 | Which picture starts with the letter K? | Starts with K? | Kk | koala 🐨 ✓ / soup 🍲 / mop 🧹 | Key | 使用不与本世界 Q1 cue 重复的 K 词图片。 | Which picture starts with the letter K? | — |
+| letters_l | 1 | 看和听 | Tap the letter that matches 🦁 | Which letter? | 🦁 | L 🦁 ✓ / P 🍕 / W 🐳 | L | 改为物品 cue 和简短识字提示。 | Which letter is for lion? | L is for lion. / L + 🦁 |
+| letters_l | 2 | 找一样的 | Find the small letter l | Same letter? | 小写 l | L ✓ / A / E | L | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small l. | — |
+| letters_l | 3 | 说名字 | Which picture starts with the letter L? | Starts with L? | Ll | leaf 🍃 ✓ / bicycle 🚲 / panda 🐼 | Lion | 使用不与本世界 Q1 cue 重复的 L 词图片。 | Which picture starts with the letter L? | — |
+| letters_m | 1 | 看和听 | Tap the letter that matches 🌙 | Which letter? | 🌙 | M 🌙 ✓ / Q 👸 / Y 🧶 | M | 改为物品 cue 和简短识字提示。 | Which letter is for moon? | M is for moon. / M + 🌙 |
+| letters_m | 2 | 找一样的 | Find the small letter m | Same letter? | 大写 M | m ✓ / f / r | M | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital M. | — |
+| letters_m | 3 | 说名字 | Which picture starts with the letter M? | Starts with M? | Mm | mouse 🐭 ✓ / carrot 🥕 / globe 🌍 | Moon | 使用不与本世界 Q1 cue 重复的 M 词图片。 | Which picture starts with the letter M? | — |
+| letters_n | 1 | 看和听 | Tap the letter that matches 👃 | Which letter? | 👃 | N 👃 ✓ / R 🌈 / Y 🧶 | N | 改为物品 cue 和简短识字提示。 | Which letter is for nose? | N is for nose. / N + 👃 |
+| letters_n | 2 | 找一样的 | Find the small letter n | Same letter? | 小写 n | N ✓ / A / E | N | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small n. | — |
+| letters_n | 3 | 说名字 | Which picture starts with the letter N? | Starts with N? | Nn | notebook 📓 ✓ / pear 🍐 / cow 🐄 | Nose | 使用 notebook 图片和不同首字母的辅音干扰项。 | Which picture starts with the letter N? | — |
+| letters_o | 1 | 看和听 | Tap the letter that matches 🍊 | Which letter? | 🍊 | O 🍊 ✓ / S ☀️ / Z 🦓 | O | 改为物品 cue 和简短识字提示。 | Which letter is for orange? | O is for orange. / O + 🍊 |
+| letters_o | 2 | 找一样的 | Find the small letter o | Same letter? | 大写 O | o ✓ / c / e | O | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital O. | — |
+| letters_o | 3 | 说名字 | Which picture starts with the letter O? | Starts with O? | Oo | octopus 🐙 ✓ / hamburger 🍔 / door 🚪 | Orange | 使用不与本世界 Q1 cue 重复的 O 词图片。 | Which picture starts with the letter O? | — |
+| letters_p | 1 | 看和听 | Tap the letter that matches 🍕 | Which letter? | 🍕 | P 🍕 ✓ / T 🌳 / A 🍎 | P | 改为物品 cue 和简短识字提示。 | Which letter is for pizza? | P is for pizza. / P + 🍕 |
+| letters_p | 2 | 找一样的 | Find the small letter p | Same letter? | 小写 p | P ✓ / A / E | P | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small p. | — |
+| letters_p | 3 | 说名字 | Which picture starts with the letter P? | Starts with P? | Pp | pig 🐷 ✓ / baseball ⚾ / dragon 🐉 | Pizza | 使用不与本世界 Q1 cue 重复的 P 词图片。 | Which picture starts with the letter P? | — |
+| letters_q | 1 | 看和听 | Tap the letter that matches 👸 | Which letter? | ❓ | Q ❓ ✓ / U ☂️ / B ⚽ | Q | 用 question cue 避免与 Q3 Queen 图片重复。 | Which letter is for question? | Q is for question. / Q + ❓ |
+| letters_q | 2 | 找一样的 | Find the small letter q | Same letter? | 大写 Q | q ✓ / c / e | Q | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital Q. | — |
+| letters_q | 3 | 说名字 | Which picture starts with the letter Q? | Starts with Q? | Qq | queen 👸 ✓ / doll 🪆 / window 🪟 | Queen | 保留 Queen 正确答案；Q1 改用独立 question cue。 | Which picture starts with the letter Q? | — |
+| letters_r | 1 | 看和听 | Tap the letter that matches 🌈 | Which letter? | 🌈 | R 🌈 ✓ / V 🎻 / C 🐱 | R | 改为物品 cue 和简短识字提示。 | Which letter is for rainbow? | R is for rainbow. / R + 🌈 |
+| letters_r | 2 | 找一样的 | Find the small letter r | Same letter? | 小写 r | R ✓ / A / E | R | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small r. | — |
+| letters_r | 3 | 说名字 | Which picture starts with the letter R? | Starts with R? | Rr | rocket 🚀 ✓ / bread 🍞 / snake 🐍 | Rainbow | 使用不与本世界 Q1 cue 重复的 R 词图片。 | Which picture starts with the letter R? | — |
+| letters_s | 1 | 看和听 | Tap the letter that matches ☀️ | Which letter? | ☀️ | S ☀️ ✓ / W 🐳 / D 🐶 | S | 改为物品 cue 和简短识字提示。 | Which letter is for sun? | S is for sun. / S + ☀️ |
+| letters_s | 2 | 找一样的 | Tap the small letter for S | Same letter? | 大写 S | s ✓ / a / e | S | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital S. | — |
+| letters_s | 3 | 说名字 | Which picture starts with the letter S? | Starts with S? | Ss | sock 🧦 ✓ / bed 🛏️ / milk 🥛 | Sun | 使用不与本世界 Q1 cue 重复的 S 词图片。 | Which picture starts with the letter S? | — |
+| letters_t | 1 | 看和听 | Tap the letter that matches 🌳 | Which letter? | 🌳 | T 🌳 ✓ / Y 🧶 / E 🐘 | T | 改为物品 cue 和简短识字提示。 | Which letter is for tree? | T is for tree. / T + 🌳 |
+| letters_t | 2 | 找一样的 | Tap the small letter for T | Same letter? | 小写 t | T ✓ / A / E | T | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small t. | — |
+| letters_t | 3 | 说名字 | Which picture starts with the letter T? | Starts with T? | Tt | turtle 🐢 ✓ / sheep 🐑 / piano 🎹 | Tree | 使用不与本世界 Q1 cue 重复的 T 词图片。 | Which picture starts with the letter T? | — |
+| letters_u | 1 | 看和听 | Tap the letter that matches ☂️ | Which letter? | ☂️ | U ☂️ ✓ / Y 🧶 / F 🐟 | U | 改为物品 cue 和简短识字提示。 | Which letter is for umbrella? | U is for umbrella. / U + ☂️ |
+| letters_u | 2 | 找一样的 | Tap the small letter for U | Same letter? | 大写 U | u ✓ / a / e | U | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital U. | — |
+| letters_u | 3 | 说名字 | Which picture starts with the letter U? | Starts with U? | Uu | unicorn 🦄 ✓ / scissors ✂️ / lamp 💡 | Umbrella | 使用不与本世界 Q1 cue 重复的 U 词图片。 | Which picture starts with the letter U? | — |
+| letters_v | 1 | 看和听 | Tap the letter that matches 🎻 | Which letter? | 🎻 | V 🎻 ✓ / Z 🦓 / G 🍇 | V | 改为物品 cue 和简短识字提示。 | Which letter is for violin? | V is for violin. / V + 🎻 |
+| letters_v | 2 | 找一样的 | Tap the small letter for V | Same letter? | 小写 v | V ✓ / A / E | V | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small v. | — |
+| letters_v | 3 | 说名字 | Which picture starts with the letter V? | Starts with V? | Vv | van 🚐 ✓ / robot 🤖 / medal 🏅 | Violin | 使用不与本世界 Q1 cue 重复的 V 词图片。 | Which picture starts with the letter V? | — |
+| letters_w | 1 | 看和听 | Tap the letter that matches 🐳 | Which letter? | 🐳 | W 🐳 ✓ / A 🍎 / H 🎩 | W | 改为物品 cue 和简短识字提示。 | Which letter is for whale? | W is for whale. / W + 🐳 |
+| letters_w | 2 | 找一样的 | Tap the small letter for W | Same letter? | 大写 W | w ✓ / a / e | W | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital W. | — |
+| letters_w | 3 | 说名字 | Which picture starts with the letter W? | Starts with W? | Ww | watermelon 🍉 ✓ / shell 🐚 / glove 🧤 | Whale | 使用不与本世界 Q1 cue 重复的 W 词图片。 | Which picture starts with the letter W? | — |
+| letters_x | 1 | 看和听 | Which letter makes the sound at the end of fox? | Which letter? | 📦 | X 📦 ✓ / F 🐟 / O 🍊 | X | 将 X 的物品 cue 改为 box；Q1 只讲字母名，不读拟音词。 | Which letter ends the word box? | X is at the end of box. / X + 📦 |
+| letters_x | 2 | 找一样的 | Tap the small letter for X | Same letter? | 小写 x | X ✓ / A / E | X | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small x. | — |
+| letters_x | 3 | 说名字 | Which picture ends with the letter X? | Ends with X? | Xx（只显示字母，不放狐狸） | fox 🦊 ✓ / cheese 🧀 / monkey 🐒 | Fox | 正确图片以 X 结尾；cue 不含答案图片。 | Which picture ends with the letter X? | — |
+| letters_y | 1 | 看和听 | Tap the letter that matches 🧶 | Which letter? | 🧶 | Y 🧶 ✓ / C 🐱 / J 👖 | Y | 改为物品 cue 和简短识字提示。 | Which letter is for yarn? | Y is for yarn. / Y + 🧶 |
+| letters_y | 2 | 找一样的 | Tap the small letter for Y | Same letter? | 大写 Y | y ✓ / a / e | Y | 改为大写 cue 配小写选项。 | Find the small letter that matches this capital Y. | — |
+| letters_y | 3 | 说名字 | Which picture starts with the letter Y? | Starts with Y? | Yy | yo-yo 🪀 ✓ / bottle 🍼 / eagle 🦅 | Yarn | 使用不与本世界 Q1 cue 重复的 Y 词图片。 | Which picture starts with the letter Y? | — |
+| letters_z | 1 | 看和听 | Tap the letter that matches 🦓 | Which letter? | 🦓 | Z 🦓 ✓ / D 🐶 / K 🔑 | Z | 改为物品 cue 和简短识字提示。 | Which letter is for zebra? | Z is for zebra. / Z + 🦓 |
+| letters_z | 2 | 找一样的 | Tap the small letter for Z | Same letter? | 小写 z | Z ✓ / A / E | Z | 改为小写 cue 配大写选项。 | Find the capital letter that matches this small z. | — |
+| letters_z | 3 | 说名字 | Which picture starts with the letter Z? | Starts with Z? | Zz | zero 0️⃣ ✓ / bee 🐝 / pencil ✏️ | Zebra | 用零的符号表示 zero，且不复用 Zebra cue。 | Which picture starts with the letter Z? | — |
+
+### Letters Q3 distractor check
+
+Each row lists all three Q3 option words, their first letters, and initial
+sounds. X is the sole ending-sound item; its answer ends in X, while both
+distractors have different first letters and sounds. Each Q3 picture is unique
+within Letters and distinct from every Q1 cue picture.
+
+| Activity | Correct word / initial / sound | Distractor 1 / initial / sound | Distractor 2 / initial / sound |
+|---|---|---|---|
+| letters_a | Ant / A / æ | Book / B / b | Cup / C / k |
+| letters_b | Banana / B / b | Duck / D / d | Flower / F / f |
+| letters_c | Crab / C / k | Train / T / t | Map / M / m |
+| letters_d | Drum / D / d | Gift / G / g | Candle / C / k |
+| letters_e | Egg / E / ɛ | Rabbit / R / r | Tiger / T / t |
+| letters_f | Frog / F / f | Crown / C / k | Bear / B / b |
+| letters_g | Goat / G / g | Shoes / S / ʃ | Clock / C / k |
+| letters_h | House / H / h | Mushroom / M / m | Kite / K / k |
+| letters_i | Ice / I / aɪ | Boat / B / b | Cake / C / k |
+| letters_j | Juice / J / dʒ | Donut / D / d | Chicken / C / tʃ |
+| letters_k | Koala / K / k | Soup / S / s | Mop / M / m |
+| letters_l | Leaf / L / l | Bicycle / B / b | Panda / P / p |
+| letters_m | Mouse / M / m | Carrot / C / k | Globe / G / g |
+| letters_n | Notebook / N / n | Pear / P / p | Cow / C / k |
+| letters_o | Octopus / O / ɑ | Hamburger / H / h | Door / D / d |
+| letters_p | Pig / P / p | Baseball / B / b | Dragon / D / d |
+| letters_q | Queen / Q / kw | Doll / D / d | Window / W / w |
+| letters_r | Rocket / R / r | Bread / B / b | Snake / S / s |
+| letters_s | Sock / S / s | Bed / B / b | Milk / M / m |
+| letters_t | Turtle / T / t | Sheep / S / ʃ | Piano / P / p |
+| letters_u | Unicorn / U / j | Scissors / S / s | Lamp / L / l |
+| letters_v | Van / V / v | Robot / R / r | Medal / M / m |
+| letters_w | Watermelon / W / w | Shell / S / ʃ | Glove / G / g |
+| letters_x | Fox / X (ending) / ks | Cheese / C / tʃ | Monkey / M / m |
+| letters_y | Yo-yo / Y / j | Bottle / B / b | Eagle / E / i |
+| letters_z | Zero / Z / z | Bee / B / b | Pencil / P / p |
+
+### Letters implementation notes
+
+- Add `LetterCue(String text)`; its `identityKey` is `letter:$text`. Render the
+  large letter(s) in a `FittedBox` filling the question card. Keep `Aa` and
+  single-letter cues on one line. Q1 uses the existing `EmojiCue`.
+- Q1 answer tiles and `teachOption` retain the existing `letterPicture`
+  visual. Q2 uses case-opposite text letter tiles. Q3 uses three picture
+  options; no object is reused among the 26 Q1 cues or 78 Q3 options.
+- For Q2 the case direction alternates A capital → lowercase, B lowercase →
+  capital, continuing through Z. Distractors never include a visually
+  confusable pair such as b/d/p/q, m/n, u/v, or i/j in one question.
+- Q3 distractors have distinct starting letters and sounds from the target
+  and from one another. The A/E/I/O/U distractors are all consonant-initial.
+- Keep the activity ids, section order, minAge, three choices, and correct
+  answer positions unchanged when implementing the approved proposal.
+
 ### Numbers notes
 
 - In every activity Q1, Q2, and Q3 use three different play types. Counting
