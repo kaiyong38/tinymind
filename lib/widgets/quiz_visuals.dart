@@ -220,6 +220,7 @@ Widget buildQuestionCue(
 }) {
   return switch (cue) {
     EmojiCue(:final emoji) => EmojiGlyph(emoji, size * 0.76),
+    LetterCue(:final text) => _LetterCueView(text: text, size: size),
     ShapeCue() => SizedBox.square(
         dimension: size,
         child: CustomPaint(painter: _ShapeCuePainter(cue)),
@@ -248,6 +249,35 @@ Widget buildQuestionCue(
     ColorMixCue() => _ColorMixView(cue: cue, size: size),
     RainbowCue() => _RainbowView(cue: cue, size: size),
   };
+}
+
+class _LetterCueView extends StatelessWidget {
+  const _LetterCueView({required this.text, required this.size});
+
+  final String text;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: size,
+        height: size,
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              text,
+              maxLines: 1,
+              softWrap: false,
+              style: const TextStyle(
+                fontSize: 160,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF3A86FF),
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class _ColorWordView extends StatelessWidget {

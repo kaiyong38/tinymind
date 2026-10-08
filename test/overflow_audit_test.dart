@@ -539,6 +539,66 @@ void main() {
     }
   });
 
+  testWidgets('Letter cue cards fit compact sizes and enlarged text',
+      (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const sizes = [Size(568, 320), Size(640, 360)];
+    final uniqueQuestions = <String, QuizQuestion>{};
+    for (final question in worldCatalogs['letters']!
+        .activities
+        .expand((activity) => activity.questions)) {
+      if (question.cue is LetterCue) {
+        uniqueQuestions.putIfAbsent(question.cue!.identityKey, () => question);
+      }
+    }
+
+    for (final question in uniqueQuestions.values) {
+      for (final size in sizes) {
+        for (final scale in [1.0, 1.3]) {
+          await pumpScreen(
+            tester,
+            Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: QuestionCueCard(
+                        question: question,
+                        worldColor: Colors.blue,
+                        onReplay: () {},
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(flex: 4, child: SizedBox.shrink()),
+                  ],
+                ),
+              ),
+            ),
+            size,
+            scale,
+          );
+          _expectNoException(
+            tester,
+            'Letters ${question.cue!.identityKey}, $size, ${scale}x',
+          );
+          _expectSpeakerClear(
+            tester,
+            question,
+            'Letters ${question.cue!.identityKey}, $size, ${scale}x',
+          );
+          _expectClippedChildrenWithinParents(
+            tester,
+            'Letters ${question.cue!.identityKey}, $size, ${scale}x',
+          );
+        }
+      }
+    }
+  });
+
   testWidgets('parent gate setup and PIN entry fit landscape text matrix',
       (tester) async {
     addTearDown(tester.view.resetPhysicalSize);

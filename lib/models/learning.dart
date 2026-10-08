@@ -50,6 +50,15 @@ final class EmojiCue extends QuizCue {
   String get identityKey => 'emoji:$emoji';
 }
 
+final class LetterCue extends QuizCue {
+  const LetterCue(this.text);
+
+  final String text;
+
+  @override
+  String get identityKey => 'letter:$text';
+}
+
 final class ShapeCue extends QuizCue {
   const ShapeCue(
     this.shape, {
