@@ -702,6 +702,7 @@ class _LibraryPageState extends State<LibraryPage> {
                       final recommended = activity.id == recommendedId;
                       return _ActivityTile(
                         activity: activity,
+                        number: catalog.activities.indexOf(activity) + 1,
                         stars: stars,
                         recommended: recommended,
                         color: widget.world.color,
@@ -722,6 +723,7 @@ class _LibraryPageState extends State<LibraryPage> {
 class _ActivityTile extends StatelessWidget {
   const _ActivityTile({
     required this.activity,
+    required this.number,
     required this.stars,
     required this.recommended,
     required this.color,
@@ -729,6 +731,7 @@ class _ActivityTile extends StatelessWidget {
   });
 
   final Activity activity;
+  final int number;
   final int stars;
   final bool recommended;
   final Color color;
@@ -789,26 +792,70 @@ class _ActivityTile extends StatelessWidget {
                 Positioned(
                   top: 0,
                   left: 0,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      child: EmojiText(
-                        '⭐ Try this!',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900),
+                  right: 30,
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.topLeft,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Padding(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          child: EmojiText(
+                            '⭐ Try this!',
+                            maxLines: 1,
+                            softWrap: false,
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Semantics(
+                  label: 'Activity $number',
+                  excludeSemantics: true,
+                  child: Container(
+                    key: ValueKey('activity-number-${activity.id}'),
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '$number',
+                        maxLines: 1,
+                        softWrap: false,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               if (activity.minAge > 3)
                 Positioned(
-                  top: 0,
+                  top: 30,
                   right: 0,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -1729,11 +1776,6 @@ class _QuizPageState extends State<QuizPage> {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Read it again',
-            onPressed: _narrate,
-            icon: Icon(Icons.volume_up_rounded, color: _world.color),
-          ),
           Padding(
             padding: const EdgeInsets.only(right: 18),
             child: Center(
@@ -1778,6 +1820,7 @@ class _QuizPageState extends State<QuizPage> {
                           module: _world,
                           question: _question,
                           onContinue: _beginQuestion,
+                          onReplay: _narrate,
                         )
                       : LayoutBuilder(
                           builder: (context, constraints) {
@@ -1963,10 +2006,12 @@ class _TeachCard extends StatelessWidget {
     required this.module,
     required this.question,
     required this.onContinue,
+    required this.onReplay,
   });
   final LearningModule module;
   final QuizQuestion question;
   final VoidCallback onContinue;
+  final VoidCallback onReplay;
 
   @override
   Widget build(BuildContext context) {
@@ -1982,17 +2027,39 @@ class _TeachCard extends StatelessWidget {
         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
       ),
     );
-    final textCard = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
+    final textCard = Semantics(
+      button: true,
+      label: 'Hear the question again',
+      child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-      ),
-      child: EmojiText(
-        question.teach ?? '',
-        style: const TextStyle(
-            fontSize: 17, fontWeight: FontWeight.w800, height: 1.2),
-        textAlign: TextAlign.center,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onReplay,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: EmojiText(
+                    question.teach ?? '',
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w800, height: 1.2),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IgnorePointer(
+                  child: Icon(
+                    Icons.volume_up_rounded,
+                    size: 26,
+                    color: module.color.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
 

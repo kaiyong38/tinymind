@@ -208,6 +208,21 @@ final class TenFrameCue extends QuizCue {
   final int firstCount;
   final int secondCount;
 
+  /// Red dots drawn. For [TenFrameMode.teenNumber] this is the full first frame.
+  int get filledDots => switch (mode) {
+        TenFrameMode.teenNumber => 10,
+        _ => firstCount,
+      };
+
+  /// Grey "?" dots drawn. For [TenFrameMode.teenNumber] they sit in the
+  /// second frame; otherwise they follow the red dots in the single frame.
+  int get questionDots => switch (mode) {
+        TenFrameMode.addition => math.min(secondCount, 10 - firstCount),
+        TenFrameMode.subtraction => 0,
+        TenFrameMode.makeTen => 10 - firstCount,
+        TenFrameMode.teenNumber => math.min(secondCount, 10),
+      };
+
   @override
   String get identityKey =>
       'ten-frame:${mode.name}:$firstCount:$secondCount';

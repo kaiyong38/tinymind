@@ -21,78 +21,103 @@ class QuestionCueCard extends StatelessWidget {
   final VoidCallback onReplay;
   final bool revealDifference;
 
+  static const _speakerSize = 26.0;
+  // Keeps the prompt text clear of the speaker, symmetric so it stays centred.
+  static const _speakerGutter = 34.0;
+
   @override
-  Widget build(BuildContext context) => Card(
-        elevation: 0,
-        color: Colors.white,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onReplay,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final metrics =
-                    AdaptiveMetrics.fromConstraints(context, constraints);
-                final cue = question.cue;
-                // The read-aloud button lives in the page header, so the cue can
-                // use the whole card.
-                final cueSize = math.min(
-                  constraints.maxWidth * 0.8,
-                  constraints.maxHeight * 0.7,
-                );
-                if (cue == null) {
-                  return Column(
-                    children: [
-                      Expanded(
-                        child: Center(
-                          child: EmojiText(
-                            question.prompt,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: metrics.size(22),
-                              height: 1.15,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }
-                return Column(
-                  children: [
-                    Expanded(
-                      flex: 8,
-                      child: Center(
-                        child: buildQuestionCue(
-                          cue,
-                          size: cueSize,
-                          revealDifference: revealDifference,
-                        ),
-                      ),
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: 'Hear the question again',
+        child: Card(
+          elevation: 0,
+          color: Colors.white,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onReplay,
+            child: Stack(
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: _content(),
+                ),
+                Positioned(
+                  right: 6,
+                  bottom: 4,
+                  child: IgnorePointer(
+                    child: Icon(
+                      Icons.volume_up_rounded,
+                      size: _speakerSize,
+                      color: worldColor.withValues(alpha: 0.6),
                     ),
-                    Expanded(
-                      flex: 2,
-                      child: Center(
-                        child: Text(
-                          question.prompt,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: metrics.size(20),
-                            height: 1.1,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+                  ),
+                ),
+              ],
             ),
           ),
         ),
+      );
+
+  Widget _content() => LayoutBuilder(
+        builder: (context, constraints) {
+          final metrics = AdaptiveMetrics.fromConstraints(context, constraints);
+          final cue = question.cue;
+          final cueSize = math.min(
+            constraints.maxWidth * 0.8,
+            constraints.maxHeight * 0.7,
+          );
+          const promptPadding =
+              EdgeInsets.symmetric(horizontal: _speakerGutter - 12);
+          if (cue == null) {
+            return Padding(
+              padding: promptPadding,
+              child: Center(
+                child: EmojiText(
+                  question.prompt,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: metrics.size(22),
+                    height: 1.15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            );
+          }
+          return Column(
+            children: [
+              Expanded(
+                flex: 8,
+                child: Center(
+                  child: buildQuestionCue(
+                    cue,
+                    size: cueSize,
+                    revealDifference: revealDifference,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: promptPadding,
+                  child: Center(
+                    child: Text(
+                      question.prompt,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: metrics.size(20),
+                        height: 1.1,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       );
 }

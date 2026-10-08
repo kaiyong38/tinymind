@@ -350,12 +350,6 @@ class _ItemCountCueView extends StatelessWidget {
                       ],
                     ),
                   ),
-                if (cue.showResult)
-                  Positioned(
-                    right: 4,
-                    bottom: 4,
-                    child: _QuestionBadge(size: math.min(42, height * 0.24)),
-                  ),
               ],
             ),
           );
@@ -541,28 +535,21 @@ class _TenFramePainter extends CustomPainter {
           outline,
         );
 
-        final filledCount = switch (cue.mode) {
-          TenFrameMode.addition =>
-            board == 0 ? cue.firstCount : cue.firstCount + cue.secondCount,
-          TenFrameMode.subtraction => cue.firstCount,
-          TenFrameMode.makeTen => cue.firstCount,
-          TenFrameMode.teenNumber => board == 0 ? 10 : cue.secondCount,
-        };
-        final shouldFill = cell < filledCount;
-        if (shouldFill) {
+        final dotKind = _dotKind(board, cell);
+        if (dotKind != null) {
           final crossed = cue.mode == TenFrameMode.subtraction &&
               cell >= cue.firstCount - cue.secondCount;
-          final color =
-              cue.mode == TenFrameMode.addition && cell >= cue.firstCount
-                  ? const Color(0xFF3A86FF)
-                  : const Color(0xFFE84855);
           final center = rect.center;
           final radius = math.min(cellWidth, cellHeight) * 0.28;
-          canvas.drawCircle(
-            center,
-            radius,
-            Paint()..color = color,
-          );
+          if (dotKind) {
+            _paintQuestionDot(canvas, center, radius);
+          } else {
+            canvas.drawCircle(
+              center,
+              radius,
+              Paint()..color = const Color(0xFFE84855),
+            );
+          }
           if (crossed) {
             final cross = Paint()
               ..color = const Color(0xFF4A3F3F)
@@ -582,31 +569,45 @@ class _TenFramePainter extends CustomPainter {
         }
       }
     }
+  }
 
-    if (!isTeen) {
-      final badgeSize = math.min(42.0, size.height * 0.22);
-      final center = Offset(size.width * 0.88, size.height * 0.84);
-      canvas.drawCircle(
-        center,
-        badgeSize / 2,
-        Paint()..color = const Color(0xFFE4E7EB),
-      );
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: '?',
-          style: TextStyle(
-            color: const Color(0xFF626B75),
-            fontSize: badgeSize * 0.68,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      textPainter.paint(
-        canvas,
-        center - Offset(textPainter.width / 2, textPainter.height / 2),
-      );
+  /// null: empty cell, false: red dot, true: "?" dot.
+  bool? _dotKind(int board, int cell) {
+    if (cue.mode == TenFrameMode.teenNumber) {
+      if (board == 0) return false;
+      return cell < cue.questionDots ? true : null;
     }
+    if (cell < cue.filledDots) return false;
+    if (cell < cue.filledDots + cue.questionDots) return true;
+    return null;
+  }
+
+  void _paintQuestionDot(Canvas canvas, Offset center, double radius) {
+    canvas.drawCircle(center, radius, Paint()..color = const Color(0xFFF1EDED));
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = const Color(0xFFB8B0B0)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.5, radius * 0.12),
+    );
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: '?',
+        style: TextStyle(
+          color: const Color(0xFF8A8080),
+          fontSize: radius * 1.3,
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainter.paint(
+      canvas,
+      center - Offset(textPainter.width / 2, textPainter.height / 2),
+    );
   }
 
   @override

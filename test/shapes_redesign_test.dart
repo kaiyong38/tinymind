@@ -210,9 +210,10 @@ void main() {
     await tester.pump();
     expect(replayCount, 1);
 
-    // The read-aloud button lives in the page header, not in the card.
+    // One hint-only speaker lives in the card; tapping anywhere replays.
     expect(find.byTooltip('Read question again'), findsNothing);
-    expect(find.byIcon(Icons.volume_up_rounded), findsNothing);
+    expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
+    expect(find.bySemanticsLabel('Hear the question again'), findsOneWidget);
 
     await tester.pumpWidget(card(reveal: true));
     expect(highlightedShape, findsOneWidget);

@@ -460,6 +460,11 @@ void main() {
             tester,
             'QuestionCueCard ${question.cue!.runtimeType}, $size, ${scale}x',
           );
+          _expectSpeakerClear(
+            tester,
+            question,
+            'QuestionCueCard ${question.cue!.runtimeType}, $size, ${scale}x',
+          );
           _expectClippedChildrenWithinParents(
             tester,
             'QuestionCueCard ${question.cue!.runtimeType}, $size, ${scale}x',
@@ -518,6 +523,11 @@ void main() {
           );
           _expectNoException(
             tester,
+            'Numbers ${question.cue!.runtimeType}, $size, ${scale}x',
+          );
+          _expectSpeakerClear(
+            tester,
+            question,
             'Numbers ${question.cue!.runtimeType}, $size, ${scale}x',
           );
           _expectClippedChildrenWithinParents(
@@ -783,6 +793,21 @@ void _expectClippedChildrenWithinParents(
           'childSize=${childRenderObject.size}, '
           'childWidget=$child',
     );
+  }
+}
+
+void _expectSpeakerClear(
+  WidgetTester tester,
+  QuizQuestion question,
+  String description,
+) {
+  final speaker = find.byIcon(Icons.volume_up_rounded);
+  expect(speaker, findsOneWidget, reason: description);
+  final speakerRect = tester.getRect(speaker);
+  final prompt = find.text(question.prompt);
+  if (prompt.evaluate().isNotEmpty) {
+    expect(tester.getRect(prompt.first).overlaps(speakerRect), isFalse,
+        reason: '$description: speaker overlaps prompt');
   }
 }
 

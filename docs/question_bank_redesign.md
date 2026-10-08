@@ -84,7 +84,8 @@ repeat their play type; their prompts, cues, and correct answers vary.
 ### Changes after device testing (October 2026)
 
 - The intro screen of an activity now reads the text shown on it. The first question's `spokenText` is the instruction only ("Tap the circle."), so the same sentence is not read twice.
-- The read-aloud button in the question card was removed; the header button is the only one, and tapping the card still repeats the question.
+- There is no read-aloud button in the question card or the page header. Tapping the whole question card (or the intro bubble) repeats the question; the card and the bubble each show one small speaker icon as a hint only, with the semantic label "Hear the question again".
+- Activity cards in the library show a small round number (the activity's position in its world, continuous across sections; semantic label "Activity N") at the top-right. The "N+" age tag moved just below it.
 - The Moon picture was removed from the answer pictures (Rainbow in shapes_04 Q3, Cookie in shapes_06 Q2, Ball in shapes_07 Q2).
 - shapes_10: the odd shape keeps its own color (triangle green, circle blue, square orange) and the row fills the card, so the triangle is no longer squeezed.
 - shapes_12 (option A): the card shows only a big number; the answer shapes carry the red corner dots or the colored sides, so children count real shapes.
@@ -173,12 +174,16 @@ Ordered groups put up to five items in the first row and the remainder below;
 numbers_07 Q2 is a 3-by-3 grid and numbers_09 Q2 is two rows of five.
 
 The item-row, equation-picture, and ten-frame cues are new `QuizCue`
-types with stable `identityKey`s. Equation and ten-frame cues show a gray
-circular `?` at the result position. The equation-picture cue places the two
-emoji groups around a plus sign; subtraction crosses out the removed items.
-Ten-frames use two colors for addends or cross out removed dots. numbers_19
-shows the filled and empty cells in one ten-frame; numbers_20 shows a full
-ten-frame beside a partially filled one.
+types with stable `identityKey`s. The equation-picture cue keeps a gray `= ?`
+as part of the equation; the item-row (take-away) and ten-frame cues have no
+corner `?` badge. The equation-picture cue places the two emoji groups around
+a plus sign; subtraction crosses out the removed items.
+Ten-frames draw the known addend as red dots and the unknown one as grey `?`
+dots (same look as the grey mystery circle): addition = first addend red, second
+addend `?`; subtraction = red dots with the removed ones crossed out;
+make-ten = known dots red, every remaining cell `?`; teen number = full first
+frame red, second frame `?` dots for the second addend.
+`TenFrameCue.filledDots` / `questionDots` expose the counts for tests.
 
 | Activity | Q | PlayType | Current prompt | New short prompt | Cue | Options (correct marked) | Original correct answer | Answer change reason | spokenText | Teach / teachOption |
 |---|---:|---|---|---|---|---|---|---|---|---|
@@ -258,7 +263,7 @@ ten-frame beside a partially filled one.
   unique item objects (train, carrot). Each arithmetic picture and answer is
   different across the activity's three questions.
 - numbers_16–18 use ten-frames for addition or take-away. numbers_19 shows
-  the missing part of ten with empty cells, while numbers_20 uses a full frame
-  plus a partial frame to show teen numbers.
+  the known dots in red and the missing part of ten as `?` dots, while
+  numbers_20 uses a full frame plus a frame of `?` dots to show teen numbers.
 - Every Q1 has a short teach sentence and its existing `teachOption`; the
   first question's spoken instruction is separate from the intro speech.
