@@ -40,7 +40,7 @@ class LearningReportPdf {
                 ),
                 pw.Text(
                   'Overall accuracy: '
-                  '${(report.overallAccuracy * 100).round()}%',
+                  '${(report.overallAccuracy * 100).round()}% correct',
                   style: bodyStyle,
                 ),
               ],
@@ -66,7 +66,7 @@ class LearningReportPdf {
                     '${world.stars}/${world.totalStars}',
                     world.answered == 0
                         ? 'Not tried'
-                        : '${world.accuracyPercent}%',
+                        : '${world.accuracyPercent}% correct',
                   ],
               ],
               headerStyle:

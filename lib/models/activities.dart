@@ -149,6 +149,37 @@ String? nextActivityId({
   return null;
 }
 
+bool _suitsAge(Activity activity, WorldCatalog catalog, int age) =>
+    age >= activity.minAge &&
+    (age > 4 || activity.sectionIndex <= catalog.youngMaxSection);
+
+/// The activity the result page's Next button opens; always exists for a
+/// known [currentId] (null otherwise). Prefers the next age-suitable
+/// activity. If the child is playing something above their age (picked by
+/// hand) it simply follows the world's order, and otherwise it wraps back to
+/// the first age-suitable activity so a young child is never pushed forward
+/// into content that is too advanced.
+String? nextActivityForResult({
+  required String worldId,
+  required int age,
+  required String currentId,
+}) {
+  final catalog = worldCatalogs[worldId];
+  if (catalog == null) return null;
+  final activities = catalog.activities;
+  final index = activities.indexWhere((activity) => activity.id == currentId);
+  if (index < 0) return null;
+  final next = nextActivityId(worldId: worldId, age: age, currentId: currentId);
+  if (next != null) return next;
+  if (!_suitsAge(activities[index], catalog, age)) {
+    return activities[(index + 1) % activities.length].id;
+  }
+  for (final activity in activities) {
+    if (_suitsAge(activity, catalog, age)) return activity.id;
+  }
+  return activities.first.id;
+}
+
 const worldCatalogs = <String, WorldCatalog>{
 
   // ===== Letter Land (26 activities) =====

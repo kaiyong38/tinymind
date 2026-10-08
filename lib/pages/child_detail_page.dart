@@ -171,7 +171,7 @@ class _DetailBody extends StatelessWidget {
       child: Column(
         children: [
           for (final module in learningModules)
-            _SubjectRow(
+            SubjectProgressRow(
               module: module,
               answered: progress.moduleAnswered[module.id] ?? 0,
               correct: progress.moduleCorrect[module.id] ?? 0,
@@ -492,8 +492,9 @@ class _DonutPainter extends CustomPainter {
       old.fraction != fraction || old.color != color;
 }
 
-class _SubjectRow extends StatelessWidget {
-  const _SubjectRow({
+class SubjectProgressRow extends StatelessWidget {
+  const SubjectProgressRow({
+    super.key,
     required this.module,
     required this.answered,
     required this.correct,
@@ -512,7 +513,11 @@ class _SubjectRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rate = answered == 0 ? 0.0 : correct / answered;
+    final completion =
+        totalStars == 0 ? 0.0 : (stars / totalStars).clamp(0.0, 1.0);
+    final notStarted = answered == 0 && stars == 0;
+    final accuracyText =
+        answered == 0 ? '' : ' · ${(correct / answered * 100).round()}% correct';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
@@ -537,7 +542,9 @@ class _SubjectRow extends StatelessWidget {
                               fontWeight: FontWeight.w800, fontSize: 14)),
                     ),
                     Text(
-                      answered == 0 ? 'Not tried' : '${(rate * 100).round()}%',
+                      notStarted
+                          ? 'Not started'
+                          : '${(completion * 100).round()}%',
                       style: TextStyle(
                           fontWeight: FontWeight.w900, color: module.color),
                     ),
@@ -547,7 +554,7 @@ class _SubjectRow extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: LinearProgressIndicator(
-                    value: rate,
+                    value: completion,
                     minHeight: 9,
                     color: module.color,
                     backgroundColor: module.color.withValues(alpha: 0.15),
@@ -556,7 +563,7 @@ class _SubjectRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   '$completedActivities / $totalActivities activities · '
-                  '$stars / $totalStars stars',
+                  '$stars / $totalStars stars$accuracyText',
                   style: const TextStyle(fontSize: 11, color: Colors.black54),
                 ),
               ],

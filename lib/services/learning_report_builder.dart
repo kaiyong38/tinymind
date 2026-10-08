@@ -47,7 +47,7 @@ class LearningReport {
       '',
       'Days played: $daysPlayed',
       'Total questions: $totalQuestions',
-      'Overall accuracy: ${_percent(overallAccuracy)}%',
+      'Overall accuracy: ${_percent(overallAccuracy)}% correct',
       '',
       'By learning world',
     ];
@@ -55,7 +55,7 @@ class LearningReport {
       lines.add(
         '${world.name}: ${world.completedActivities}/${world.totalActivities} '
         'activities, ${world.stars}/${world.totalStars} stars, '
-        '${world.accuracyPercent}% accuracy',
+        '${world.accuracyPercent}% correct',
       );
     }
     lines

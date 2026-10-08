@@ -2230,8 +2230,13 @@ class ResultPage extends StatelessWidget {
       age: store.progress.childAge,
       bestStars: store.progress.activityStars,
     );
-    final nextId = sequentialId ??
-        (recommendedId == activity.id ? null : recommendedId);
+    final hasSuggestion = sequentialId != null ||
+        (recommendedId != null && recommendedId != activity.id);
+    final nextId = nextActivityForResult(
+      worldId: world.id,
+      age: store.progress.childAge,
+      currentId: activity.id,
+    );
     final nextActivity = nextId == null ? null : activityById(nextId);
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBF0),
@@ -2339,7 +2344,8 @@ class ResultPage extends StatelessWidget {
                           ),
                           child: const Text('Next'),
                         ),
-                      ] else ...[
+                      ],
+                      if (!hasSuggestion) ...[
                         const SizedBox(height: 8),
                         const EmojiText(
                           'You finished everything here! Replay your favorites ⭐',
@@ -2632,7 +2638,7 @@ class ParentPage extends StatelessWidget {
                 _OverviewRow(
                     label: 'Average accuracy',
                     value:
-                        '${store.progress.totalQuestions == 0 ? 0 : (store.progress.correctAnswers / store.progress.totalQuestions * 100).round()}%'),
+                        '${store.progress.totalQuestions == 0 ? 0 : (store.progress.correctAnswers / store.progress.totalQuestions * 100).round()}% correct'),
                 _OverviewRow(
                     label: 'Days played',
                     value: '${store.progress.daysLearned}'),
