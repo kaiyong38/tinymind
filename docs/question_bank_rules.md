@@ -9,3 +9,5 @@
 8. Data integrity: keep activity ids, section order, minAge, 3 options per question, correct answerIndex. Arithmetic and count invariants are covered by tests.
 9. Process: first write the proposal rows into docs/question_bank_redesign.md (activity, Q, playType, current prompt, new short prompt, cue, options with the correct one marked, original correct answer, change reason, spokenText) and stop for review; implement only after approval.
 10. Do not add dependencies and do not touch the audio-focus configuration.
+11. Spoken text avoids interjections and sound words (ooh, hmm, woohoo, yay,
+    hooray, whoa); praise names what the child did, not how smart they are.

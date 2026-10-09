@@ -1500,16 +1500,30 @@ class QuizPage extends StatefulWidget {
   const QuizPage({
     required this.activity,
     required this.store,
+    this.narration,
     super.key,
   });
   final Activity activity;
   final ProgressStore store;
+  final NarrationService? narration;
+
+  @visibleForTesting
+  static const leadInsForTesting = _QuizPageState._leadIns;
+
+  @visibleForTesting
+  static const praisesForTesting = _QuizPageState._praises;
+
+  @visibleForTesting
+  static const oopsiesForTesting = _QuizPageState._oopsies;
 
   @override
   State<QuizPage> createState() => _QuizPageState();
 }
 
 class _QuizPageState extends State<QuizPage> {
+  NarrationService get _narration =>
+      widget.narration ?? NarrationService.instance;
+
   LearningModule get _world => learningModules.firstWhere(
         (world) => worldCatalogs[world.id]!
             .activities
@@ -1534,7 +1548,7 @@ class _QuizPageState extends State<QuizPage> {
 
   @override
   void dispose() {
-    NarrationService.instance.stop();
+    _narration.stop();
     super.dispose();
   }
 
@@ -1543,42 +1557,33 @@ class _QuizPageState extends State<QuizPage> {
     'Your turn!',
     'Here we go!',
     "Let's see!",
-    'Ooh, fun!'
-  ];
-  static const _teachLeadIns = [
-    'Look!',
-    'Ooh, listen!',
-    'Guess what!',
-    "Let's learn!"
+    'Look closely!',
   ];
   static const _praises = [
-    'Yay! Great job!',
-    'Woohoo! You got it!',
+    'Great job!',
+    'You got it!',
     'Awesome!',
-    'Hooray! Super smart!',
+    'Well done!',
     'Fantastic!',
+    "That's right!",
   ];
   static const _oopsies = [
-    'Oops, not quite!',
-    'Almost!',
     'Good try!',
-    'Hmm, not this one!'
+    "Let's look again!",
+    'Try another one!',
+    'You can do it!',
   ];
 
-  /// Says the current teach fact or question out loud, with a cheerful
-  /// lead-in so it sounds like a friendly guide rather than a robot.
   void _narrate() {
-    final lead = _teaching
-        ? _teachLeadIns[_questionNumber % _teachLeadIns.length]
-        : _leadIns[_questionNumber % _leadIns.length];
-    final displayedText = _teaching ? _question.teach! : _question.prompt;
-    // The intro screen reads the text shown on it; only the question itself
-    // uses the longer spokenText sentence.
-    final speechText = _teaching || _question.spokenText == null
-        ? null
-        : '$lead ${_question.spokenText}';
-    NarrationService.instance.speak(
-      '$lead $displayedText',
+    if (_teaching) {
+      _narration.speak(_question.teach!);
+      return;
+    }
+    final lead = _leadIns[_questionNumber % _leadIns.length];
+    final speechText =
+        _question.spokenText == null ? null : '$lead ${_question.spokenText}';
+    _narration.speak(
+      '$lead ${_question.prompt}',
       spokenText: speechText,
     );
   }
@@ -1632,7 +1637,7 @@ class _QuizPageState extends State<QuizPage> {
     final last = _questionNumber == 3;
     final buttonLabel =
         correct ? (last ? 'Finish game 🎉' : 'Next game →') : 'Try again 💪';
-    NarrationService.instance.speak(
+    _narration.speak(
       correct
           ? '$title ${_question.spokenText ?? detail}'
           : '$title $detail Try again, you can do it!',
@@ -2268,7 +2273,7 @@ class ResultPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       EmojiText(
-                        excellent ? 'Amazing work! 🎉' : 'Good try! 💪',
+                        excellent ? 'Amazing work! 🎉' : 'Keep going! 💪',
                         style: const TextStyle(
                             fontSize: 23, fontWeight: FontWeight.w900),
                         textAlign: TextAlign.center,

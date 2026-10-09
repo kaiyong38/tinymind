@@ -2,16 +2,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'tts_text_helper.dart';
 
-/// Reads short bits of text aloud (question prompts, "let's learn it"
-/// facts, right/wrong feedback) so a 3-6 year old who can't read yet isn't
-/// blocked by on-screen text. Uses the device's own text-to-speech voice —
-/// no audio assets needed.
-///
-/// The voice is set up to sound bright and playful (higher pitch, a brisk
-/// pace), and every utterance is cleaned by [TtsTextHelper] before playback.
-class NarrationService {
-  NarrationService._();
-  static final NarrationService instance = NarrationService._();
+abstract interface class NarrationService {
+  static final NarrationService instance = _DeviceNarrationService();
+
+  bool get voiceAvailable;
+
+  Future<void> init();
+  Future<void> speak(String text, {String? spokenText});
+  Future<void> stop();
+}
+
+/// Reads short bits of text aloud using the device's text-to-speech voice.
+/// Every utterance is cleaned by [TtsTextHelper] before playback.
+class _DeviceNarrationService implements NarrationService {
+  @override
+  bool get voiceAvailable => _voiceAvailable;
 
   final FlutterTts _tts = FlutterTts();
   static const MethodChannel _audioFocusChannel =
@@ -20,8 +25,7 @@ class NarrationService {
   bool _voiceAvailable = false;
   int _speakId = 0;
 
-  bool get voiceAvailable => _voiceAvailable;
-
+  @override
   Future<void> init() async {
     if (_ready) return;
     _ready = true;
@@ -47,6 +51,7 @@ class NarrationService {
     }
   }
 
+  @override
   Future<void> speak(String text, {String? spokenText}) async {
     if (!_ready) await init();
     final speakId = ++_speakId;
@@ -68,6 +73,7 @@ class NarrationService {
     }
   }
 
+  @override
   Future<void> stop() async {
     ++_speakId;
     await _tts.stop();
