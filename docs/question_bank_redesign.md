@@ -15,16 +15,16 @@ repeat their play type; their prompts, cues, and correct answers vary.
 |---|---:|---|---|---|---|---|---|---|---|
 | shapes_01 | 1 | 看和听 | Tap the circle | Circle | 蓝色圆形 | Circle ✓ / square / triangle | circle | — | Tap the circle. |
 | shapes_01 | 2 | 找一样的 | Tap the circle | Match shape | 深灰圆形剪影 | square / circle ✓ / triangle | circle | — | Find the shape that matches this circle. |
-| shapes_01 | 3 | 生活中的物品 | Which one is round like a circle? | Which looks round? | 大圆形 | Gift（方）/ Tent（三角）/ Ball ✓（圆） | Ball | — | Which object is round like this circle? |
+| shapes_01 | 3 | 生活中的物品 | Which one is round like a circle? | Which looks round? | 大圆形 | Gift（方）/ Tent（三角）/ Donut ✓（圆） | Donut | 用 Donut 替换另一个活动已用作正确图片的 Ball。 | Which object is round like this circle? |
 | shapes_02 | 1 | 看和听 | Tap the square | Square | 橙色正方形 | triangle / Square ✓ / circle | square | — | Tap the square. |
 | shapes_02 | 2 | 找一样的 | Tap the square | Match shape | 深灰正方形剪影 | circle / triangle / square ✓ | square | — | Find the shape that matches this square. |
-| shapes_02 | 3 | 生活中的物品 | Which one looks like a square? | Which looks square? | 大正方形 | Gift ✓（方）/ Cookie（圆）/ Pizza slice（三角） | Gift | — | Which object looks like this square? |
+| shapes_02 | 3 | 生活中的物品 | Which one looks like a square? | Which looks square? | 大正方形 | Picture frame ✓（方）/ Cookie（圆）/ Pizza slice（三角） | Picture frame | 用 Picture frame 替换另一个活动已用作正确图片的 Gift。 | Which object looks like this square? |
 | shapes_03 | 1 | 看和听 | Tap the triangle | Triangle | 绿色三角形 | star / circle / Triangle ✓ | triangle | — | Tap the triangle. |
 | shapes_03 | 2 | 找一样的 | Tap the triangle | Match shape | 深灰三角形剪影 | triangle ✓ / square / circle | triangle | — | Find the shape that matches this triangle. |
-| shapes_03 | 3 | 生活中的物品 | Which one looks like a triangle? | Which looks pointy? | 大三角形 | Cookie（圆）/ Pizza slice ✓（三角）/ Gift（方） | Pizza slice | — | Which object is pointy like this triangle? |
+| shapes_03 | 3 | 生活中的物品 | Which one looks like a triangle? | Which looks pointy? | 大三角形 | Cookie（圆）/ Sandwich ✓（三角）/ Gift（方） | Sandwich | 用 Sandwich 替换另一个活动已用作正确图片的 Pizza slice。 | Which object is pointy like this triangle? |
 | shapes_04 | 1 | 看和听 | Tap the star | Star | 黄色星形 | Star ✓ / circle / square | star | — | Tap the star. |
 | shapes_04 | 2 | 找一样的 | Which shape twinkles in the night sky? | Match shape | 深灰星形剪影 | triangle / star ✓ / circle | star | — | Find the shape that matches this star. |
-| shapes_04 | 3 | 生活中的物品 | Which one is a star? | Twinkles? | 闪光 ✨ | Rainbow / Cloud / Star ✓ | Star | — | Which one twinkles in the night sky? |
+| shapes_04 | 3 | 生活中的物品 | Which one is a star? | Twinkles? | 闪光 ✨ | Rainbow / Cloud / Fireworks ✓ | Fireworks | 用 Fireworks 替换另一个活动已用作正确图片的 Star。 | Which one twinkles in the night sky? |
 | shapes_05 | 1 | 看和听 | Tap the ball ⚽ | Which is round? | 彩色圆形 | Gift（方）/ Ball ✓（圆）/ Pizza slice（三角） | Ball | — | Which object is round like this circle? |
 | shapes_05 | 2 | 概念 | Tap the cookie 🍪 | Find round! | 深灰圆形剪影 | Tent（三角）/ Box（方）/ Cookie ✓（圆） | Cookie | — | Which object is round like this circle? |
 | shapes_05 | 3 | 生活中的物品 | Tap the gift 🎁 | Round one? | 虚线圆形轮廓 | Gift（方）/ Tent（三角）/ Orange ✓（圆） | Gift | Change Gift to Orange: the three target answers are the required round objects (ball, cookie, orange). |
@@ -52,9 +52,13 @@ repeat their play type; their prompts, cues, and correct answers vary.
 
 ### Shapes cue and answer notes
 
+- `shapes_03` uses the downward triangle badge so it does not duplicate the
+  triangle badge used by `shapes_07`.
+- `colors_09`–`colors_11` use distinct paint-tool badges so mixing activities
+  do not repeat the basic-color activity badges.
 - `shapes_01`–`shapes_03` Q3 use a drawn shape cue; answer choices remain the
   existing everyday-object pictures.
-- `shapes_04` Q3 uses a sparkle cue. `shapes_08` Q3 intentionally uses a
+- `shapes_04` Q3 uses a sparkle cue and a fireworks picture. `shapes_08` Q3 intentionally uses a
   night-sky scene with a moon while retaining the Star / Pizza slice / Gift choices;
   the moon is neither the Star option nor the correct answer.
 - `shapes_05` keeps its required circle/object theme and varies cue rendering,
@@ -85,6 +89,10 @@ repeat their play type; their prompts, cues, and correct answers vary.
 - The intro screen of an activity now reads the text shown on it. The first question's `spokenText` is the instruction only ("Tap the circle."), so the same sentence is not read twice.
 - There is no read-aloud button in the question card or the page header. Tapping the whole question card (or the intro bubble) repeats the question; the card and the bubble each show one small speaker icon as a hint only, with the semantic label "Hear the question again".
 - Activity cards in the library show a small round number (the activity's position in its world, continuous across sections; semantic label "Activity N") at the top-right. The "N+" age tag moved just below it.
+- Activity emojis are also shown in the quiz header. To avoid revealing a
+  non-teaching answer, `letters_x`, `shapes_04`, `shapes_06`, `shapes_07`, and
+  `shapes_08` now use 📦, 🌠, 🟦, 🔺, and ✨ respectively. The 📦 on the first
+  `letters_x` teaching question is covered by the first-question exception.
 - The Moon picture was removed from the answer pictures (Rainbow in shapes_04 Q3, Cookie in shapes_06 Q2, Ball in shapes_07 Q2).
 - shapes_10: the odd shape keeps its own color (triangle green, circle blue, square orange) and the row fills the card, so the triangle is no longer squeezed.
 - shapes_12 (option A): the card shows only a big number; the answer shapes carry the red corner dots or the colored sides, so children count real shapes.

@@ -18,6 +18,7 @@ import 'services/music_settings.dart';
 import 'services/narration_service.dart';
 import 'services/parent_gate_service.dart';
 import 'services/progress_store.dart';
+import 'theme/adaptive_metrics.dart';
 import 'widgets/bouncy_tap.dart';
 import 'widgets/drag_answer.dart';
 import 'widgets/quiz_visuals.dart';
@@ -1724,6 +1725,7 @@ class _QuizPageState extends State<QuizPage> {
       answered: _answered,
       moduleColor: _world.color,
       onDrop: _answer,
+      narration: _narration,
     );
   }
 
@@ -1832,13 +1834,20 @@ class _QuizPageState extends State<QuizPage> {
                             final isWide =
                                 constraints.maxWidth > constraints.maxHeight;
                             if (isWide) {
+                              final colorFriendlySwatches =
+                                  _question.visual == AnswerVisual.colorSwatch &&
+                                      AccessibilitySettingsScope.of(context)
+                                          .colorFriendlyMode;
                               return Row(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Expanded(flex: 5, child: _questionCard()),
+                                  Expanded(
+                                    flex: colorFriendlySwatches ? 4 : 5,
+                                    child: _questionCard(),
+                                  ),
                                   const SizedBox(width: 18),
                                   Expanded(
-                                    flex: 4,
+                                    flex: colorFriendlySwatches ? 5 : 4,
                                     child: Column(
                                       children: [
                                         Expanded(child: _answerArea()),
@@ -2255,54 +2264,61 @@ class ResultPage extends StatelessWidget {
                 builder: (context, constraints) {
                   final landscape =
                       constraints.maxWidth > constraints.maxHeight;
+                  final metrics =
+                      AdaptiveMetrics.fromConstraints(context, constraints);
                   final celebration = Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(metrics.size(12)),
                         decoration: BoxDecoration(
                           color: world.color.withValues(alpha: 0.14),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           excellent ? Icons.celebration : Icons.auto_awesome,
-                          size: 48,
+                          size: metrics.size(48),
                           color: world.color,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: metrics.size(8)),
                       EmojiText(
                         excellent ? 'Amazing work! 🎉' : 'Keep going! 💪',
-                        style: const TextStyle(
-                            fontSize: 23, fontWeight: FontWeight.w900),
+                        style: TextStyle(
+                          fontSize: metrics.size(23),
+                          fontWeight: FontWeight.w900,
+                        ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: metrics.size(4)),
                       Text(
                         'You got $score out of 3 in ${activity.title}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 15),
+                        style: TextStyle(fontSize: metrics.size(15)),
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: metrics.size(6)),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(
                           3,
                           (index) => Icon(
                             Icons.star,
-                            size: 25,
+                            size: metrics.size(25),
                             color: index < stars
                                 ? const Color(0xFFFFB703)
                                 : Colors.black12,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: metrics.size(4)),
                       Text(
                         'Best result: $stars ${stars == 1 ? 'star' : 'stars'}',
                         style: TextStyle(
-                            color: world.color, fontWeight: FontWeight.w800),
+                          color: world.color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: metrics.size(14),
+                        ),
                       ),
                     ],
                   );
@@ -2320,20 +2336,24 @@ class ResultPage extends StatelessWidget {
                         ),
                         style: FilledButton.styleFrom(
                           backgroundColor: world.color,
-                          minimumSize: const Size.fromHeight(46),
+                          minimumSize:
+                              Size.fromHeight(metrics.size(46)),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: const Text('Play again'),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: metrics.size(8)),
                       OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(46),
+                          minimumSize:
+                              Size.fromHeight(metrics.size(46)),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: const Text('Back to library'),
                       ),
                       if (nextActivity != null) ...[
-                        const SizedBox(height: 8),
+                        SizedBox(height: metrics.size(8)),
                         FilledButton.tonal(
                           onPressed: () =>
                               Navigator.of(context).pushReplacement(
@@ -2345,16 +2365,21 @@ class ResultPage extends StatelessWidget {
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(46),
+                            minimumSize:
+                                Size.fromHeight(metrics.size(46)),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           child: const Text('Next'),
                         ),
                       ],
                       if (!hasSuggestion) ...[
-                        const SizedBox(height: 8),
-                        const EmojiText(
+                        SizedBox(height: metrics.size(8)),
+                        EmojiText(
                           'You finished everything here! Replay your favorites ⭐',
-                          style: TextStyle(fontSize: 13),
+                          style: TextStyle(
+                            fontSize: metrics.size(13),
+                            height: 1.1,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -2365,14 +2390,17 @@ class ResultPage extends StatelessWidget {
                       constraints:
                           BoxConstraints(minHeight: constraints.maxHeight),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(metrics.size(16)),
                         child: Center(
                           child: landscape
                               ? Row(
                                   children: [
                                     Expanded(child: Center(child: celebration)),
-                                    const SizedBox(width: 20),
-                                    SizedBox(width: 190, child: buttons),
+                                    SizedBox(width: metrics.size(20)),
+                                    SizedBox(
+                                      width: metrics.size(190),
+                                      child: buttons,
+                                    ),
                                   ],
                                 )
                               : Column(
@@ -2380,8 +2408,11 @@ class ResultPage extends StatelessWidget {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Center(child: celebration),
-                                    const SizedBox(height: 12),
-                                    SizedBox(width: 240, child: buttons),
+                                    SizedBox(height: metrics.size(12)),
+                                    SizedBox(
+                                      width: metrics.size(240),
+                                      child: buttons,
+                                    ),
                                   ],
                                 ),
                         ),

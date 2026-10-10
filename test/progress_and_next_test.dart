@@ -195,28 +195,49 @@ void main() {
       for (final world in learningModules) {
         final activities = worldCatalogs[world.id]!.activities;
         final full = {for (final a in activities) a.id: 3};
-        for (final age in [3, 6]) {
-          for (final activity in [activities.first, activities.last]) {
+        for (final activity in activities) {
+          for (final age in [3, 6]) {
             await pump(tester, world, activity, _store(age, full));
             expect(find.text('Next'), findsOneWidget,
                 reason: '${activity.id} age $age');
             expect(find.text('Play again'), findsOneWidget);
             expect(find.text('Back to library'), findsOneWidget);
+            expect(tester.takeException(), isNull,
+                reason: '${activity.id} age $age');
           }
         }
       }
     });
 
-    testWidgets('hint sentence appears alongside Next without overflow',
+    testWidgets('three actions and full-world hint fit at 568x320 and 1.3x',
         (tester) async {
-      final world = learningModules.firstWhere((w) => w.id == 'colors');
-      final activities = worldCatalogs['colors']!.activities;
-      final full = {for (final a in activities) a.id: 3};
-      await pump(tester, world, activities.last, _store(6, full), scale: 1.3);
-      expect(find.text('Next'), findsOneWidget);
-      expect(find.textContaining('You finished everything here!'),
-          findsOneWidget);
-      expect(tester.takeException(), isNull);
+      for (final world in learningModules) {
+        final activities = worldCatalogs[world.id]!.activities;
+        final full = {for (final a in activities) a.id: 3};
+        final activity = activities.last;
+        await pump(tester, world, activity, _store(6, full), scale: 1.3);
+        expect(find.text('Next'), findsOneWidget, reason: activity.id);
+        expect(find.text('Play again'), findsOneWidget, reason: activity.id);
+        expect(find.text('Back to library'), findsOneWidget,
+            reason: activity.id);
+        final hint = find.textContaining('You finished everything here!');
+        expect(hint, findsOneWidget, reason: activity.id);
+
+        final screenRect = Offset.zero & const Size(568, 320);
+        for (final finder in [
+          find.text('Next'),
+          find.text('Play again'),
+          find.text('Back to library'),
+          hint,
+        ]) {
+          final rect = tester.getRect(finder);
+          expect(screenRect.contains(rect.topLeft), isTrue,
+              reason: '${activity.id}: $rect outside $screenRect');
+          expect(screenRect.contains(rect.bottomRight), isTrue,
+              reason: '${activity.id}: $rect outside $screenRect');
+        }
+        expect(tester.takeException(), isNull, reason: activity.id);
+      }
     });
 
     testWidgets('no hint when something is still worth playing',
@@ -225,8 +246,8 @@ void main() {
       final activities = worldCatalogs['colors']!.activities;
       await pump(tester, world, activities.first, _store(5));
       expect(find.text('Next'), findsOneWidget);
-      expect(find.textContaining('You finished everything here!'),
-          findsNothing);
+      expect(
+          find.textContaining('You finished everything here!'), findsNothing);
     });
   });
 }

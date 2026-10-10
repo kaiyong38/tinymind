@@ -18,6 +18,7 @@ class DragAnswerArea extends StatefulWidget {
     required this.answered,
     required this.moduleColor,
     required this.onDrop,
+    this.narration,
     super.key,
   });
 
@@ -26,6 +27,7 @@ class DragAnswerArea extends StatefulWidget {
   final bool answered;
   final Color moduleColor;
   final void Function(int index) onDrop;
+  final NarrationService? narration;
 
   @override
   State<DragAnswerArea> createState() => _DragAnswerAreaState();
@@ -44,6 +46,8 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
   bool _submitted = false;
 
   bool get _interactionLocked => widget.answered || _animating || _submitted;
+  NarrationService get _narration =>
+      widget.narration ?? NarrationService.instance;
 
   @override
   void initState() {
@@ -98,8 +102,7 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
       return;
     }
 
-    NarrationService.instance
-        .speak(spokenLabelFor(widget.question.options[index]));
+    _narration.speak(spokenLabelFor(widget.question.options[index]));
     setState(() => _tapSelectedIndex = index);
     _hintController.repeat(reverse: true);
   }
@@ -215,7 +218,7 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
               AccessibilitySettingsScope.of(context).colorFriendlyMode;
       final metrics = AdaptiveMetrics.fromConstraints(context, constraints);
       final minTileSize = colorFriendly
-          ? 76.0
+          ? 68.0
           : metrics.size(56).clamp(56.0, double.infinity).toDouble();
       final maxTileSize = (metrics.size(104)).clamp(minTileSize, 132.0);
       final gap = metrics.size(16);
@@ -224,7 +227,7 @@ class _DragAnswerAreaState extends State<DragAnswerArea>
       final widthLimit =
           (constraints.maxWidth - gap * (optionCount - 1)) / optionCount;
       final tileSize = math
-          .min(heightLimit, widthLimit)
+          .min(math.min(heightLimit, widthLimit), maxTileSize)
           .clamp(minTileSize, maxTileSize)
           .toDouble();
       final slotSize = tileSize * 0.95;

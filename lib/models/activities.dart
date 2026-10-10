@@ -1116,7 +1116,7 @@ const worldCatalogs = <String, WorldCatalog>{
       id: 'letters_x',
       sectionIndex: 2,
       title: 'X',
-      emoji: '🦊',
+      emoji: '📦',
       questions: [
         QuizQuestion(
           prompt: 'Which letter?',
@@ -2256,7 +2256,7 @@ const worldCatalogs = <String, WorldCatalog>{
             options: [
               QuizOption('Gift', emoji: '🎁'),
               QuizOption('Tent', emoji: '⛺'),
-              QuizOption('Ball', emoji: '⚽')
+              QuizOption('Donut', emoji: '🍩')
             ],
             answerIndex: 2,
           ),
@@ -2309,7 +2309,7 @@ const worldCatalogs = <String, WorldCatalog>{
             spokenText: 'Which object looks like this square?',
             hint: 'Look for four corners.',
             options: [
-              QuizOption('Gift', emoji: '🎁'),
+              QuizOption('Picture frame', emoji: '🖼️'),
               QuizOption('Cookie', emoji: '🍪'),
               QuizOption('Pizza slice', emoji: '🍕')
             ],
@@ -2321,7 +2321,7 @@ const worldCatalogs = <String, WorldCatalog>{
         id: 'shapes_03',
         sectionIndex: 0,
         title: 'Triangle',
-        emoji: '🔺',
+        emoji: '🔻',
         questions: [
           QuizQuestion(
             prompt: 'Triangle',
@@ -2365,7 +2365,7 @@ const worldCatalogs = <String, WorldCatalog>{
             hint: 'Find the pointy object.',
             options: [
               QuizOption('Cookie', emoji: '🍪'),
-              QuizOption('Pizza slice', emoji: '🍕'),
+              QuizOption('Sandwich', emoji: '🥪'),
               QuizOption('Gift', emoji: '🎁')
             ],
             answerIndex: 1,
@@ -2376,7 +2376,7 @@ const worldCatalogs = <String, WorldCatalog>{
         id: 'shapes_04',
         sectionIndex: 0,
         title: 'Star',
-        emoji: '⭐',
+        emoji: '🌠',
         questions: [
           QuizQuestion(
             prompt: 'Star',
@@ -2422,7 +2422,7 @@ const worldCatalogs = <String, WorldCatalog>{
             options: [
               QuizOption('Rainbow', emoji: '🌈'),
               QuizOption('Cloud', emoji: '☁️'),
-              QuizOption('Star', emoji: '⭐')
+              QuizOption('Fireworks', emoji: '🎆')
             ],
             answerIndex: 2,
           ),
@@ -2489,7 +2489,7 @@ const worldCatalogs = <String, WorldCatalog>{
         id: 'shapes_06',
         sectionIndex: 1,
         title: 'Square things',
-        emoji: '📦',
+        emoji: '🟦',
         questions: [
           QuizQuestion(
             prompt: 'Which is square?',
@@ -2543,7 +2543,7 @@ const worldCatalogs = <String, WorldCatalog>{
         id: 'shapes_07',
         sectionIndex: 1,
         title: 'Pointy things',
-        emoji: '⛺',
+        emoji: '🔺',
         questions: [
           QuizQuestion(
             prompt: 'Which is pointy?',
@@ -2597,7 +2597,7 @@ const worldCatalogs = <String, WorldCatalog>{
         id: 'shapes_08',
         sectionIndex: 1,
         title: 'Twinkly things',
-        emoji: '🌟',
+        emoji: '✨',
         questions: [
           QuizQuestion(
             prompt: 'Find the star',
@@ -3206,7 +3206,7 @@ const worldCatalogs = <String, WorldCatalog>{
         id: 'colors_09',
         sectionIndex: 2,
         title: 'Red + Yellow',
-        emoji: '🟠',
+        emoji: '🎨',
         minAge: 5,
         questions: [
           QuizQuestion(
@@ -3247,7 +3247,7 @@ const worldCatalogs = <String, WorldCatalog>{
         id: 'colors_10',
         sectionIndex: 2,
         title: 'Blue + Yellow',
-        emoji: '🟢',
+        emoji: '🖌️',
         minAge: 5,
         questions: [
           QuizQuestion(
@@ -3288,7 +3288,7 @@ const worldCatalogs = <String, WorldCatalog>{
         id: 'colors_11',
         sectionIndex: 2,
         title: 'Red + Blue',
-        emoji: '🟣',
+        emoji: '🖍️',
         minAge: 5,
         questions: [
           QuizQuestion(

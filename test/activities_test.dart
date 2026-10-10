@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tinymind/models/activities.dart';
+import 'package:tinymind/models/learning.dart';
 
 void main() {
   test('every world has sections and activities', () {
@@ -24,7 +25,9 @@ void main() {
 
   test('activity ids match the stable ordered snapshot', () {
     final expectedIds = [
-      ...'abcdefghijklmnopqrstuvwxyz'.split('').map((letter) => 'letters_$letter'),
+      ...'abcdefghijklmnopqrstuvwxyz'
+          .split('')
+          .map((letter) => 'letters_$letter'),
       for (var number = 1; number <= 20; number++)
         'numbers_${number.toString().padLeft(2, '0')}',
       for (var number = 1; number <= 12; number++)
@@ -58,6 +61,71 @@ void main() {
         // Only the first question teaches before testing.
         expect(a.questions[1].teach, isNull, reason: a.id);
         expect(a.questions[2].teach, isNull, reason: a.id);
+      }
+    }
+  });
+
+  test('activity emojis do not reveal non-teaching correct picture answers',
+      () {
+    final activities =
+        worldCatalogs.values.expand((catalog) => catalog.activities).toList();
+    expect(activities, hasLength(70));
+
+    for (final activity in activities) {
+      for (final question in activity.questions) {
+        if (question.playType == PlayType.lookListen) continue;
+
+        final answerEmoji = question.options[question.answerIndex].emoji;
+        if (answerEmoji == null) continue;
+
+        expect(
+          _withoutEmojiVariationSelector(answerEmoji),
+          isNot(_withoutEmojiVariationSelector(activity.emoji)),
+          reason: '${activity.id}: activity emoji reveals a correct answer',
+        );
+      }
+    }
+  });
+
+  test(
+      'replacement activity emojis are supported and absent from later options',
+      () {
+    const expectedEmojiByActivityId = {
+      'letters_x': '📦',
+      'shapes_04': '🌠',
+      'shapes_06': '🟦',
+      'shapes_07': '🔺',
+      'shapes_08': '✨',
+    };
+    const introducedUnicodeVersionByEmoji = {
+      '📦': 6,
+      '🌠': 6,
+      '🟦': 12,
+      '🔺': 6,
+      '✨': 6,
+    };
+
+    for (final entry in expectedEmojiByActivityId.entries) {
+      final activity = activityById(entry.key)!;
+      expect(activity.emoji, entry.value, reason: entry.key);
+      expect(
+        introducedUnicodeVersionByEmoji[entry.value],
+        lessThanOrEqualTo(12),
+        reason: '${entry.key}: ${entry.value}',
+      );
+
+      final activityEmoji = _withoutEmojiVariationSelector(activity.emoji);
+      for (final question in activity.questions) {
+        if (question.playType == PlayType.lookListen) continue;
+        for (final option in question.options) {
+          final optionEmoji = option.emoji;
+          if (optionEmoji == null) continue;
+          expect(
+            _withoutEmojiVariationSelector(optionEmoji),
+            isNot(activityEmoji),
+            reason: '${entry.key}: activity emoji is also an option picture',
+          );
+        }
       }
     }
   });
@@ -203,3 +271,6 @@ void main() {
     });
   });
 }
+
+String _withoutEmojiVariationSelector(String emoji) =>
+    emoji.replaceAll('\uFE0F', '');
