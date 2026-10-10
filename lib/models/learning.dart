@@ -246,24 +246,6 @@ final class NightSkyCue extends QuizCue {
   String get identityKey => 'scene:night-sky:moon=$showMoon';
 }
 
-final class CornerMarksCue extends QuizCue {
-  const CornerMarksCue(this.count);
-
-  final int count;
-
-  @override
-  String get identityKey => 'corner-marks:$count';
-}
-
-final class EdgeMarksCue extends QuizCue {
-  const EdgeMarksCue(this.count);
-
-  final int count;
-
-  @override
-  String get identityKey => 'edge-marks:$count';
-}
-
 final class RollingSlopeCue extends QuizCue {
   const RollingSlopeCue();
 

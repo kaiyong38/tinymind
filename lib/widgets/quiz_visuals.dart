@@ -227,14 +227,6 @@ Widget buildQuestionCue(
       ),
     ShapeRowCue() => _ShapeRow(cue: cue, size: size, reveal: revealDifference),
     NightSkyCue() => _NightSky(cue: cue, size: size),
-    CornerMarksCue(:final count) => SizedBox.square(
-        dimension: size,
-        child: CustomPaint(painter: _CornerMarksPainter(count)),
-      ),
-    EdgeMarksCue(:final count) => SizedBox.square(
-        dimension: size,
-        child: CustomPaint(painter: _EdgeMarksPainter(count)),
-      ),
     RollingSlopeCue() => _RollingSlopeView(size: size),
     ItemCountCue() => _ItemCountCueView(cue: cue, size: size),
     EquationPictureCue() => _EquationPictureView(cue: cue, size: size),
@@ -1153,59 +1145,6 @@ class _MoonPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MoonPainter oldDelegate) => false;
-}
-
-class _CornerMarksPainter extends CustomPainter {
-  _CornerMarksPainter(this.count);
-
-  final int count;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const points = [
-      Offset(0.23, 0.23),
-      Offset(0.77, 0.23),
-      Offset(0.77, 0.77),
-      Offset(0.23, 0.77),
-    ];
-    for (final point in points.take(count.clamp(0, points.length).toInt())) {
-      canvas.drawCircle(
-        Offset(point.dx * size.width, point.dy * size.height),
-        size.shortestSide * 0.075,
-        Paint()..color = const Color(0xFFE84855),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _CornerMarksPainter oldDelegate) =>
-      count != oldDelegate.count;
-}
-
-class _EdgeMarksPainter extends CustomPainter {
-  _EdgeMarksPainter(this.count);
-
-  final int count;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF3A86FF)
-      ..strokeWidth = size.shortestSide * 0.07
-      ..strokeCap = StrokeCap.round;
-    for (var index = 0; index < count.clamp(0, 4).toInt(); index++) {
-      final top = size.height * (0.2 + index * 0.18);
-      canvas.drawLine(
-        Offset(size.width * 0.25, top),
-        Offset(size.width * 0.75, top),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _EdgeMarksPainter oldDelegate) =>
-      count != oldDelegate.count;
 }
 
 class _RollingSlopeView extends StatelessWidget {
