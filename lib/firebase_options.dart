@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyA5OsQClQ6kF0pDYQCO1OyTDQCmBbShTMU',
-    appId: '1:20018846997:android:964e8becfdc926a7bedd1c',
+    appId: '1:20018846997:android:65858b110a4e7a96bedd1c',
     messagingSenderId: '20018846997',
     projectId: 'tinymind-dab14',
     storageBucket: 'tinymind-dab14.firebasestorage.app',
