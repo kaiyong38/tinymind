@@ -1,4 +1,4 @@
-package com.example.tinymind
+package com.kaiyong.tinymind
 
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest

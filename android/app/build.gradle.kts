@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -8,8 +10,27 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+val requiredKeystoreKeys = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+val hasReleaseKeystore = requiredKeystoreKeys.all { !keystoreProperties.getProperty(it).isNullOrBlank() }
+
+// Fail only when a release build is requested without a usable key.properties.
+gradle.taskGraph.whenReady {
+    val releaseRequested = allTasks.any { it.project == project && it.name.contains("Release", ignoreCase = true) }
+    if (releaseRequested && !hasReleaseKeystore) {
+        throw GradleException(
+            "Release signing is not configured: android/key.properties is missing or lacks " +
+                "storeFile, storePassword, keyAlias or keyPassword."
+        )
+    }
+}
+
 android {
-    namespace = "com.example.tinymind"
+    namespace = "com.kaiyong.tinymind"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,8 +44,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.tinymind"
+        applicationId = "com.kaiyong.tinymind"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -33,11 +53,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            if (hasReleaseKeystore) {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

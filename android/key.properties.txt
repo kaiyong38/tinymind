@@ -1,4 +1,0 @@
-storePassword=Kai6591
-keyPassword=Kai6591
-keyAlias=tinymind
-storeFile=C:/Android/keys/tinymind-release.jks
