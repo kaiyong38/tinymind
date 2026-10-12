@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,9 +33,27 @@ void main() {
     ]) {
       expect(find.text(title), findsOneWidget);
     }
-    expect(find.text('Last updated: 4 October 2026'), findsOneWidget);
+    expect(find.text('Last updated: 12 October 2026'), findsOneWidget);
+    expect(
+      find.textContaining('Singapore region (asia-southeast1)'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'The report is generated on the phone, and parents decide whom to '
+        'share it with. TinyMind does not send it automatically.',
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining(AppInfo.supportEmail), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsOneWidget);
+  });
+
+  test('hosted privacy policy matches the docs copy', () {
+    final docsPolicy = File('docs/privacy-policy.html').readAsStringSync();
+    final hostedPolicy = File('public/privacy-policy.html').readAsStringSync();
+
+    expect(hostedPolicy, docsPolicy);
   });
 
   testWidgets('forgot password shows reset guidance and support email',

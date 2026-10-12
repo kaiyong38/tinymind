@@ -4,7 +4,7 @@ import 'package:tinymind/app_info.dart';
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
 
-  static const lastUpdated = '4 October 2026';
+  static const lastUpdated = '12 October 2026';
 
   static const sections = <MapEntry<String, String>>[
     MapEntry(
@@ -37,6 +37,8 @@ class PrivacyPolicyPage extends StatelessWidget {
           'child profiles and learning data. Google Firebase stores and '
           'processes the data on our behalf as a data processor. We do not '
           'sell or share personal data with others.\n\n'
+          'Data is stored in Google Firebase’s Singapore region '
+          '(asia-southeast1).\n\n'
           'TinyMind never receives or stores your fingerprint or face data; '
           'your phone\'s own security handles it. If you choose a PIN, it is '
           'kept only on this device in a scrambled form.',
@@ -50,7 +52,10 @@ class PrivacyPolicyPage extends StatelessWidget {
       'Your choices',
       'Parents can delete a child profile at any time from the parent area. '
           'Deleting the parent account also deletes its child profiles and '
-          'learning data.',
+          'learning data.\n\n'
+          'Parents can export a learning report from the parent area. The '
+          'report is generated on the phone, and parents decide whom to share '
+          'it with. TinyMind does not send it automatically.',
     ),
     MapEntry(
       'Contact',

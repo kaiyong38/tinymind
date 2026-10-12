@@ -3,6 +3,9 @@
 TinyMind is a Flutter learning app for children ages 3–6. It uses Firebase
 services and currently targets Android only.
 
+- Android application ID: `com.kaiyong.tinymind`
+- Firebase project: `tinymind-dab14`
+
 ## Features
 
 - Four learning worlds: Letters, Numbers, Shapes, and Colors.
@@ -80,31 +83,79 @@ Run only the layout/overflow audit tests:
 flutter test --tags overflow
 ```
 
+CI runs `flutter analyze` and `flutter test` on every push and pull request
+using Flutter `3.41.3` (see
+[.github/workflows/flutter.yml](.github/workflows/flutter.yml)).
+
+The test files are:
+
+```text
+test/activities_test.dart
+test/compact_landscape_test.dart
+test/colors_redesign_test.dart
+test/drag_answer_test.dart
+test/font_assets_test.dart
+test/learning_report_builder_test.dart
+test/letters_redesign_test.dart
+test/music_settings_test.dart
+test/narration_interjections_test.dart
+test/numbers_redesign_test.dart
+test/overflow_audit_test.dart
+test/parent_gate_service_test.dart
+test/privacy_policy_page_test.dart
+test/progress_and_next_test.dart
+test/progress_store_notify_test.dart
+test/progress_store_test.dart
+test/question_bank_rules_test.dart
+test/quiz_page_audit_test.dart
+test/quiz_visuals_test.dart
+test/read_again_and_numbering_test.dart
+test/shapes_redesign_test.dart
+test/tts_text_helper_test.dart
+test/widget_test.dart
+```
+
+`test/overflow_audit_test.dart` and `test/quiz_page_audit_test.dart` carry the
+`overflow` tag and are run by `flutter test --tags overflow`.
+
 Question-bank requirements are documented in
 [docs/question_bank_rules.md](docs/question_bank_rules.md).
 
 ## Build a release package
 
+Release signing reads the following properties from
+`android/key.properties`:
+
+```properties
+storeFile=<keystore-file-path>
+storePassword=<keystore-password>
+keyAlias=<key-alias>
+keyPassword=<key-password>
+```
+
+Do not put real values in this example. `android/key.properties` and keystore
+files (`.jks`) are excluded from Git and must be kept private. Without a valid
+`key.properties`, debug builds and `flutter test` continue to work; only a
+release build reports a signing configuration error.
+
+Build split APKs for testers (the ARM64 APK is
+`app-arm64-v8a-release.apk`):
+
 ```sh
-flutter build apk --release
+flutter build apk --release --split-per-abi
+```
+
+Build an app bundle for Google Play:
+
+```sh
 flutter build appbundle --release
 ```
 
-The current Android Gradle release build is configured to use the debug
-signing key. These commands build release-mode artifacts, but a production
-distribution should be configured with a private release keystore first.
-Keep the keystore and `key.properties` private and out of version control.
+Share the APK using Firebase App Distribution or send the APK directly.
+Testers installing an APK directly need to allow installation from unknown
+sources for the app or browser they use to open it.
 
-A typical `android/key.properties` file has this shape; replace each
-placeholder locally and do not commit real values:
+## Future work
 
-```properties
-storePassword=<keystore-password>
-keyPassword=<key-password>
-keyAlias=<key-alias>
-storeFile=<path-to-keystore>
-```
-
-The current Gradle release configuration does not yet read `key.properties`;
-wire it into the Android signing configuration before producing a
-store-signed release. Keep the real keystore and passwords in a secure backup.
+The app currently supports Android only. iOS support, Google sign-in, and
+Facebook sign-in are future work.
