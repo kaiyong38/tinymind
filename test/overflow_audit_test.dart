@@ -665,17 +665,128 @@ void main() {
             tester,
             'ParentGate ${phase.$1}, $size, ${scale}x',
           );
+          if (phase.$1 == 'set PIN' || phase.$1 == 'enter PIN') {
+            final keypadSize = tester.getSize(find.byType(GridView));
+            final keypad = tester.getRect(find.byType(GridView));
+            expect(
+              keypadSize.width,
+              lessThanOrEqualTo(360),
+              reason: 'PIN keypad width, $size, ${scale}x',
+            );
+            final key = find.ancestor(
+              of: find.text('1'),
+              matching: find.byType(InkWell),
+            );
+            expect(
+              tester.getSize(key).height,
+              greaterThanOrEqualTo(48),
+              reason: 'PIN key height, $size, ${scale}x',
+            );
+            final shieldTop =
+                tester.getRect(find.byIcon(Icons.shield_rounded)).top;
+            final promptBottom = phase.$1 == 'enter PIN'
+                ? tester
+                    .getRect(find.widgetWithText(TextButton, 'Forgot PIN?'))
+                    .bottom
+                : tester
+                    .getRect(
+                      find.byWidgetPredicate((widget) {
+                        if (widget is! Container) return false;
+                        final decoration = widget.decoration;
+                        return decoration is BoxDecoration &&
+                            decoration.shape == BoxShape.circle;
+                      }).last,
+                    )
+                    .bottom;
+            final promptCenter = (shieldTop + promptBottom) / 2;
+            final appBarBottom =
+                tester.getRect(find.byType(AppBar).last).bottom;
+            final bodyHeight = size.height - appBarBottom;
+            expect(
+              (promptCenter - keypad.center.dy).abs(),
+              lessThanOrEqualTo(bodyHeight * 0.1),
+              reason: 'PIN prompt/keypad alignment, $size, ${scale}x',
+            );
+            final bodyCenter = (appBarBottom + size.height) / 2;
+            expect(
+              (keypad.center.dy - bodyCenter).abs(),
+              lessThanOrEqualTo(bodyHeight * 0.1),
+              reason: 'PIN group center, $size, ${scale}x',
+            );
+            expect(
+              (promptCenter - bodyCenter).abs(),
+              lessThanOrEqualTo(bodyHeight * 0.1),
+              reason: 'PIN prompt center, $size, ${scale}x',
+            );
+          }
         }
       }
     }
+  });
+
+  testWidgets('PIN error and lockout messages keep the keypad visible',
+      (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const size = Size(568, 320);
+    final service = ParentGateService(
+      storage: _AuditGateStorage(
+        method: ParentLockMethod.pin,
+        pinRecord: 'fixture-record',
+      ),
+      phoneAuthenticator: _AuditPhoneAuthenticator(),
+    );
+    await pumpScreen(
+      tester,
+      _GateAuditHarness(service: service, action: 'unlock'),
+      size,
+      1.3,
+    );
+    unawaited(service.unlock(tester.element(find.byType(Scaffold))));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    for (var attempt = 0; attempt < 5; attempt++) {
+      for (final digit in '1234'.split('')) {
+        await tester.tap(find.text(digit).last);
+        if (attempt == 4 && digit == '4') {
+          await tester.pump();
+        } else {
+          await tester.pumpAndSettle();
+        }
+      }
+      if (attempt == 0) {
+        expect(find.text('That PIN was not right. Try again.'), findsOneWidget);
+        _expectNoException(tester, 'PIN rejected message');
+      }
+    }
+
+    expect(find.text('Please wait 30 seconds.'), findsOneWidget);
+    _expectNoException(tester, 'PIN lockout message');
+    final keypad = tester.getRect(find.byType(GridView));
+    final appBarBottom = tester.getRect(find.byType(AppBar).last).bottom;
+    final contentRect = Rect.fromLTRB(0, appBarBottom, size.width, size.height);
+    expect(contentRect.contains(keypad.topLeft), isTrue);
+    expect(contentRect.contains(keypad.bottomRight), isTrue);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
   });
 
   testWidgets('parent child lists fit zero, one, four and eight children',
       (tester) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    const sizes = [
+      Size(568, 320),
+      Size(640, 360),
+      Size(732, 412),
+      Size(1280, 800),
+      Size(1024, 768),
+      Size(1920, 1080),
+    ];
     for (final count in [0, 1, 4, 8]) {
-      for (final size in [const Size(568, 320), const Size(640, 360)]) {
+      for (final size in sizes) {
         for (final scale in [1.0, 1.3, 1.6]) {
           final firestore = _AuditFirestore(childCount: count);
           final auth = AuthService(
@@ -712,6 +823,47 @@ void main() {
               tester,
               '$page, $count children, $size, ${scale}x',
             );
+            if (page == 'ChildPickerPage' && count == 1) {
+              final manageButton = find.ancestor(
+                of: find.text('Manage'),
+                matching: find.byType(TextButton),
+              );
+              expect(
+                tester.getSize(manageButton).height,
+                greaterThanOrEqualTo(48),
+                reason: 'Manage target, $size, ${scale}x',
+              );
+              final headerTop =
+                  tester.getRect(find.byType(EmojiGlyph).first).top;
+              final parentLinkBottom = tester
+                  .getRect(find.widgetWithText(TextButton, 'For parents'))
+                  .bottom;
+              final groupCenter = (headerTop + parentLinkBottom) / 2;
+              expect(
+                (groupCenter - size.height / 2).abs(),
+                lessThanOrEqualTo(size.height * 0.1),
+                reason: 'Child picker content center, $size, ${scale}x',
+              );
+            }
+            if (page == 'AdminPage' &&
+                count == 1 &&
+                size == const Size(568, 320) &&
+                scale == 1.3) {
+              for (final label in ['Points', 'Days played', 'Correct']) {
+                final text = tester.widget<Text>(find.text(label));
+                expect(text.overflow, isNot(TextOverflow.ellipsis));
+                expect(
+                  tester
+                      .renderObject<RenderParagraph>(find.text(label))
+                      .didExceedMaxLines,
+                  isFalse,
+                  reason: 'Stat label "$label" must not be clipped',
+                );
+              }
+              expect(find.text('99999'), findsOneWidget);
+              expect(find.text('100'), findsOneWidget);
+              expect(find.text('100%'), findsOneWidget);
+            }
           }
         }
       }
@@ -1078,7 +1230,9 @@ class _AuditChildDocument extends Fake
         'totalQuestions': 999,
         'correctAnswers': 999,
         'activityStars': <String, int>{},
-        'dailyStats': <String, dynamic>{},
+        'dailyStats': {
+          for (var day = 0; day < 100; day++) 'day-$day': <int>[1, 1],
+        },
       };
 }
 

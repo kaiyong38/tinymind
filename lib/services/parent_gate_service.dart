@@ -453,20 +453,11 @@ class _PinSetupPageState extends State<_PinSetupPage> {
                   onBackspace: _backspace,
                   enabled: true,
                 );
-                return constraints.maxWidth > constraints.maxHeight
-                    ? Row(
-                        children: [
-                          Expanded(child: Center(child: prompt)),
-                          const SizedBox(width: 12),
-                          Expanded(child: pad),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          Expanded(flex: 2, child: Center(child: prompt)),
-                          Expanded(flex: 5, child: pad),
-                        ],
-                      );
+                return _pinContentLayout(
+                  constraints,
+                  prompt: prompt,
+                  pad: pad,
+                );
               },
             ),
           ),
@@ -633,25 +624,55 @@ class _PinEntryPageState extends State<_PinEntryPage> {
                   onBackspace: _backspace,
                   enabled: !_busy && _secondsRemaining == 0,
                 );
-                return constraints.maxWidth > constraints.maxHeight
-                    ? Row(
-                        children: [
-                          Expanded(child: Center(child: prompt)),
-                          const SizedBox(width: 12),
-                          Expanded(child: pad),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          Expanded(flex: 2, child: Center(child: prompt)),
-                          Expanded(flex: 5, child: pad),
-                        ],
-                      );
+                return _pinContentLayout(
+                  constraints,
+                  prompt: prompt,
+                  pad: pad,
+                );
               },
             ),
           ),
         ),
       );
+}
+
+Widget _pinContentLayout(
+  BoxConstraints constraints, {
+  required Widget prompt,
+  required Widget pad,
+}) {
+  final keyboardWidth = min(360.0, constraints.maxWidth * 0.56);
+  final keyboardHeight = constraints.maxHeight * 0.7;
+  return Center(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, promptConstraints) => SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: promptConstraints.maxHeight,
+                ),
+                child: Center(child: prompt),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: keyboardWidth,
+          child: Center(
+            child: SizedBox(
+              height: keyboardHeight,
+              child: pad,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _PinPrompt extends StatelessWidget {
@@ -758,8 +779,8 @@ class _PinNumberPad extends StatelessWidget {
             primary: false,
             physics: const ClampingScrollPhysics(),
             crossAxisCount: columns,
-            mainAxisExtent: 56,
-            mainAxisSpacing: 6,
+            mainAxisExtent: 48,
+            mainAxisSpacing: 4,
             crossAxisSpacing: 8,
             children: [
               for (final label in labels)
@@ -803,7 +824,7 @@ class _PinKey extends StatelessWidget {
           onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(14),
           child: Container(
-            constraints: const BoxConstraints(minWidth: 56, minHeight: 56),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.black12),
               borderRadius: BorderRadius.circular(14),

@@ -157,7 +157,8 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                 final avatarRadius =
                     (itemWidth * 0.31)
                         .clamp(metrics.size(20), metrics.size(42))
-                        .toDouble();
+                        .toDouble() *
+                    1.15;
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: SingleChildScrollView(
@@ -165,6 +166,7 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                       constraints:
                           BoxConstraints(minHeight: constraints.maxHeight),
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Wrap(
                             spacing: 8,
@@ -172,17 +174,24 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                             crossAxisAlignment: WrapCrossAlignment.center,
                             alignment: WrapAlignment.center,
                             children: [
-                              const EmojiGlyph('🌈', 28),
+                              const EmojiGlyph('🌈', 36),
                               const Text(
                                 'Who is playing?',
                                 style: TextStyle(
-                                    fontSize: 21,
+                                    fontSize: 27,
                                     fontWeight: FontWeight.w900),
                               ),
                               TextButton(
                                 onPressed: _managing
                                     ? () => setState(() => _managing = false)
                                     : _startManaging,
+                                style: TextButton.styleFrom(
+                                  minimumSize: const Size(48, 48),
+                                  textStyle: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                                 child: Text(_managing ? 'Done' : 'Manage'),
                               ),
                             ],
@@ -304,7 +313,7 @@ class _FlatChildAvatar extends StatelessWidget {
                   maxLines: 1,
                   softWrap: false,
                   style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w800),
+                      fontSize: 15, fontWeight: FontWeight.w800),
                 ),
               ),
             ),
