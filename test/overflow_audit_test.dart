@@ -27,6 +27,7 @@ import 'package:tinymind/services/progress_store.dart';
 import 'package:tinymind/theme/app_theme.dart';
 import 'package:tinymind/widgets/drag_answer.dart';
 import 'package:tinymind/widgets/emoji_glyph.dart';
+import 'package:tinymind/widgets/large_screen_scaler.dart';
 import 'package:tinymind/widgets/question_cue_card.dart';
 import 'package:tinymind/widgets/text_scale_limit.dart';
 
@@ -183,7 +184,9 @@ void main() {
       Size(732, 412),
       Size(851, 393),
       Size(1024, 600),
+      Size(1024, 768),
       Size(1280, 800),
+      Size(1920, 1080),
     ];
     for (final entry in representatives.entries) {
       final modes =
@@ -292,7 +295,9 @@ void main() {
       Size(732, 412),
       Size(851, 393),
       Size(1024, 600),
+      Size(1024, 768),
       Size(1280, 800),
+      Size(1920, 1080),
     ];
     final auth = AuthService(
       auth: _UnusedFirebaseAuth(),
@@ -609,7 +614,9 @@ void main() {
       Size(732, 412),
       Size(851, 393),
       Size(1024, 600),
+      Size(1024, 768),
       Size(1280, 800),
+      Size(1920, 1080),
     ];
     const phases = <(String, ParentLockMethod?, String, String)>[
       ('method selection', null, 'unlock', 'Set up grown-up lock'),
@@ -742,19 +749,22 @@ Future<void> pumpScreen(
   _capturedFlutterErrors.clear();
   await _accessibilitySettings.setColorFriendlyMode(colorFriendly);
   await tester.pumpWidget(
-    MaterialApp(
-      theme: _theme,
-      home: MediaQuery(
-        data: MediaQueryData(
-          size: size,
-          textScaler: TextScaler.linear(textScale),
-        ),
-        child: TextScaleLimit(
-          maxScale: 1.6,
-          child: AccessibilitySettingsScope(
-            settings: _accessibilitySettings,
-            child: widget,
+    MediaQuery(
+      data: MediaQueryData(
+        size: size,
+        textScaler: TextScaler.linear(textScale),
+      ),
+      child: MaterialApp(
+        theme: _theme,
+        builder: (context, child) => LargeScreenScaler(
+          child: TextScaleLimit(
+            maxScale: 1.6,
+            child: child!,
           ),
+        ),
+        home: AccessibilitySettingsScope(
+          settings: _accessibilitySettings,
+          child: widget,
         ),
       ),
     ),
@@ -810,10 +820,16 @@ void _expectClippedChildrenWithinParents(
       continue;
     }
     if (widget is FittedBox) {
+      final isLargeScreenStage =
+          widget.key == const ValueKey('large-screen-scaler-stage');
       expect(
         widget.fit,
-        anyOf(BoxFit.contain, BoxFit.scaleDown),
-        reason: '$description; FittedBox must not crop its child',
+        isLargeScreenStage
+            ? BoxFit.fill
+            : anyOf(BoxFit.contain, BoxFit.scaleDown),
+        reason: isLargeScreenStage
+            ? '$description; the large-screen stage must fill the window'
+            : '$description; FittedBox must not crop its child',
       );
       final parentRect = Offset.zero & parentRenderObject.size;
       final fittedSize = applyBoxFit(

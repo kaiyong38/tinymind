@@ -25,6 +25,7 @@ import 'widgets/quiz_visuals.dart';
 import 'theme/tinymind_colors.dart';
 import 'theme/app_theme.dart';
 import 'widgets/emoji_glyph.dart';
+import 'widgets/large_screen_scaler.dart';
 import 'widgets/question_cue_card.dart';
 import 'widgets/text_scale_limit.dart';
 
@@ -116,9 +117,11 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
         title: 'TinyMind',
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
-        builder: (context, child) => TextScaleLimit(
-          maxScale: 1.6,
-          child: child!,
+        builder: (context, child) => LargeScreenScaler(
+          child: TextScaleLimit(
+            maxScale: 1.6,
+            child: child!,
+          ),
         ),
         // The app always opens on "Who is learning today?" rather than
         // silently resuming whichever child was last cached — a shared

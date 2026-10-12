@@ -6,6 +6,8 @@
 5. Each activity has 3 questions with 3 different play types. Theme activities (counting, adding, subtracting) may repeat the play type but must vary the cue and the answer. No two questions in an activity share the same (prompt, cue, correct answer).
 6. Pictures: only emoji from Unicode 12 or earlier (Android 10). Avoid ambiguous pictures (full moon, ribbon, crystal ball, white cloud). Do not reuse a correct-answer object across activities of one world; distractor pictures may recur. Always render emoji with EmojiGlyph, never a bare Text.
 7. Layout: the question card shows the cue and the short prompt only. There is no read-aloud button in the card, and none in the page header. Tapping the whole question card (or the intro bubble) repeats the question; the card and the bubble each show one small speaker icon as a hint only. Answer tiles are sized by the existing code; new visuals must fill the tile with FittedBox and must not overflow at 568x320, 640x360, 732x412 with text scale up to 1.3.
+   On larger displays, the app uses a 640 × 400 logical-pixel stage scaled
+   uniformly to fit the window (up to 3×); phone-sized layouts are unchanged.
 8. Data integrity: keep activity ids, section order, minAge, 3 options per question, correct answerIndex. Arithmetic and count invariants are covered by tests.
 9. Process: first write the proposal rows into docs/question_bank_redesign.md (activity, Q, playType, current prompt, new short prompt, cue, options with the correct one marked, original correct answer, change reason, spokenText) and stop for review; implement only after approval.
 10. Do not add dependencies and do not touch the audio-focus configuration.

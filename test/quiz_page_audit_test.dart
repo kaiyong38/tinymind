@@ -13,6 +13,7 @@ import 'package:tinymind/services/narration_service.dart';
 import 'package:tinymind/services/progress_store.dart';
 import 'package:tinymind/theme/app_theme.dart';
 import 'package:tinymind/widgets/emoji_glyph.dart';
+import 'package:tinymind/widgets/large_screen_scaler.dart';
 import 'package:tinymind/widgets/question_cue_card.dart';
 
 const _compactSizes = [Size(568, 320), Size(640, 360)];
@@ -22,7 +23,9 @@ const _cueMatrixSizes = [
   Size(732, 412),
   Size(851, 393),
   Size(1024, 600),
+  Size(1024, 768),
   Size(1280, 800),
+  Size(1920, 1080),
 ];
 
 void main() {
@@ -311,7 +314,7 @@ Future<void> _pumpQuiz(
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(scale)),
-          child: child!,
+          child: LargeScreenScaler(child: child!),
         ),
         home: QuizPage(
           activity: activity,
@@ -440,7 +443,8 @@ Future<List<String>> _inspectState(
     final tile = find.byKey(ValueKey('drag-answer-option-card-$index'));
     if (tile.evaluate().isEmpty) continue;
     final rect = tester.getRect(tile);
-    if (rect.width < 56 || rect.height < 56) {
+    final tileSize = tester.getSize(tile);
+    if (tileSize.width < 56 || tileSize.height < 56) {
       issues.add('$context: answer tile $index is smaller than 56 dp ($rect)');
     }
     if (!_containsRect(screen, rect)) {

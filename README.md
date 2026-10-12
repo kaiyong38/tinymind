@@ -18,6 +18,13 @@ services and currently targets Android only.
   four-digit PIN.
 - Privacy information and controls for deleting an account.
 
+## Large screens
+
+On large displays, TinyMind lays out the app on a 640 × 400 logical-pixel
+canvas and scales it uniformly to fill the screen (up to 3×). Phone-sized
+layouts are left unchanged. The same scaling applies to navigation overlays
+such as dialogs, menus, and SnackBars.
+
 ## Technology
 
 - Flutter and Dart
@@ -95,6 +102,7 @@ test/compact_landscape_test.dart
 test/colors_redesign_test.dart
 test/drag_answer_test.dart
 test/font_assets_test.dart
+test/large_screen_scaler_test.dart
 test/learning_report_builder_test.dart
 test/letters_redesign_test.dart
 test/music_settings_test.dart
