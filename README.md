@@ -17,6 +17,8 @@ services and currently targets Android only.
 - A parent gate protected by device authentication (when available) or a
   four-digit PIN.
 - Privacy information and controls for deleting an account.
+- Music and voice volume controls are available in the menu. Music can be
+  muted; voice volume has a minimum of 30%.
 
 ## Large screens
 

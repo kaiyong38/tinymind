@@ -213,6 +213,7 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
   }
 
   Future<void> _openMenu() async {
+    final narration = NarrationService.instance;
     final selected = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -221,9 +222,15 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
       builder: (context) => _HomeMenuSheet(
         currentIndex: _tabIndex,
         musicSettings: _music.settingsNotifier,
+        voiceVolume: narration.voiceVolumeNotifier,
         onToggleMusic: _toggleMusic,
         onVolumeChanged: (value) => _music.setVolume(value),
         onVolumeChangeEnd: (_) => _music.saveSettings(),
+        onVoiceVolumeChanged: (value) => narration.setVoiceVolume(value),
+        onVoiceVolumeChangeEnd: (_) async {
+          await narration.saveVoiceVolume();
+          await narration.speak('Hello, friend!');
+        },
       ),
     );
     if (selected != null) setState(() => _tabIndex = selected);
@@ -255,7 +262,6 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
                       HomePage(
                         store: widget.store,
                         onModuleTap: _openLibrary,
-                        onToggleMusic: _toggleMusic,
                       ),
                       ProgressPage(store: widget.store),
                       ParentPage(store: widget.store),
@@ -304,102 +310,129 @@ class _MenuButton extends StatelessWidget {
   }
 }
 
-/// The bottom sheet opened by [_MenuButton] — all four options (Play,
-/// Stars, Grown-ups, music) laid out as a compact grid, so it fits on a
-/// short landscape screen without scrolling (a tall stacked list used to
-/// overflow by ~160px there).
+/// The bottom sheet opened by [_MenuButton].
 class _HomeMenuSheet extends StatelessWidget {
   const _HomeMenuSheet({
     required this.currentIndex,
     required this.musicSettings,
+    required this.voiceVolume,
     required this.onToggleMusic,
     required this.onVolumeChanged,
     required this.onVolumeChangeEnd,
+    required this.onVoiceVolumeChanged,
+    required this.onVoiceVolumeChangeEnd,
   });
 
   final int currentIndex;
   final ValueListenable<MusicSettings> musicSettings;
+  final ValueListenable<double> voiceVolume;
   final VoidCallback onToggleMusic;
   final ValueChanged<double> onVolumeChanged;
   final ValueChanged<double> onVolumeChangeEnd;
+  final ValueChanged<double> onVoiceVolumeChanged;
+  final ValueChanged<double> onVoiceVolumeChangeEnd;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Container(
-            margin: const EdgeInsets.all(14),
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.black12,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+    void closeMenu() => Navigator.of(context).pop();
+    final maxHeight =
+        (MediaQuery.sizeOf(context).height - 28).clamp(0.0, double.infinity);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: closeMenu,
+      child: SafeArea(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 720, maxHeight: maxHeight),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: closeMenu,
+              child: Container(
+                key: const Key('home-menu-card'),
+                margin: const EdgeInsets.all(14),
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: SingleChildScrollView(
+                  primary: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        key: const Key('home-menu-handle'),
+                        width: 44,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.black12,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      LayoutBuilder(builder: (context, constraints) {
+                        final tiles = [
+                          _MenuTile(
+                            icon: Icons.home_rounded,
+                            label: 'Play',
+                            color: TinyMindColors.primary,
+                            selected: currentIndex == 0,
+                            onTap: () => Navigator.of(context).pop(0),
+                          ),
+                          _MenuTile(
+                            icon: Icons.emoji_events_rounded,
+                            label: 'Stars',
+                            color: const Color(0xFFFFB703),
+                            selected: currentIndex == 1,
+                            onTap: () => Navigator.of(context).pop(1),
+                          ),
+                          _MenuTile(
+                            icon: Icons.family_restroom_rounded,
+                            label: 'Grown-ups',
+                            color: TinyMindColors.mint,
+                            selected: currentIndex == 2,
+                            onTap: () => Navigator.of(context).pop(2),
+                          ),
+                        ];
+                        // Navigation stays compact; volume controls get
+                        // dedicated rows below.
+                        final columns = constraints.maxWidth >= 480 ? 3 : 2;
+                        const gap = 10.0;
+                        final width =
+                            (constraints.maxWidth - gap * (columns - 1)) /
+                                columns;
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            for (final tile in tiles)
+                              SizedBox(width: width, child: tile),
+                          ],
+                        );
+                      }),
+                      const SizedBox(height: 12),
+                      ValueListenableBuilder<MusicSettings>(
+                        valueListenable: musicSettings,
+                        builder: (context, settings, _) => _MusicVolumeRow(
+                          settings: settings,
+                          onToggleMute: onToggleMusic,
+                          onVolumeChanged: onVolumeChanged,
+                          onVolumeChangeEnd: onVolumeChangeEnd,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      ValueListenableBuilder<double>(
+                        valueListenable: voiceVolume,
+                        builder: (context, volume, _) => _VoiceVolumeRow(
+                          volume: volume,
+                          onVolumeChanged: onVoiceVolumeChanged,
+                          onVolumeChangeEnd: onVoiceVolumeChangeEnd,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  LayoutBuilder(builder: (context, constraints) {
-                    final tiles = [
-                      _MenuTile(
-                        icon: Icons.home_rounded,
-                        label: 'Play',
-                        color: TinyMindColors.primary,
-                        selected: currentIndex == 0,
-                        onTap: () => Navigator.of(context).pop(0),
-                      ),
-                      _MenuTile(
-                        icon: Icons.emoji_events_rounded,
-                        label: 'Stars',
-                        color: const Color(0xFFFFB703),
-                        selected: currentIndex == 1,
-                        onTap: () => Navigator.of(context).pop(1),
-                      ),
-                      _MenuTile(
-                        icon: Icons.family_restroom_rounded,
-                        label: 'Grown-ups',
-                        color: TinyMindColors.mint,
-                        selected: currentIndex == 2,
-                        onTap: () => Navigator.of(context).pop(2),
-                      ),
-                    ];
-                    // Navigation stays compact; music controls get a
-                    // dedicated full-width row below.
-                    final columns = constraints.maxWidth >= 480 ? 3 : 2;
-                    const gap = 10.0;
-                    final width =
-                        (constraints.maxWidth - gap * (columns - 1)) / columns;
-                    return Wrap(
-                      spacing: gap,
-                      runSpacing: gap,
-                      children: [
-                        for (final tile in tiles)
-                          SizedBox(width: width, child: tile),
-                      ],
-                    );
-                  }),
-                  const SizedBox(height: 12),
-                  ValueListenableBuilder<MusicSettings>(
-                    valueListenable: musicSettings,
-                    builder: (context, settings, _) => _MusicVolumeRow(
-                      settings: settings,
-                      onToggleMute: onToggleMusic,
-                      onVolumeChanged: onVolumeChanged,
-                      onVolumeChangeEnd: onVolumeChangeEnd,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -407,6 +440,59 @@ class _HomeMenuSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+class _VoiceVolumeRow extends StatelessWidget {
+  const _VoiceVolumeRow({
+    required this.volume,
+    required this.onVolumeChanged,
+    required this.onVolumeChangeEnd,
+  });
+
+  final double volume;
+  final ValueChanged<double> onVolumeChanged;
+  final ValueChanged<double> onVolumeChangeEnd;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          const SizedBox(
+            width: 60,
+            child: Text(
+              'Voice',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+            ),
+          ),
+          const SizedBox(
+            width: 48,
+            height: 48,
+            child: Icon(Icons.record_voice_over_rounded, size: 28),
+          ),
+          Expanded(
+            child: Semantics(
+              label: 'Voice volume',
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 12,
+                    disabledThumbRadius: 12,
+                  ),
+                  overlayShape:
+                      const RoundSliderOverlayShape(overlayRadius: 24),
+                  trackHeight: 6,
+                ),
+                child: Slider(
+                  value: volume,
+                  min: 0.3,
+                  max: 1,
+                  onChanged: onVolumeChanged,
+                  onChangeEnd: onVolumeChangeEnd,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
 }
 
 class _MusicVolumeRow extends StatelessWidget {
@@ -531,13 +617,11 @@ class HomePage extends StatelessWidget {
   const HomePage({
     required this.store,
     required this.onModuleTap,
-    required this.onToggleMusic,
     super.key,
   });
 
   final ProgressStore store;
   final void Function(BuildContext, LearningModule) onModuleTap;
-  final VoidCallback onToggleMusic;
 
   @override
   Widget build(BuildContext context) {
@@ -553,25 +637,6 @@ class HomePage extends StatelessWidget {
                   'Learning worlds',
                   textAlign: TextAlign.left,
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-                ),
-              ),
-              ValueListenableBuilder<MusicSettings>(
-                valueListenable:
-                    BackgroundMusicService.instance.settingsNotifier,
-                builder: (context, settings, _) => Semantics(
-                  button: true,
-                  label: settings.isMuted ? 'Unmute music' : 'Mute music',
-                  child: IconButton(
-                    onPressed: onToggleMusic,
-                    tooltip: settings.isMuted ? 'Unmute music' : 'Mute music',
-                    constraints:
-                        const BoxConstraints(minWidth: 48, minHeight: 48),
-                    icon: Icon(
-                      settings.isMuted
-                          ? Icons.volume_off_rounded
-                          : Icons.volume_up_rounded,
-                    ),
-                  ),
                 ),
               ),
             ],
@@ -1837,10 +1902,10 @@ class _QuizPageState extends State<QuizPage> {
                             final isWide =
                                 constraints.maxWidth > constraints.maxHeight;
                             if (isWide) {
-                              final colorFriendlySwatches =
-                                  _question.visual == AnswerVisual.colorSwatch &&
-                                      AccessibilitySettingsScope.of(context)
-                                          .colorFriendlyMode;
+                              final colorFriendlySwatches = _question.visual ==
+                                      AnswerVisual.colorSwatch &&
+                                  AccessibilitySettingsScope.of(context)
+                                      .colorFriendlyMode;
                               return Row(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
@@ -2339,8 +2404,7 @@ class ResultPage extends StatelessWidget {
                         ),
                         style: FilledButton.styleFrom(
                           backgroundColor: world.color,
-                          minimumSize:
-                              Size.fromHeight(metrics.size(46)),
+                          minimumSize: Size.fromHeight(metrics.size(46)),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: const Text('Play again'),
@@ -2349,8 +2413,7 @@ class ResultPage extends StatelessWidget {
                       OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          minimumSize:
-                              Size.fromHeight(metrics.size(46)),
+                          minimumSize: Size.fromHeight(metrics.size(46)),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: const Text('Back to library'),
@@ -2368,8 +2431,7 @@ class ResultPage extends StatelessWidget {
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            minimumSize:
-                                Size.fromHeight(metrics.size(46)),
+                            minimumSize: Size.fromHeight(metrics.size(46)),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           child: const Text('Next'),

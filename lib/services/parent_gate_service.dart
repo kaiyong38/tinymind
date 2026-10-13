@@ -642,10 +642,13 @@ Widget _pinContentLayout(
   required Widget pad,
 }) {
   final keyboardWidth = min(360.0, constraints.maxWidth * 0.56);
-  final keyboardHeight = constraints.maxHeight * 0.7;
+  final keyboardHeight = min(
+    constraints.maxHeight,
+    4 * 64.0 + 3 * 4.0,
+  );
   return Center(
     child: Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: LayoutBuilder(
@@ -663,11 +666,10 @@ Widget _pinContentLayout(
         const SizedBox(width: 12),
         SizedBox(
           width: keyboardWidth,
-          child: Center(
-            child: SizedBox(
-              height: keyboardHeight,
-              child: pad,
-            ),
+          height: keyboardHeight,
+          child: SizedBox(
+            height: keyboardHeight,
+            child: pad,
           ),
         ),
       ],
@@ -743,44 +745,31 @@ class _PinNumberPad extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxHeight < 242;
-          final columns = compact ? 4 : 3;
-          final labels = compact
-              ? const [
-                  '1',
-                  '2',
-                  '3',
-                  '4',
-                  '5',
-                  '6',
-                  '7',
-                  '8',
-                  '9',
-                  '',
-                  '0',
-                  '⌫'
-                ]
-              : const [
-                  '1',
-                  '2',
-                  '3',
-                  '4',
-                  '5',
-                  '6',
-                  '7',
-                  '8',
-                  '9',
-                  '',
-                  '0',
-                  '⌫',
-                ];
+          const labels = [
+            '1',
+            '2',
+            '3',
+            '4',
+            '5',
+            '6',
+            '7',
+            '8',
+            '9',
+            '',
+            '0',
+            '⌫',
+          ];
+          const spacing = 4.0;
+          final keyHeight = ((constraints.maxHeight - 3 * spacing) / 4)
+              .clamp(48.0, 64.0)
+              .toDouble();
           return GridView.count(
             padding: EdgeInsets.zero,
             primary: false,
             physics: const ClampingScrollPhysics(),
-            crossAxisCount: columns,
-            mainAxisExtent: 48,
-            mainAxisSpacing: 4,
+            crossAxisCount: 3,
+            mainAxisExtent: keyHeight,
+            mainAxisSpacing: spacing,
             crossAxisSpacing: 8,
             children: [
               for (final label in labels)

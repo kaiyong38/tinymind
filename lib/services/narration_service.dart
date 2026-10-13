@@ -1,24 +1,41 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'tts_text_helper.dart';
 
 abstract interface class NarrationService {
   static final NarrationService instance = _DeviceNarrationService();
+  factory NarrationService() => _DeviceNarrationService();
 
   bool get voiceAvailable;
+  double get voiceVolume;
+  ValueNotifier<double> get voiceVolumeNotifier;
 
   Future<void> init();
   Future<void> speak(String text, {String? spokenText});
+  Future<void> setVoiceVolume(double volume);
+  Future<void> saveVoiceVolume();
   Future<void> stop();
 }
 
 /// Reads short bits of text aloud using the device's text-to-speech voice.
 /// Every utterance is cleaned by [TtsTextHelper] before playback.
 class _DeviceNarrationService implements NarrationService {
+  static const _voiceVolumeKey = 'tinymind_voice_volume';
+  static const _minimumVoiceVolume = 0.3;
+
   @override
   bool get voiceAvailable => _voiceAvailable;
 
+  @override
+  double get voiceVolume => _voiceVolume.value;
+
+  @override
+  ValueNotifier<double> get voiceVolumeNotifier => _voiceVolume;
+
   final FlutterTts _tts = FlutterTts();
+  final ValueNotifier<double> _voiceVolume = ValueNotifier<double>(1.0);
   static const MethodChannel _audioFocusChannel =
       MethodChannel('tinymind/speech_audio_focus');
   bool _ready = false;
@@ -28,6 +45,10 @@ class _DeviceNarrationService implements NarrationService {
   @override
   Future<void> init() async {
     if (_ready) return;
+    final preferences = await SharedPreferences.getInstance();
+    _voiceVolume.value = (preferences.getDouble(_voiceVolumeKey) ?? 1.0)
+        .clamp(_minimumVoiceVolume, 1.0)
+        .toDouble();
     _ready = true;
     try {
       final engines = await _tts.getEngines;
@@ -44,7 +65,7 @@ class _DeviceNarrationService implements NarrationService {
       await _tts.setLanguage('en-US');
       await _tts.setSpeechRate(0.5);
       await _tts.setPitch(1.5);
-      await _tts.setVolume(1.0);
+      await _tts.setVolume(_voiceVolume.value);
       await _tts.awaitSpeakCompletion(true);
     } catch (_) {
       // Keep app startup working if an optional voice setting is unsupported.
@@ -59,6 +80,7 @@ class _DeviceNarrationService implements NarrationService {
       try {
         await _tts.stop();
         if (speakId != _speakId) return;
+        await _tts.setVolume(_voiceVolume.value);
         _tts.setCompletionHandler(() => _releaseAudioFocus(speakId));
         _tts.setCancelHandler(() => _releaseAudioFocus(speakId));
         _tts.setErrorHandler((_) => _releaseAudioFocus(speakId));
@@ -71,6 +93,20 @@ class _DeviceNarrationService implements NarrationService {
     } catch (_) {
       // No-op if TTS isn't available on this device.
     }
+  }
+
+  @override
+  Future<void> setVoiceVolume(double volume) async {
+    _voiceVolume.value =
+        volume.clamp(_minimumVoiceVolume, 1.0).toDouble();
+    await _tts.setVolume(_voiceVolume.value);
+  }
+
+  @override
+  Future<void> saveVoiceVolume() async {
+    final saved = await (await SharedPreferences.getInstance())
+        .setDouble(_voiceVolumeKey, _voiceVolume.value);
+    if (!saved) throw StateError('Could not save the voice volume.');
   }
 
   @override

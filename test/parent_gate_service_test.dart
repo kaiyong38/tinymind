@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tinymind/services/parent_gate_service.dart';
+import 'package:tinymind/widgets/large_screen_scaler.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -201,7 +202,98 @@ void main() {
       now = now.add(Duration(seconds: seconds + 1));
     }
   });
+
+  testWidgets('PIN keypad keeps 3 columns and minimum key size at all sizes',
+      (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    for (final size in [
+      const Size(568, 320),
+      const Size(640, 360),
+      const Size(732, 412),
+      const Size(1280, 800),
+      const Size(1024, 768),
+      const Size(1920, 1080),
+    ]) {
+      tester.view
+        ..physicalSize = size
+        ..devicePixelRatio = 1;
+      final service = ParentGateService(
+        phoneAuthenticator: _FakePhoneAuthenticator(supported: false),
+        storage: _FakeParentGateStorage(),
+      );
+      var opened = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          key: ValueKey(size),
+          builder: (context, child) => LargeScreenScaler(child: child!),
+          home: Builder(
+            builder: (context) {
+              if (!opened) {
+                opened = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  service.usePin(context);
+                });
+              }
+              return const Scaffold();
+            },
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('Choose a PIN'), findsOneWidget, reason: '$size');
+      expect(find.byType(GridView), findsOneWidget, reason: '$size');
+      final first = tester.getCenter(_pinKeyFinder('1'));
+      final second = tester.getCenter(_pinKeyFinder('2'));
+      final third = tester.getCenter(_pinKeyFinder('3'));
+      final fourth = tester.getCenter(_pinKeyFinder('4'));
+      final eight = tester.getCenter(_pinKeyFinder('8'));
+      final nine = tester.getCenter(_pinKeyFinder('9'));
+      final zero = tester.getCenter(_pinKeyFinder('0'));
+      final backspace = tester.getCenter(_pinKeyFinder('⌫'));
+      final grid = tester.getRect(find.byType(GridView).first);
+      final prompt = tester.getRect(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.shield_rounded),
+              matching: find.byType(Column),
+            )
+            .first,
+      );
+
+      expect(first.dy, second.dy);
+      expect(second.dy, third.dy);
+      expect(fourth.dx, first.dx);
+      expect(fourth.dy, greaterThan(first.dy));
+      expect(zero.dx, eight.dx);
+      expect(zero.dy, greaterThan(eight.dy));
+      expect(backspace.dx, nine.dx);
+      expect(backspace.dy, greaterThan(nine.dy));
+      expect((prompt.center.dy - grid.center.dy).abs(), lessThanOrEqualTo(1));
+      final scale = size.width >= 1920
+          ? 2.7
+          : size.width >= 1280
+              ? 2.0
+              : size.width >= 1024
+                  ? 1.6
+                  : size.width >= 732
+                      ? 1.03
+                      : 1.0;
+      expect(grid.width / scale, lessThanOrEqualTo(360));
+      expect(
+        tester.getRect(_pinKeyFinder('1')).height / scale,
+        greaterThanOrEqualTo(48),
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
 }
+
+Finder _pinKeyFinder(String label) => find
+    .ancestor(of: find.text(label).last, matching: find.byType(InkWell))
+    .first;
 
 Future<void> _enterPin(WidgetTester tester, String pin) async {
   for (final digit in pin.split('')) {
@@ -221,11 +313,13 @@ class _UnlockHarness {
       MaterialApp(
         home: Builder(
           builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () async {
-                result = await service.unlock(context);
-              },
-              child: const Text('Open grown-up area'),
+            body: Center(
+              child: TextButton(
+                onPressed: () async {
+                  result = await service.unlock(context);
+                },
+                child: const Text('Open grown-up area'),
+              ),
             ),
           ),
         ),
