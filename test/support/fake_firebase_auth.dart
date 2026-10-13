@@ -16,6 +16,7 @@ class FakeFirebaseAuth extends Fake implements FirebaseAuth {
   final StreamController<User?> _changes = StreamController.broadcast();
   int anonymousSignInCalls = 0;
   int signInCalls = 0;
+  int signOutCalls = 0;
 
   @override
   User? get currentUser => _user;
@@ -48,6 +49,13 @@ class FakeFirebaseAuth extends Fake implements FirebaseAuth {
     return FakeUserCredential(_user);
   }
 
+  @override
+  Future<void> signOut() async {
+    signOutCalls++;
+    _user = null;
+    _changes.add(null);
+  }
+
   Future<void> dispose() => _changes.close();
 }
 
@@ -58,9 +66,8 @@ class FakeFirebaseUser extends Fake implements User {
     this.email,
     bool emailProvider = false,
     this.linkError,
-  }) : providerData = emailProvider
-            ? [FakeUserInfo(providerId: 'password')]
-            : const [];
+  }) : providerData =
+            emailProvider ? [FakeUserInfo(providerId: 'password')] : const [];
 
   @override
   final String uid;

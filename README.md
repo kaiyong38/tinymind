@@ -179,4 +179,5 @@ future work.
 - Merging child profiles across different accounts/devices is not supported.
 - Family sharing is not supported.
 - The parent PIN is stored on this device and is not synced.
+- The PIN lockout timer is kept in memory and resets when the app restarts.
 - Google sign-in is not supported.

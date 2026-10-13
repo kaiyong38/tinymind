@@ -274,6 +274,93 @@ void main() {
     expect(find.text('Delete account and all data'), findsOneWidget);
   });
 
+  testWidgets('anonymous account menu does not offer Sign out', (tester) async {
+    final auth = AuthService(
+      auth: FakeFirebaseAuth(
+        user: FakeFirebaseUser(uid: 'anon', isAnonymous: true),
+      ),
+    );
+    await tester.pumpWidget(_adminApp(auth));
+    await tester.tap(find.byTooltip('Account'));
+    await _pumpAnimations(tester);
+
+    expect(find.text('Sign out'), findsNothing);
+  });
+
+  testWidgets('linked account requires confirmation before signing out',
+      (tester) async {
+    final firebaseAuth = FakeFirebaseAuth(
+      user: FakeFirebaseUser(
+        uid: 'linked',
+        isAnonymous: false,
+        email: 'parent@example.com',
+        emailProvider: true,
+      ),
+    );
+    await tester.pumpWidget(_adminApp(AuthService(auth: firebaseAuth)));
+
+    await tester.tap(find.byTooltip('Account'));
+    await _pumpAnimations(tester);
+    await tester.tap(find.text('Sign out').last);
+    await _pumpAnimations(tester);
+
+    expect(
+      find.text(
+        'This phone will start fresh. Sign in again with your email to get '
+        'your children back.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Cancel'));
+    await _pumpAnimations(tester);
+    expect(firebaseAuth.currentUser, isNotNull);
+    expect(firebaseAuth.signOutCalls, 0);
+
+    await tester.tap(find.byTooltip('Account'));
+    await _pumpAnimations(tester);
+    await tester.tap(find.text('Sign out').last);
+    await _pumpAnimations(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign out'));
+    await _pumpAnimations(tester);
+
+    expect(firebaseAuth.currentUser, isNull);
+    expect(firebaseAuth.signOutCalls, 1);
+    await firebaseAuth.dispose();
+  });
+
+  testWidgets('parent area error message does not reveal exception',
+      (tester) async {
+    final auth = AuthService(
+      auth: FakeFirebaseAuth(
+        user: FakeFirebaseUser(uid: 'anon', isAnonymous: true),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => openParentArea(
+                context,
+                auth: auth,
+                gateService: _FailingGateService(),
+              ),
+              child: const Text('For parents'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('For parents'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Something went wrong. Please try again.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('sensitive test exception'), findsNothing);
+  });
+
   testWidgets('settings explains optional local-only backup', (tester) async {
     final accessibility = AccessibilitySettings();
     final auth = AuthService(
@@ -303,6 +390,29 @@ void main() {
     );
     expect(find.text('Back up my data (link email)'), findsOneWidget);
   });
+}
+
+Widget _adminApp(AuthService auth) => MaterialApp(
+      home: AdminPage(
+        parentUid: 'parent',
+        auth: auth,
+        firestore: _FakeFirestoreService(),
+        gateService: ParentGateService(storage: _FakeGateStorage()),
+      ),
+    );
+
+Future<void> _pumpAnimations(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
+class _FailingGateService extends ParentGateService {
+  _FailingGateService() : super(storage: _FakeGateStorage());
+
+  @override
+  Future<bool> unlock(BuildContext context) async {
+    throw StateError('sensitive test exception');
+  }
 }
 
 class _FakeFirestoreService extends FirestoreService {

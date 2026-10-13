@@ -406,7 +406,10 @@ class _PinSetupPageState extends State<_PinSetupPage> {
                       : 'Enter your PIN again',
                   digits: _digits.length,
                   message: _message,
-                  note: 'This PIN is only for this device.',
+                  note: _firstPin == null
+                      ? 'This PIN is only for this device.\n'
+                          'Grown-ups: please set this PIN yourself, not the child.'
+                      : 'This PIN is only for this device.',
                 );
                 final pad = _PinNumberPad(
                   onDigit: _press,
@@ -663,7 +666,11 @@ class _PinPrompt extends StatelessWidget {
           ),
           if (note != null) ...[
             const SizedBox(height: 4),
-            Text(note!, textAlign: TextAlign.center),
+            Text(
+              note!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12),
+            ),
           ],
           const SizedBox(height: 12),
           Row(

@@ -67,6 +67,29 @@ class AdminPage extends StatelessWidget {
                     ),
                   );
                 } else if (value == 'sign_out') {
+                  final shouldSignOut = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Sign out?'),
+                      content: const Text(
+                        'This phone will start fresh. Sign in again with your '
+                        'email to get your children back.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pop(dialogContext, false),
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          onPressed: () =>
+                              Navigator.pop(dialogContext, true),
+                          child: const Text('Sign out'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (shouldSignOut != true) return;
                   await auth.signOut();
                   if (context.mounted) {
                     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -88,10 +111,11 @@ class AdminPage extends StatelessWidget {
                     value: 'sign_in_backup',
                     child: Text('I already have a backup (sign in)'),
                   ),
-                const PopupMenuItem(
-                  value: 'sign_out',
-                  child: Text('Sign out'),
-                ),
+                if (!auth.isAnonymous)
+                  const PopupMenuItem(
+                    value: 'sign_out',
+                    child: Text('Sign out'),
+                  ),
                 const PopupMenuItem(
                   value: 'privacy_policy',
                   child: Text('Privacy Policy'),

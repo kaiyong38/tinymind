@@ -16,7 +16,16 @@ void main() {
     await harness.mount(tester);
     await harness.tap(tester);
     expect(find.text('Choose a PIN'), findsOneWidget);
-    expect(find.text('This PIN is only for this device.'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Grown-ups: please set this PIN yourself, not the child.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('This PIN is only for this device.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('each parent entry asks for the PIN, even after success',
@@ -280,7 +289,11 @@ void main() {
       expect(zero.dy, greaterThan(eight.dy));
       expect(backspace.dx, nine.dx);
       expect(backspace.dy, greaterThan(nine.dy));
-      expect((prompt.center.dy - grid.center.dy).abs(), lessThanOrEqualTo(1));
+      expect(
+        (prompt.center.dy - grid.center.dy).abs(),
+        lessThanOrEqualTo(1),
+        reason: 'Prompt and keypad must stay centered at $size',
+      );
       final scale = size.width >= 1920
           ? 2.7
           : size.width >= 1280

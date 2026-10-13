@@ -41,10 +41,12 @@ Future<void> openParentArea(
         ),
       ),
     );
-  } catch (error) {
+  } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open parent tools: $error')),
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
       );
     }
   }
@@ -165,12 +167,10 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                     AdaptiveMetrics.fromConstraints(context, constraints);
                 final itemWidth =
                     (availableWidth - spacing * (columns - 1)) / columns;
-                final itemHeight =
-                    ((constraints.maxHeight - 100) / rows)
-                        .clamp(104.0, 150.0)
-                        .toDouble();
-                final avatarRadius =
-                    (itemWidth * 0.31)
+                final itemHeight = ((constraints.maxHeight - 100) / rows)
+                    .clamp(104.0, 150.0)
+                    .toDouble();
+                final avatarRadius = (itemWidth * 0.31)
                         .clamp(metrics.size(20), metrics.size(42))
                         .toDouble() *
                     1.15;
@@ -193,8 +193,7 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                               const Text(
                                 'Who is playing?',
                                 style: TextStyle(
-                                    fontSize: 27,
-                                    fontWeight: FontWeight.w900),
+                                    fontSize: 27, fontWeight: FontWeight.w900),
                               ),
                               TextButton(
                                 onPressed: _managing
@@ -221,9 +220,8 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                                   _FlatChildAvatar(
                                     name: (doc.data()['name'] as String?) ??
                                         'Little Learner',
-                                    avatar:
-                                        (doc.data()['avatar'] as String?) ??
-                                            '🧒',
+                                    avatar: (doc.data()['avatar'] as String?) ??
+                                        '🧒',
                                     width: itemWidth,
                                     height: itemHeight,
                                     avatarRadius: avatarRadius,
@@ -265,7 +263,6 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
       ),
     );
   }
-
 }
 
 /// A plain circular avatar with a name underneath — closer to the quiet,
