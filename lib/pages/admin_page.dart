@@ -41,7 +41,10 @@ class AdminPage extends StatelessWidget {
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute<void>(
-                  builder: (_) => ParentSettingsPage(gateService: gateService),
+                  builder: (_) => ParentSettingsPage(
+                    gateService: gateService,
+                    auth: auth,
+                  ),
                 ),
               ),
             ),
@@ -56,8 +59,14 @@ class AdminPage extends StatelessWidget {
                       builder: (_) => ChangePasswordPage(auth: auth),
                     ),
                   );
+                } else if (value == 'sign_in_backup') {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => LoginPage(auth: auth),
+                    ),
+                  );
                 } else if (value == 'sign_out') {
-                  gateService.clearVerificationWindow();
                   await auth.signOut();
                   if (context.mounted) {
                     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -68,20 +77,26 @@ class AdminPage extends StatelessWidget {
                   await _deleteAccount(context, auth, gateService);
                 }
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: 'change_password',
-                  child: Text('Change password'),
-                ),
-                PopupMenuItem(
+              itemBuilder: (context) => [
+                if (auth.hasEmailBackup)
+                  const PopupMenuItem(
+                    value: 'change_password',
+                    child: Text('Change password'),
+                  ),
+                if (auth.isAnonymous)
+                  const PopupMenuItem(
+                    value: 'sign_in_backup',
+                    child: Text('I already have a backup (sign in)'),
+                  ),
+                const PopupMenuItem(
                   value: 'sign_out',
                   child: Text('Sign out'),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'privacy_policy',
                   child: Text('Privacy Policy'),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'delete_account',
                   child: Text(
                     'Delete account and all data',
@@ -92,9 +107,13 @@ class AdminPage extends StatelessWidget {
             ),
           ],
         ),
-        body: StreamBuilder(
-          stream: firestore.watchChildren(parentUid),
-          builder: (context, snapshot) {
+        body: Column(
+          children: [
+            _AnonymousBackupBanner(auth: auth, gateService: gateService),
+            Expanded(
+              child: StreamBuilder(
+                stream: firestore.watchChildren(parentUid),
+                builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Center(
                 child: Padding(
@@ -178,8 +197,63 @@ class AdminPage extends StatelessWidget {
                 );
               },
             );
-          },
+                },
+              ),
+            ),
+          ],
         ),
+      );
+}
+
+class _AnonymousBackupBanner extends StatefulWidget {
+  const _AnonymousBackupBanner({
+    required this.auth,
+    required this.gateService,
+  });
+
+  final AuthService auth;
+  final ParentGateService gateService;
+
+  @override
+  State<_AnonymousBackupBanner> createState() => _AnonymousBackupBannerState();
+}
+
+class _AnonymousBackupBannerState extends State<_AnonymousBackupBanner> {
+  bool _dismissed = false;
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder(
+        stream: widget.auth.authStateChanges,
+        builder: (context, snapshot) {
+          final user = widget.auth.currentUser ?? snapshot.data;
+          if (_dismissed || user?.isAnonymous != true) {
+            return const SizedBox.shrink();
+          }
+          return Material(
+            color: const Color(0xFFFFF0C2),
+            child: ListTile(
+              dense: true,
+              title: const Text(
+                'Your data is only on this phone. Tap to back up.',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => ParentSettingsPage(
+                    gateService: widget.gateService,
+                    auth: widget.auth,
+                  ),
+                ),
+              ),
+              trailing: IconButton(
+                tooltip: 'Dismiss backup reminder',
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => setState(() => _dismissed = true),
+              ),
+            ),
+          );
+        },
       );
 }
 
@@ -188,41 +262,44 @@ Future<void> _deleteAccount(
   AuthService auth,
   ParentGateService gateService,
 ) async {
-  final passwordController = TextEditingController();
-  final password = await showDialog<String>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Verify your password'),
-      content: TextField(
-        controller: passwordController,
-        obscureText: true,
-        autofocus: true,
-        decoration: const InputDecoration(labelText: 'Password'),
+  if (auth.hasEmailBackup) {
+    final passwordController = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Verify your password'),
+        content: TextField(
+          controller: passwordController,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Password'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, passwordController.text),
+            child: const Text('Continue'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(dialogContext, passwordController.text),
-          child: const Text('Continue'),
-        ),
-      ],
-    ),
-  );
-  passwordController.dispose();
-  if (password == null || !context.mounted) return;
+    );
+    passwordController.dispose();
+    if (password == null || !context.mounted) return;
 
-  try {
-    await auth.reauthenticate(password);
-  } on FirebaseAuthException catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message ?? 'Password check failed.')),
-      );
+    try {
+      await auth.reauthenticate(password);
+    } on FirebaseAuthException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message ?? 'Password check failed.')),
+        );
+      }
+      return;
     }
-    return;
   }
   if (!context.mounted) return;
 
@@ -253,12 +330,8 @@ Future<void> _deleteAccount(
 
   try {
     await auth.deleteAccountAndData();
-    gateService.clearVerificationWindow();
     if (context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => LoginPage(auth: auth)),
-        (_) => false,
-      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   } on FirebaseAuthException catch (error) {
     if (context.mounted) {

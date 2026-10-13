@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tinymind/models/learning.dart';
+import 'package:tinymind/services/firestore_service.dart';
 import 'package:tinymind/services/progress_store.dart';
 
 void main() {
@@ -84,5 +85,50 @@ void main() {
     final cached = jsonDecode(preferences.getString('tinymind_progress')!)
         as Map<String, dynamic>;
     expect(cached['activityStars'], {'letters_a': 3});
+  });
+
+  test('older and newer progress writes preserve stars, ids and play days',
+      () {
+    final older = {
+      'points': 10,
+      'totalQuestions': 2,
+      'activityStars': {'letters_a': 1},
+      'completedQuestionIds': ['letters_a_1'],
+      'dailyStats': {
+        '2026-10-11': [2, 1],
+      },
+      'lastPlayed': '2026-10-11T10:00:00.000',
+    };
+    final newer = {
+      'points': 30,
+      'totalQuestions': 4,
+      'activityStars': {'letters_a': 3, 'numbers_01': 2},
+      'completedQuestionIds': ['letters_a_2'],
+      'dailyStats': {
+        '2026-10-12': [2, 2],
+      },
+      'lastPlayed': '2026-10-12T10:00:00.000',
+    };
+
+    final oldThenNew = FirestoreService.mergeProgressData(older, newer);
+    final newThenOld = FirestoreService.mergeProgressData(newer, older);
+
+    for (final merged in [oldThenNew, newThenOld]) {
+      expect(merged['points'], 30);
+      expect(merged['totalQuestions'], 4);
+      expect(merged['activityStars'], {
+        'letters_a': 3,
+        'numbers_01': 2,
+      });
+      expect(
+        merged['completedQuestionIds'],
+        containsAll(['letters_a_1', 'letters_a_2']),
+      );
+      expect(
+        (merged['dailyStats'] as Map).keys,
+        containsAll(['2026-10-11', '2026-10-12']),
+      );
+      expect(merged['lastPlayed'], '2026-10-12T10:00:00.000');
+    }
   });
 }

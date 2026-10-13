@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../services/accessibility_settings.dart';
+import '../services/auth_service.dart';
 import '../services/narration_service.dart';
 import '../services/parent_gate_service.dart';
+import 'auth_pages.dart';
 
 class ParentSettingsPage extends StatelessWidget {
   const ParentSettingsPage({
     required this.gateService,
+    this.auth,
     super.key,
   });
 
   final ParentGateService gateService;
+  final AuthService? auth;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -18,12 +22,87 @@ class ParentSettingsPage extends StatelessWidget {
         body: ListView(
           padding: const EdgeInsets.symmetric(vertical: 12),
           children: [
+            if (auth != null) _EmailBackupSection(auth: auth!),
             const _VoiceStatusRow(),
             const _ColorFriendlyModeRow(),
             _GrownUpLockSection(service: gateService),
           ],
         ),
       );
+}
+
+class _EmailBackupSection extends StatefulWidget {
+  const _EmailBackupSection({required this.auth});
+
+  final AuthService auth;
+
+  @override
+  State<_EmailBackupSection> createState() => _EmailBackupSectionState();
+}
+
+class _EmailBackupSectionState extends State<_EmailBackupSection> {
+  Future<void> _openBackup() async {
+    final linked = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute<bool>(
+        builder: (_) => RegisterPage(auth: widget.auth),
+      ),
+    );
+    if (linked == true && mounted) setState(() {});
+  }
+
+  Future<void> _openSignIn() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => LoginPage(auth: widget.auth),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = widget.auth.currentUser;
+    final emailLinked = widget.auth.hasEmailBackup && user?.email != null;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Data backup',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(emailLinked
+                ? 'Backed up as ${user!.email}'
+                : 'Not backed up (this device only)'),
+            const SizedBox(height: 6),
+            if (!emailLinked) ...[
+              const Text(
+                'Without a backup, data is lost if you uninstall the app or change phone.',
+              ),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilledButton(
+                    onPressed: _openBackup,
+                    child: const Text('Back up my data (link email)'),
+                  ),
+                  TextButton(
+                    onPressed: _openSignIn,
+                    child: const Text('I already have a backup (sign in)'),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _GrownUpLockSection extends StatefulWidget {
@@ -37,7 +116,6 @@ class _GrownUpLockSection extends StatefulWidget {
 
 class _GrownUpLockSectionState extends State<_GrownUpLockSection> {
   late Future<ParentLockMethod?> _method;
-  late Future<bool> _phoneSupported;
 
   @override
   void initState() {
@@ -47,7 +125,6 @@ class _GrownUpLockSectionState extends State<_GrownUpLockSection> {
 
   void _refresh() {
     _method = widget.service.selectedMethod;
-    _phoneSupported = widget.service.canUsePhoneUnlock;
   }
 
   Future<void> _showResult(String message) async {
@@ -55,20 +132,6 @@ class _GrownUpLockSectionState extends State<_GrownUpLockSection> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _usePhone() async {
-    try {
-      final changed = await widget.service.usePhoneUnlock();
-      if (!mounted) return;
-      if (changed) {
-        setState(_refresh);
-      } else {
-        await _showResult('Set up a phone screen lock before choosing this.');
-      }
-    } catch (error) {
-      await _showResult('Could not change the grown-up lock: $error');
-    }
   }
 
   Future<void> _usePin() async {
@@ -103,11 +166,7 @@ class _GrownUpLockSectionState extends State<_GrownUpLockSection> {
                   if (!snapshot.hasData) {
                     return const Text('Current method: Loading...');
                   }
-                  final label = switch (snapshot.data) {
-                    ParentLockMethod.phone => 'Phone unlock',
-                    ParentLockMethod.pin => '4-digit PIN',
-                    _ => 'Not set up',
-                  };
+                  const label = '4-digit PIN';
                   return Text('Current method: $label');
                 },
               ),
@@ -115,21 +174,6 @@ class _GrownUpLockSectionState extends State<_GrownUpLockSection> {
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  FutureBuilder<bool>(
-                    future: _phoneSupported,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return Text(
-                          'Phone unlock is unavailable: ${snapshot.error}',
-                        );
-                      }
-                      return OutlinedButton.icon(
-                        onPressed: snapshot.data == true ? _usePhone : null,
-                        icon: const Icon(Icons.fingerprint_rounded),
-                        label: const Text('Use phone unlock'),
-                      );
-                    },
-                  ),
                   OutlinedButton.icon(
                     onPressed: _usePin,
                     icon: const Icon(Icons.dialpad_rounded),

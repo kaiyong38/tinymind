@@ -9,16 +9,17 @@ class PrivacyPolicyPage extends StatelessWidget {
   static const sections = <MapEntry<String, String>>[
     MapEntry(
       'What we collect',
-      'For a parent account, Firebase Authentication processes the parent’s '
-          'email address and password. TinyMind does not store the password '
-          'itself.\n\n'
+      'TinyMind creates an anonymous Firebase Authentication account on this '
+          'device by default. Email backup is optional; if a parent links an '
+          'email and password, Firebase processes those details, but TinyMind '
+          'does not store the password itself.\n\n'
           'For each child profile, we store the child’s nickname, avatar, age, '
           'points, answer statistics, activity stars and daily learning '
-          'records in Cloud Firestore under the parent’s account.\n\n'
+          'records in Cloud Firestore under the current account.\n\n'
           'On the device, SharedPreferences stores the music mute and '
-          'color-friendly mode settings, and the parent’s email if they choose '
-          'to remember it on that device. A local cache keeps the selected '
-          'child’s learning progress available offline.',
+          'color-friendly mode settings, the parent PIN record, and a local '
+          'cache of learning progress. The PIN is required every time the '
+          'parent area is opened and is not synced.',
     ),
     MapEntry(
       'What we do NOT collect',
@@ -33,8 +34,8 @@ class PrivacyPolicyPage extends StatelessWidget {
     ),
     MapEntry(
       'Who can see it',
-      'Only the parent signed in to the account can access that account’s '
-          'child profiles and learning data. Google Firebase stores and '
+      'Only the holder of the current Firebase account can access that '
+          'account’s child profiles and learning data. Google Firebase stores and '
           'processes the data on our behalf as a data processor. We do not '
           'sell or share personal data with others.\n\n'
           'Data is stored in Google Firebase’s Singapore region '
@@ -46,11 +47,18 @@ class PrivacyPolicyPage extends StatelessWidget {
     MapEntry(
       'Children’s privacy',
       'TinyMind is designed for children aged 3–6 to use at home with a '
-          'parent’s supervision. A parent creates and manages the account.',
+          'parent’s supervision. The app starts with an anonymous account so '
+          'children can reach the child picker without an email login. The '
+          'parent area requires the device PIN on every entry.',
     ),
     MapEntry(
       'Your choices',
-      'Parents can delete a child profile at any time from the parent area. '
+      'Parents can optionally link an email as a backup while keeping the '
+          'same account. Without an email backup, data is lost if the app is '
+          'uninstalled or the device is changed. Signing in to an existing '
+          'backup shows that account’s children; it does not delete children '
+          'saved under the anonymous account on this device.\n\n'
+          'Parents can delete a child profile at any time from the parent area. '
           'Deleting the parent account also deletes its child profiles and '
           'learning data.\n\n'
           'Parents can export a learning report from the parent area. The '

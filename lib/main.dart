@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -16,7 +18,6 @@ import 'services/accessibility_settings.dart';
 import 'services/background_music_service.dart';
 import 'services/music_settings.dart';
 import 'services/narration_service.dart';
-import 'services/parent_gate_service.dart';
 import 'services/progress_store.dart';
 import 'theme/adaptive_metrics.dart';
 import 'widgets/bouncy_tap.dart';
@@ -74,9 +75,7 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
     await _accessibilitySettings.load();
     await BackgroundMusicService.instance.init();
     await NarrationService.instance.init();
-    // Start the calm menu music right away, from the very first
-    // "who is learning today?" screen — not only once someone has
-    // actually picked a child and opened the play area.
+    // Start the calm menu music as soon as app services are ready.
     await BackgroundMusicService.instance.play(MusicTrack.playtime);
     if (mounted) setState(() => _loading = false);
   }
@@ -91,7 +90,6 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
-        ParentGateService.instance.clearVerificationWindow();
         BackgroundMusicService.instance.pauseForBackground();
         NarrationService.instance.stop();
       case AppLifecycleState.resumed:
@@ -123,14 +121,11 @@ class _TinyMindAppState extends State<TinyMindApp> with WidgetsBindingObserver {
             child: child!,
           ),
         ),
-        // The app always opens on "Who is learning today?" rather than
-        // silently resuming whichever child was last cached — a shared
-        // family device needs that gate every single launch, and it's
-        // also where the parent arithmetic challenge is enforced before
-        // anything grown-up-only is reachable.
         home: _loading
             ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-            : _VoiceAvailabilityNotice(child: WelcomePage(store: _store)),
+            : _VoiceAvailabilityNotice(
+                child: StartupGatePage(store: _store),
+              ),
       ),
     );
   }
@@ -199,6 +194,43 @@ class TinyMindHomeShell extends StatefulWidget {
 class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
   int _tabIndex = 0;
   final _music = BackgroundMusicService.instance;
+  StreamSubscription? _selectedChildSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedChildSubscription =
+        widget.store.watchSelectedChild().listen((snapshot) async {
+      if (snapshot.exists || snapshot.metadata.isFromCache || !mounted) return;
+      final parentUid = widget.store.parentUid;
+      if (parentUid == null) return;
+      final messenger = ScaffoldMessenger.of(context);
+      final auth = AuthService();
+      await widget.store.clearCachedChildIfMatches(widget.store.childId ?? '');
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) => ChildPickerPage(
+            store: widget.store,
+            parentUid: parentUid,
+            auth: auth,
+          ),
+        ),
+        (_) => false,
+      );
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('That learner was removed. Choose another picture.'),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _selectedChildSubscription?.cancel();
+    super.dispose();
+  }
 
   Future<void> _toggleMusic() => _music.toggleMute();
 
@@ -1691,7 +1723,13 @@ class _QuizPageState extends State<QuizPage> {
       _selected = index;
       if (correct && firstAttempt) _score++;
     });
-    final saving = widget.store.recordAnswer(_world.id, correct);
+    final saving = widget.store.recordAnswer(
+      _world.id,
+      correct,
+      completedQuestionId: correct
+          ? '${widget.activity.id}_${_questionNumber + 1}'
+          : null,
+    );
     await _showFeedback(correct, _question.options[index]);
     await saving;
   }

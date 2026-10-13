@@ -56,15 +56,20 @@ class ChildDetailPage extends StatelessWidget {
       appBar: AppBar(
         title: Text("${summary['name'] ?? 'Learner'}'s progress"),
       ),
-      body: FutureBuilder<Map<String, dynamic>?>(
-        future: firestore.loadProgress(parentUid, childId),
+      body: StreamBuilder(
+        stream: firestore.watchProgress(parentUid, childId),
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text('Progress could not be loaded right now.'),
+            );
+          }
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           UserProgress progress;
           try {
-            final data = snapshot.data;
+            final data = snapshot.data!.data();
             progress = data == null ? _fallback() : UserProgress.fromJson(data);
           } catch (_) {
             progress = _fallback();

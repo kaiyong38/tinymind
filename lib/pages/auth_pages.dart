@@ -1,16 +1,129 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tinymind/app_info.dart';
 
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import '../services/progress_store.dart';
 import '../widgets/bouncy_tap.dart';
 import '../widgets/emoji_glyph.dart';
 import '../theme/tinymind_colors.dart';
 import 'privacy_policy_page.dart';
 import 'parent_gate_pages.dart';
+
+class StartupGatePage extends StatefulWidget {
+  const StartupGatePage({
+    required this.store,
+    this.auth,
+    this.firestore,
+    super.key,
+  });
+
+  final ProgressStore store;
+  final AuthService? auth;
+  final FirestoreService? firestore;
+
+  @override
+  State<StartupGatePage> createState() => _StartupGatePageState();
+}
+
+class _StartupGatePageState extends State<StartupGatePage> {
+  late final AuthService _auth = widget.auth ?? AuthService();
+  Timer? _retryTimer;
+  bool _signingIn = false;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _retryTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_failed) _signIn();
+    });
+    _signIn();
+  }
+
+  Future<void> _signIn() async {
+    if (_signingIn || _auth.currentUser != null) return;
+    setState(() {
+      _signingIn = true;
+      _failed = false;
+    });
+    try {
+      await _auth.signInAnonymously();
+      if (mounted) setState(() => _failed = false);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _signingIn = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: _auth.authStateChanges,
+      builder: (context, snapshot) {
+        final user = _auth.currentUser ?? snapshot.data;
+        if (user != null) {
+          return ChildPickerPage(
+            key: ValueKey(user.uid),
+            store: widget.store,
+            parentUid: user.uid,
+            auth: _auth,
+            firestore: widget.firestore,
+          );
+        }
+        if (!_signingIn && !_failed) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _signIn();
+          });
+        }
+        return Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: _failed
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'We could not get ready just yet. Please try again.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: _signingIn ? null : _signIn,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      )
+                    : const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Getting TinyMind ready...'),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
 class WelcomePage extends StatelessWidget {
   WelcomePage({
@@ -25,32 +138,7 @@ class WelcomePage extends StatelessWidget {
   Future<void> _handleParentTap(BuildContext context) => openParentArea(context, auth: auth);
 
   Future<void> _handleChildTap(BuildContext context) async {
-    if (auth.currentUser == null) {
-      final goToParent = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Ask a grown-up'),
-          content: const Text(
-              'A parent or teacher needs to set up a learner profile first.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('I\'m the grown-up'),
-            ),
-          ],
-        ),
-      );
-      if (goToParent != true || !context.mounted) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute<void>(builder: (_) => LoginPage(auth: auth)),
-      );
-      if (!context.mounted || auth.currentUser == null) return;
-    }
+    if (auth.currentUser == null) return;
     if (!context.mounted) return;
     Navigator.push(
       context,
@@ -181,7 +269,7 @@ class WelcomePage extends StatelessWidget {
                       ],
                       SizedBox(height: compact ? 12 : 16),
                       const Text(
-                        'Parents sign in to manage learners. Children can play without an email or password.',
+                        'Choose a picture and start playing!',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.black54, fontSize: 12),
                       ),
@@ -276,9 +364,15 @@ class _RoleButton extends StatelessWidget {
 }
 
 class LoginPage extends StatefulWidget {
-  LoginPage({super.key, AuthService? auth}) : auth = auth ?? AuthService();
+  LoginPage({
+    super.key,
+    AuthService? auth,
+    FirestoreService? firestore,
+  })  : auth = auth ?? AuthService(),
+        firestore = firestore ?? FirestoreService();
 
   final AuthService auth;
+  final FirestoreService firestore;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -324,6 +418,34 @@ class _LoginPageState extends State<LoginPage> {
       _error = null;
     });
     try {
+      final current = widget.auth.currentUser;
+      if (current?.isAnonymous == true) {
+        final childCount = await widget.firestore.countChildren(current!.uid);
+        if (!mounted) return;
+        if (childCount > 0) {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Switch to your backup?'),
+              content: const Text(
+                'Children on this device will not be shown after signing in. '
+                'They are not deleted.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Stay here'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Continue'),
+                ),
+              ],
+            ),
+          );
+          if (confirmed != true) return;
+        }
+      }
       await widget.auth.signIn(_email.text, _password.text);
       final prefs = await SharedPreferences.getInstance();
       if (_rememberMe) {
@@ -334,7 +456,12 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) Navigator.pop(context);
     } on FirebaseAuthException catch (error) {
       if (mounted) {
-        setState(() => _error = error.message ?? 'Unable to sign in.');
+        setState(() => _error = _friendlyAuthError(error));
+      }
+    } on FirebaseException {
+      if (mounted) {
+        setState(() => _error =
+            'We could not check this device yet. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -417,7 +544,7 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _submit() async {
     if (!_acceptedPrivacyPolicy) {
       setState(() => _error =
-          'Please agree to the Privacy Policy before creating an account.');
+          'Please agree to the Privacy Policy before linking an email.');
       return;
     }
     if (_email.text.trim().isEmpty || _password.text.length < 6) {
@@ -433,11 +560,11 @@ class _RegisterPageState extends State<RegisterPage> {
       _error = null;
     });
     try {
-      await widget.auth.register(_email.text, _password.text);
-      if (mounted) Navigator.popUntil(context, (route) => route.isFirst);
+      await widget.auth.linkEmail(_email.text, _password.text);
+      if (mounted) Navigator.pop(context, true);
     } on FirebaseAuthException catch (error) {
       if (mounted) {
-        setState(() => _error = error.message ?? 'Unable to register.');
+        setState(() => _error = _friendlyAuthError(error));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -446,9 +573,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) => _ParentAuthScaffold(
-        title: 'Create a parent account',
-        subtitle: 'Keep your child’s learning journey safe and connected.',
-        action: 'Register',
+        title: 'Back up my data',
+        subtitle: 'Link an email to keep your children’s progress safe.',
+        action: 'Back up my data',
         busy: _busy,
         error: _error,
         fields: [_email, _password, _confirmPassword],
@@ -476,6 +603,18 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
       );
 }
+
+String _friendlyAuthError(FirebaseAuthException error) => switch (error.code) {
+      'email-already-in-use' =>
+        "This email already has a backup. Use 'I already have a backup' instead.",
+      'weak-password' => 'Choose a stronger password with at least 6 characters.',
+      'invalid-email' => 'Please check the email address and try again.',
+      'requires-recent-login' =>
+        'Please sign in again before changing this account.',
+      'wrong-password' || 'invalid-credential' =>
+        'That email and password do not match.',
+      _ => 'We could not finish that. Please check your details and try again.',
+    };
 
 class ForgotPasswordPage extends StatefulWidget {
   ForgotPasswordPage({super.key, AuthService? auth})

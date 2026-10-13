@@ -214,7 +214,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ParentSettingsPage), findsOneWidget);
-    expect(find.text('Grown-up lock'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
@@ -224,6 +224,15 @@ void _ignoreAnswer(int index) {}
 class _TestAuthService implements AuthService {
   @override
   User? get currentUser => null;
+
+  @override
+  bool get isAnonymous => false;
+
+  @override
+  bool get hasEmailBackup => false;
+
+  @override
+  Stream<User?> get authStateChanges => Stream.value(null);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -256,6 +265,13 @@ class _TestFirestoreService extends Fake implements FirestoreService {
       Stream.value(_TestChildrenSnapshot([_child]));
 
   @override
+  Stream<DocumentSnapshot<Map<String, dynamic>>> watchProgress(
+    String parentUid,
+    String childId,
+  ) =>
+      Stream.value(_TestProgressSnapshot());
+
+  @override
   Future<Map<String, dynamic>?> loadProgress(
     String parentUid,
     String childId,
@@ -267,6 +283,13 @@ class _TestFirestoreService extends Fake implements FirestoreService {
     String parentUid,
     String childId,
   ) async {}
+}
+
+// ignore: subtype_of_sealed_class
+class _TestProgressSnapshot extends Fake
+    implements DocumentSnapshot<Map<String, dynamic>> {
+  @override
+  Map<String, dynamic>? data() => null;
 }
 
 // ignore: subtype_of_sealed_class

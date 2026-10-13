@@ -20,27 +20,116 @@ class FirestoreService {
     String childId,
     Map<String, dynamic> data,
   ) async {
-    final profile = <String, dynamic>{
-      'childId': childId,
-      'name': data['childName'] ?? 'Little Learner',
-      'avatar': data['avatar'] ?? '🧒',
-      'age': data['childAge'] ?? 4,
-      'points': data['points'] ?? 0,
-      'streak': data['streak'] ?? 0,
-      'totalQuestions': data['totalQuestions'] ?? 0,
-      'correctAnswers': data['correctAnswers'] ?? 0,
-      'completedByModule': data['completedByModule'] ?? {},
-      'activityStars': data['activityStars'] ?? {},
-      'dailyStats': data['dailyStats'] ?? {},
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    await Future.wait([
-      _progress(parentUid, childId).set({
-        ...data,
+    final progress = _progress(parentUid, childId);
+    final child = _children(parentUid).doc(childId);
+    await _firestore.runTransaction((transaction) async {
+      final remoteProgress = await transaction.get(progress);
+      final remoteChild = await transaction.get(child);
+      final merged = mergeProgressData(
+        remoteProgress.data() ?? remoteChild.data() ?? const {},
+        data,
+      );
+      final profile = <String, dynamic>{
+        'childId': childId,
+        'name': merged['childName'] ?? 'Little Learner',
+        'avatar': merged['avatar'] ?? '🧒',
+        'age': merged['childAge'] ?? 4,
+        for (final field in const [
+          'points',
+          'streak',
+          'totalQuestions',
+          'correctAnswers',
+          'completedByModule',
+          'activityStars',
+          'dailyStats',
+          'completedQuestionIds',
+          'lastPlayed',
+        ])
+          if (merged[field] != null) field: merged[field],
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)),
-      _children(parentUid).doc(childId).set(profile, SetOptions(merge: true)),
-    ]);
+      };
+      transaction
+        ..set(
+          progress,
+          {...merged, 'updatedAt': FieldValue.serverTimestamp()},
+          SetOptions(merge: true),
+        )
+        ..set(child, profile, SetOptions(merge: true));
+    });
+  }
+
+  static Map<String, dynamic> mergeProgressData(
+    Map<String, dynamic> remote,
+    Map<String, dynamic> local,
+  ) {
+    final merged = <String, dynamic>{...remote, ...local};
+    for (final key in const [
+      'points',
+      'todayQuestions',
+      'totalQuestions',
+      'correctAnswers',
+      'streak',
+    ]) {
+      merged[key] = _maxNumber(remote[key], local[key]);
+    }
+    for (final key in const [
+      'completedByModule',
+      'moduleAnswered',
+      'moduleCorrect',
+      'activityStars',
+    ]) {
+      final oldMap = (remote[key] as Map?) ?? const {};
+      final newMap = (local[key] as Map?) ?? const {};
+      merged[key] = {
+        for (final id in {...oldMap.keys, ...newMap.keys})
+          id: _maxNumber(oldMap[id], newMap[id]),
+      };
+    }
+    final completed = <String>{
+      ...((remote['completedQuestionIds'] as Iterable?) ?? const [])
+          .whereType<String>(),
+      ...((local['completedQuestionIds'] as Iterable?) ?? const [])
+          .whereType<String>(),
+    };
+    merged['completedQuestionIds'] = completed.toList();
+
+    final remoteDays = (remote['dailyStats'] as Map?) ?? const {};
+    final localDays = (local['dailyStats'] as Map?) ?? const {};
+    merged['dailyStats'] = {
+      for (final day in {...remoteDays.keys, ...localDays.keys})
+        day: _mergeDailyStats(remoteDays[day], localDays[day]),
+    };
+    final remoteDate = _dateValue(remote['lastPlayed']);
+    final localDate = _dateValue(local['lastPlayed']);
+    final latest = remoteDate == null
+        ? localDate
+        : localDate == null || remoteDate.isAfter(localDate)
+            ? remoteDate
+            : localDate;
+    if (latest != null) merged['lastPlayed'] = latest.toIso8601String();
+    return merged;
+  }
+
+  static int _maxNumber(Object? first, Object? second) {
+    final a = first is num ? first.toInt() : 0;
+    final b = second is num ? second.toInt() : 0;
+    return a > b ? a : b;
+  }
+
+  static List<int> _mergeDailyStats(Object? first, Object? second) {
+    final a = first is List ? first : const [];
+    final b = second is List ? second : const [];
+    return [
+      _maxNumber(a.isNotEmpty ? a[0] : null, b.isNotEmpty ? b[0] : null),
+      _maxNumber(a.length > 1 ? a[1] : null, b.length > 1 ? b[1] : null),
+    ];
+  }
+
+  static DateTime? _dateValue(Object? value) {
+    if (value is DateTime) return value;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   Future<Map<String, dynamic>?> loadProgress(
@@ -50,6 +139,21 @@ class FirestoreService {
     final snapshot = await _progress(parentUid, childId).get();
     return snapshot.data();
   }
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> watchProgress(
+    String parentUid,
+    String childId,
+  ) =>
+      _progress(parentUid, childId).snapshots();
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> watchChild(
+    String parentUid,
+    String childId,
+  ) =>
+      _children(parentUid).doc(childId).snapshots();
+
+  Future<int> countChildren(String parentUid) async =>
+      (await _children(parentUid).get()).docs.length;
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchChildren(String parentUid) {
     return _children(parentUid)

@@ -14,8 +14,12 @@ services and currently targets Android only.
 - Stars, achievements, and progress tracking as learning rewards.
 - Parent pages for learner profiles, settings, and progress.
 - Learning reports that can be exported and shared.
-- A parent gate protected by device authentication (when available) or a
-  four-digit PIN.
+- A parent gate requiring a four-digit PIN on every parent-area entry.
+- The app starts with an anonymous Firebase account and opens the child picker
+  directly. A parent must enter the device-only PIN on every parent-area entry.
+- Email backup is optional. Linking an email backs up the current account and
+  keeps its identifier; without a backup, data is lost if the app is
+  uninstalled or the device is changed.
 - Privacy information and controls for deleting an account.
 - Music and voice volume controls are available in the menu. Music can be
   muted; voice volume has a minimum of 30%.
@@ -167,5 +171,12 @@ sources for the app or browser they use to open it.
 
 ## Future work
 
-The app currently supports Android only. iOS support, Google sign-in, and
-Facebook sign-in are future work.
+The app currently supports Android only. iOS support and Facebook sign-in are
+future work.
+
+## Known limitations / future work
+
+- Merging child profiles across different accounts/devices is not supported.
+- Family sharing is not supported.
+- The parent PIN is stored on this device and is not synced.
+- Google sign-in is not supported.

@@ -11,23 +11,35 @@ import 'admin_page.dart';
 import 'auth_pages.dart';
 
 /// The single gate every "go to parent stuff" entry point must pass through.
-Future<void> openParentArea(BuildContext context, {AuthService? auth}) async {
+Future<void> openParentArea(
+  BuildContext context, {
+  AuthService? auth,
+  ParentGateService? gateService,
+}) async {
   try {
     final authService = auth ?? AuthService();
-    if (authService.currentUser == null) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute<void>(builder: (_) => LoginPage(auth: authService)),
-      );
-      if (!context.mounted || authService.currentUser == null) return;
+    final user = authService.currentUser;
+    if (user == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please try again in a moment.')),
+        );
+      }
+      return;
     }
-    final uid = authService.currentUser!.uid;
     if (!context.mounted) return;
-    final unlocked = await ParentGateService.instance.unlock(context);
+    final gate = gateService ?? ParentGateService.instance;
+    final unlocked = await gate.unlock(context);
     if (!unlocked || !context.mounted) return;
     Navigator.push(
       context,
-      MaterialPageRoute<void>(builder: (_) => AdminPage(parentUid: uid)),
+      MaterialPageRoute<void>(
+        builder: (_) => AdminPage(
+          parentUid: user.uid,
+          auth: authService,
+          gateService: gate,
+        ),
+      ),
     );
   } catch (error) {
     if (context.mounted) {
@@ -134,6 +146,9 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
       body: StreamBuilder(
         stream: widget.firestore.watchChildren(widget.parentUid),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text('We could not load the pictures.'));
+          }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -250,6 +265,7 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
       ),
     );
   }
+
 }
 
 /// A plain circular avatar with a name underneath — closer to the quiet,

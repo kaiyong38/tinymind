@@ -412,11 +412,14 @@ class UserProgress {
     Map<String, int>? moduleCorrect,
     Map<String, List<int>>? dailyStats,
     Map<String, int>? activityStars,
+    Set<String>? completedQuestionIds,
+    this.lastPlayed,
   })  : completedByModule = completedByModule ?? {},
         moduleAnswered = moduleAnswered ?? {},
         moduleCorrect = moduleCorrect ?? {},
         dailyStats = dailyStats ?? {},
-        activityStars = activityStars ?? {};
+        activityStars = activityStars ?? {},
+        completedQuestionIds = completedQuestionIds ?? {};
 
   int points;
   int todayQuestions;
@@ -425,12 +428,14 @@ class UserProgress {
   String avatar;
   String childName;
   int childAge;
+  DateTime? lastPlayed;
 
   final Map<String, int> completedByModule;
   final Map<String, int> moduleAnswered;
   final Map<String, int> moduleCorrect;
   final Map<String, List<int>> dailyStats;
   final Map<String, int> activityStars;
+  final Set<String> completedQuestionIds;
 
   int get daysLearned => dailyStats.length;
 
@@ -469,6 +474,8 @@ class UserProgress {
         'moduleCorrect': moduleCorrect,
         'dailyStats': dailyStats,
         'activityStars': activityStars,
+        'completedQuestionIds': completedQuestionIds.toList(),
+        if (lastPlayed != null) 'lastPlayed': lastPlayed!.toIso8601String(),
       };
 
   factory UserProgress.fromJson(Map<String, dynamic> json) => UserProgress(
@@ -495,5 +502,12 @@ class UserProgress {
           for (final entry in (json['activityStars'] as Map? ?? {}).entries)
             entry.key as String: (entry.value as num).toInt(),
         },
+        completedQuestionIds: {
+          for (final id in (json['completedQuestionIds'] as List? ?? []))
+            id as String,
+        },
+        lastPlayed: json['lastPlayed'] is DateTime
+            ? json['lastPlayed'] as DateTime
+            : DateTime.tryParse(json['lastPlayed'] as String? ?? ''),
       );
 }

@@ -11,14 +11,30 @@ class AuthService {
   final FirestoreService? _firestore;
 
   User? get currentUser => _auth.currentUser;
+  bool get isAnonymous => currentUser?.isAnonymous ?? false;
+  bool get hasEmailBackup =>
+      currentUser?.providerData
+          .any((provider) => provider.providerId == 'password') ??
+      false;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  Future<UserCredential> signInAnonymously() => _auth.signInAnonymously();
 
   Future<UserCredential> signIn(String email, String password) =>
       _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
 
-  Future<UserCredential> register(String email, String password) =>
-      _auth.createUserWithEmailAndPassword(
-          email: email.trim(), password: password);
+  Future<UserCredential> linkEmail(String email, String password) async {
+    final user = _auth.currentUser;
+    if (user == null || !user.isAnonymous) {
+      throw FirebaseAuthException(
+        code: 'not-anonymous',
+        message: 'An anonymous account is required to link an email.',
+      );
+    }
+    return user.linkWithCredential(
+      EmailAuthProvider.credential(email: email.trim(), password: password),
+    );
+  }
 
   Future<void> sendPasswordReset(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());
@@ -27,7 +43,10 @@ class AuthService {
 
   Future<void> reauthenticate(String password) async {
     final user = _auth.currentUser;
-    if (user == null || user.email == null) {
+    if (user == null ||
+        user.email == null ||
+        !user.providerData
+            .any((provider) => provider.providerId == 'password')) {
       throw FirebaseAuthException(
         code: 'no-current-user',
         message: 'You need to be signed in to delete your account.',
@@ -52,6 +71,15 @@ class AuthService {
     await preferences.remove('tinymind_progress');
     await preferences.remove('tinymind_child_id');
     await preferences.remove('tinymind_remembered_email');
+    final pendingKeys = preferences
+        .getKeys()
+        .where(
+          (key) => key.startsWith('tinymind_pending_progress::${user.uid}::'),
+        )
+        .toList();
+    for (final key in pendingKeys) {
+      await preferences.remove(key);
+    }
   }
 
   /// Changes the signed-in parent's password. Firebase requires a recent
@@ -62,7 +90,10 @@ class AuthService {
     required String newPassword,
   }) async {
     final user = _auth.currentUser;
-    if (user == null || user.email == null) {
+    if (user == null ||
+        user.email == null ||
+        !user.providerData
+            .any((provider) => provider.providerId == 'password')) {
       throw FirebaseAuthException(
         code: 'no-current-user',
         message: 'You need to be signed in to change your password.',

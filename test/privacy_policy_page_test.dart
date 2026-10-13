@@ -45,6 +45,17 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.textContaining(
+          'anonymous account so children can reach the child picker'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Without an email backup, data is lost if the app is uninstalled',
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining(AppInfo.supportEmail), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsOneWidget);
   });
@@ -84,14 +95,13 @@ void main() {
       ),
     );
 
-    final register = find.text('Register');
+    final register = find.text('Back up my data').last;
     await tester.ensureVisible(register);
     await tester.tap(register);
     await tester.pumpAndSettle();
 
     expect(
-      find.text(
-          'Please agree to the Privacy Policy before creating an account.'),
+      find.text('Please agree to the Privacy Policy before linking an email.'),
       findsOneWidget,
     );
   });

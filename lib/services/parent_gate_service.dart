@@ -99,31 +99,31 @@ class ParentGateService {
     ParentPhoneAuthenticator? phoneAuthenticator,
     ParentGateStorage? storage,
     ParentPasswordAuthenticator? passwordAuthenticator,
+    AuthService? auth,
     DateTime Function()? clock,
   })  : _phoneAuthenticator =
             phoneAuthenticator ?? LocalAuthPhoneAuthenticator(),
         _storage = storage ?? SharedPreferencesParentGateStorage(),
-        _passwordAuthenticator =
-            passwordAuthenticator ?? _AuthServicePasswordAuthenticator(),
+        _passwordAuthenticator = passwordAuthenticator ??
+            _AuthServicePasswordAuthenticator(auth),
+        _auth = auth,
         _clock = clock ?? DateTime.now;
 
   static final ParentGateService instance = ParentGateService();
-  static const verificationWindow = Duration(minutes: 5);
   static const _maxLockoutSeconds = 300;
 
   final ParentPhoneAuthenticator _phoneAuthenticator;
   final ParentGateStorage _storage;
   final ParentPasswordAuthenticator _passwordAuthenticator;
+  final AuthService? _auth;
   final DateTime Function() _clock;
 
-  DateTime? _verifiedAt;
   int _failedPinAttempts = 0;
   int _lockoutLevel = 0;
   DateTime? _pinLockedUntil;
 
-  Future<ParentLockMethod?> get selectedMethod => _storage.readMethod();
-
-  Future<bool> get canUsePhoneUnlock => _phoneAuthenticator.isDeviceSupported();
+  Future<ParentLockMethod?> get selectedMethod async =>
+      await _storage.readMethod() ?? ParentLockMethod.pin;
 
   bool get isPinLocked => _remainingLockoutSeconds > 0;
 
@@ -138,42 +138,7 @@ class ParentGateService {
     return (milliseconds + 999) ~/ 1000;
   }
 
-  void clearVerificationWindow() => _verifiedAt = null;
-
-  bool get _hasRecentVerification {
-    final verifiedAt = _verifiedAt;
-    if (verifiedAt == null) return false;
-    final elapsed = _clock().difference(verifiedAt);
-    return elapsed >= Duration.zero && elapsed < verificationWindow;
-  }
-
   Future<bool> unlock(BuildContext context) async {
-    if (_hasRecentVerification) return true;
-
-    var method = await _storage.readMethod();
-    if (method == null) {
-      final phoneAvailable = await _phoneAuthenticator.isDeviceSupported();
-      if (!context.mounted) return false;
-      method = await Navigator.of(context).push<ParentLockMethod>(
-        MaterialPageRoute<ParentLockMethod>(
-          builder: (_) => _LockSetupPage(phoneAvailable: phoneAvailable),
-        ),
-      );
-      if (method == null || !context.mounted) return false;
-      await _storage.writeMethod(method);
-    }
-
-    if (method == ParentLockMethod.phone) {
-      final supported = await _phoneAuthenticator.isDeviceSupported();
-      if (supported) {
-        final authenticated = await _phoneAuthenticator.authenticate();
-        if (authenticated) _verifiedAt = _clock();
-        return authenticated;
-      }
-      method = ParentLockMethod.pin;
-      await _storage.writeMethod(method);
-    }
-
     final pinRecord = await _storage.readPinRecord();
     if (!context.mounted) return false;
     if (pinRecord == null) {
@@ -181,7 +146,6 @@ class ParentGateService {
       if (pin == null || !context.mounted) return false;
       await _savePin(pin);
       await _storage.writeMethod(ParentLockMethod.pin);
-      _verifiedAt = _clock();
       return true;
     }
 
@@ -194,17 +158,7 @@ class ParentGateService {
         ),
       ),
     );
-    if (accepted == true) {
-      _verifiedAt = _clock();
-      return true;
-    }
-    return false;
-  }
-
-  Future<bool> usePhoneUnlock() async {
-    if (!await _phoneAuthenticator.isDeviceSupported()) return false;
-    await _storage.writeMethod(ParentLockMethod.phone);
-    return true;
+    return accepted == true;
   }
 
   Future<bool> usePin(BuildContext context) async {
@@ -228,23 +182,16 @@ class ParentGateService {
     if (storedRecord == null || !_matchesPin(storedRecord, pin)) {
       _failedPinAttempts++;
       if (_failedPinAttempts >= 5) {
-        final seconds = min(
-          30 * (1 << min(_lockoutLevel, 4)),
-          _maxLockoutSeconds,
-        );
-        _lockoutLevel = min(_lockoutLevel + 1, 4);
-        _failedPinAttempts = 0;
-        _pinLockedUntil = _clock().add(Duration(seconds: seconds));
+        _startLockout();
         return PinAttemptResult(
           PinAttemptStatus.locked,
-          remainingSeconds: seconds,
+          remainingSeconds: _remainingLockoutSeconds,
         );
       }
       return const PinAttemptResult(PinAttemptStatus.rejected);
     }
 
     _failedPinAttempts = 0;
-    _verifiedAt = _clock();
     return const PinAttemptResult(PinAttemptStatus.accepted);
   }
 
@@ -293,15 +240,39 @@ class ParentGateService {
   }
 
   Future<bool> _recoverForgottenPin(BuildContext context) async {
-    final password = await showDialog<String>(
-      context: context,
-      builder: (_) => const _ReauthenticateDialog(),
-    );
-    if (password == null || !context.mounted) return false;
-    try {
-      await _passwordAuthenticator.reauthenticate(password);
-    } on FirebaseAuthException {
-      return false;
+    final user = (_auth ?? AuthService()).currentUser;
+    final emailLinked = user != null &&
+        !user.isAnonymous &&
+        user.email != null &&
+        user.providerData.any((provider) => provider.providerId == 'password');
+    if (emailLinked) {
+      final password = await showDialog<String>(
+        context: context,
+        builder: (_) => const _ReauthenticateDialog(),
+      );
+      if (password == null || !context.mounted) return false;
+      try {
+        await _passwordAuthenticator.reauthenticate(password);
+      } on FirebaseAuthException {
+        return false;
+      }
+    } else {
+      final phoneUnlockAvailable =
+          await _phoneAuthenticator.isDeviceSupported();
+      if (!context.mounted) return false;
+      if (phoneUnlockAvailable) {
+        if (!await _phoneAuthenticator.authenticate()) return false;
+      } else {
+        final wrongAttempts = await showDialog<int>(
+          context: context,
+          builder: (_) => const _AdultReadingCheckDialog(),
+        );
+        if (wrongAttempts == null || !context.mounted) return false;
+        if (wrongAttempts >= 3) {
+          _startLockout();
+          return false;
+        }
+      }
     }
     if (!context.mounted) return false;
     final pin = await _showPinSetup(context);
@@ -310,84 +281,72 @@ class ParentGateService {
     await _storage.writeMethod(ParentLockMethod.pin);
     return true;
   }
+
+  void _startLockout() {
+    final seconds = min(30 * (1 << min(_lockoutLevel, 4)), _maxLockoutSeconds);
+    _lockoutLevel = min(_lockoutLevel + 1, 4);
+    _failedPinAttempts = 0;
+    _pinLockedUntil = _clock().add(Duration(seconds: seconds));
+  }
 }
 
 class _AuthServicePasswordAuthenticator implements ParentPasswordAuthenticator {
+  const _AuthServicePasswordAuthenticator(this.auth);
+
+  final AuthService? auth;
+
   @override
   Future<void> reauthenticate(String password) =>
-      AuthService().reauthenticate(password);
+      (auth ?? AuthService()).reauthenticate(password);
 }
 
-class _LockSetupPage extends StatelessWidget {
-  const _LockSetupPage({required this.phoneAvailable});
-
-  final bool phoneAvailable;
+class _AdultReadingCheckDialog extends StatefulWidget {
+  const _AdultReadingCheckDialog();
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Set up grown-up lock')),
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (phoneAvailable) ...[
-                      _LockChoiceButton(
-                        label:
-                            "Use my phone's lock (fingerprint, face or screen lock)",
-                        icon: Icons.fingerprint_rounded,
-                        onPressed: () => Navigator.pop(
-                          context,
-                          ParentLockMethod.phone,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                    ],
-                    _LockChoiceButton(
-                      label: 'Use a 4-digit PIN',
-                      icon: Icons.dialpad_rounded,
-                      onPressed: () =>
-                          Navigator.pop(context, ParentLockMethod.pin),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'If your child knows your phone\'s passcode, choose a PIN instead.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ),
+  State<_AdultReadingCheckDialog> createState() =>
+      _AdultReadingCheckDialogState();
+}
+
+class _AdultReadingCheckDialogState extends State<_AdultReadingCheckDialog> {
+  int _wrongAnswers = 0;
+  String? _message;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Grown-up check'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('The green frog hops over the small log.'),
+            const SizedBox(height: 12),
+            const Text('What hops over the log?'),
+            if (_message != null) ...[
+              const SizedBox(height: 8),
+              Text(_message!, style: const TextStyle(color: Colors.red)),
+            ],
+          ],
+        ),
+        actions: [
+          for (final answer in const ['Cat', 'Frog', 'Bird', 'Fish'])
+            TextButton(
+              onPressed: () {
+                if (answer == 'Frog') {
+                  Navigator.pop(context, _wrongAnswers);
+                } else {
+                  setState(() {
+                    _wrongAnswers++;
+                    _message = _wrongAnswers >= 3
+                        ? 'Please wait before trying again.'
+                        : 'That answer was not right. Try again.';
+                  });
+                  if (_wrongAnswers >= 3) Navigator.pop(context, 3);
+                }
+              },
+              child: Text(answer),
             ),
-          ),
-        ),
-      );
-}
-
-class _LockChoiceButton extends StatelessWidget {
-  const _LockChoiceButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: double.infinity,
-        height: 72,
-        child: FilledButton.icon(
-          onPressed: onPressed,
-          icon: Icon(icon),
-          label: Text(label, textAlign: TextAlign.center),
-        ),
+        ],
       );
 }
 
@@ -447,6 +406,7 @@ class _PinSetupPageState extends State<_PinSetupPage> {
                       : 'Enter your PIN again',
                   digits: _digits.length,
                   message: _message,
+                  note: 'This PIN is only for this device.',
                 );
                 final pad = _PinNumberPad(
                   onDigit: _press,
@@ -682,11 +642,13 @@ class _PinPrompt extends StatelessWidget {
     required this.instruction,
     required this.digits,
     this.message,
+    this.note,
   });
 
   final String instruction;
   final int digits;
   final String? message;
+  final String? note;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -699,6 +661,10 @@ class _PinPrompt extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
           ),
+          if (note != null) ...[
+            const SizedBox(height: 4),
+            Text(note!, textAlign: TextAlign.center),
+          ],
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

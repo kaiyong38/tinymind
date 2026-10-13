@@ -313,7 +313,11 @@ void main() {
         final store = _stressStore();
         return WelcomePage(store: store, auth: auth);
       }),
-      _ScreenCase('LoginPage', [1, 1.3, 1.6], () => LoginPage(auth: auth)),
+      _ScreenCase(
+        'LoginPage',
+        [1, 1.3, 1.6],
+        () => LoginPage(auth: auth, firestore: firestore),
+      ),
       _ScreenCase(
           'RegisterPage', [1, 1.3, 1.6], () => RegisterPage(auth: auth)),
       _ScreenCase('ForgotPasswordPage', [1, 1.3, 1.6],
@@ -619,7 +623,6 @@ void main() {
       Size(1920, 1080),
     ];
     const phases = <(String, ParentLockMethod?, String, String)>[
-      ('method selection', null, 'unlock', 'Set up grown-up lock'),
       ('set PIN', null, 'set-pin', 'Set a 4-digit PIN'),
       ('enter PIN', ParentLockMethod.pin, 'unlock', 'Grown-ups only'),
     ];
@@ -877,7 +880,12 @@ void main() {
     final auth = AuthService(auth: _UnusedFirebaseAuth());
     for (final size in [const Size(568, 320), const Size(640, 360)]) {
       for (final scale in [1.0, 1.3, 1.6]) {
-        await pumpScreen(tester, LoginPage(auth: auth), size, scale);
+        await pumpScreen(
+          tester,
+          LoginPage(auth: auth, firestore: _AuditFirestore()),
+          size,
+          scale,
+        );
         await tester.enterText(
           find.byType(TextField).first,
           '${'W' * 90}@example-long-domain.test',
@@ -1173,6 +1181,9 @@ class _ScreenCase {
 class _UnusedFirebaseAuth extends Fake implements FirebaseAuth {
   @override
   User? get currentUser => null;
+
+  @override
+  Stream<User?> authStateChanges() => Stream.value(null);
 }
 
 class _AuditFirestore extends Fake implements FirestoreService {
@@ -1189,6 +1200,13 @@ class _AuditFirestore extends Fake implements FirestoreService {
       );
 
   @override
+  Stream<DocumentSnapshot<Map<String, dynamic>>> watchProgress(
+    String parentUid,
+    String childId,
+  ) =>
+      Stream.value(_AuditProgressSnapshot());
+
+  @override
   Future<Map<String, dynamic>?> loadProgress(
     String parentUid,
     String childId,
@@ -1200,6 +1218,13 @@ class _AuditFirestore extends Fake implements FirestoreService {
     String parentUid,
     String childId,
   ) async {}
+}
+
+// ignore: subtype_of_sealed_class
+class _AuditProgressSnapshot extends Fake
+    implements DocumentSnapshot<Map<String, dynamic>> {
+  @override
+  Map<String, dynamic>? data() => null;
 }
 
 // ignore: subtype_of_sealed_class
