@@ -11,13 +11,16 @@ import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'models/learning.dart';
 import 'models/activities.dart';
+import 'models/parent_tip.dart';
 import 'pages/achievement_page.dart';
 import 'pages/auth_pages.dart';
 import 'pages/parent_gate_pages.dart';
 import 'services/auth_service.dart';
+import 'services/firestore_service.dart';
 import 'services/accessibility_settings.dart';
 import 'services/background_music_service.dart';
 import 'services/music_settings.dart';
+import 'services/parent_gate_service.dart';
 import 'services/narration_service.dart';
 import 'services/progress_store.dart';
 import 'theme/adaptive_metrics.dart';
@@ -185,21 +188,40 @@ class _VoiceAvailabilityNoticeState extends State<_VoiceAvailabilityNotice> {
 /// loaded [store] — reached only after a learner has been chosen on the
 /// [WelcomePage].
 class TinyMindHomeShell extends StatefulWidget {
-  const TinyMindHomeShell({required this.store, super.key});
+  const TinyMindHomeShell({
+    required this.store,
+    this.gateService,
+    super.key,
+  });
   final ProgressStore store;
+  final ParentGateService? gateService;
 
   @override
   State<TinyMindHomeShell> createState() => _TinyMindHomeShellState();
 }
 
-class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
+class _TinyMindHomeShellState extends State<TinyMindHomeShell>
+    with WidgetsBindingObserver {
   int _tabIndex = 0;
   final _music = BackgroundMusicService.instance;
   StreamSubscription? _selectedChildSubscription;
 
+  ParentGateService get _gate =>
+      widget.gateService ?? ParentGateService.instance;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden) &&
+        _tabIndex == 2) {
+      setState(() => _tabIndex = 0);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedChildSubscription =
         widget.store.watchSelectedChild().listen((snapshot) async {
       if (snapshot.exists || snapshot.metadata.isFromCache || !mounted) return;
@@ -229,6 +251,7 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _selectedChildSubscription?.cancel();
     super.dispose();
   }
@@ -259,7 +282,12 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
         onVolumeChangeEnd: (_) => _music.saveSettings(),
       ),
     );
-    if (selected != null) setState(() => _tabIndex = selected);
+    if (selected == null || !mounted) return;
+    if (selected == 2 && _tabIndex != 2) {
+      final unlocked = await _gate.unlock(context);
+      if (!unlocked || !mounted) return;
+    }
+    setState(() => _tabIndex = selected);
   }
 
   @override
@@ -284,7 +312,10 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(78, 0, 12, 0),
-                    child: ParentPage(store: widget.store),
+                    child: ParentPage(
+                      store: widget.store,
+                      gateService: widget.gateService,
+                    ),
                   ),
                 ],
               ),
@@ -2698,15 +2729,24 @@ class _Badge extends StatelessWidget {
 }
 
 class ParentPage extends StatelessWidget {
-  const ParentPage({required this.store, super.key});
+  const ParentPage({
+    required this.store,
+    this.gateService,
+    this.auth,
+    this.firestore,
+    super.key,
+  });
   final ProgressStore store;
+  final ParentGateService? gateService;
+  final AuthService? auth;
+  final FirestoreService? firestore;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text('For parents & educators',
+        const Text('For parents',
             style: TextStyle(fontSize: 27, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
         Text('A quick view of ${store.progress.childName}’s learning journey.'),
@@ -2721,7 +2761,7 @@ class ParentPage extends StatelessWidget {
                 const Row(children: [
                   Icon(Icons.insights, color: Color(0xFFFF6FA5)),
                   SizedBox(width: 10),
-                  Text('Weekly overview',
+                  Text('Overview',
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.w800))
                 ]),
@@ -2745,22 +2785,28 @@ class ParentPage extends StatelessWidget {
         Card(
           elevation: 0,
           color: const Color(0xFFE8F7EF),
-          child: const Padding(
-            padding: EdgeInsets.all(18),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
             child: Row(children: [
-              Icon(Icons.lightbulb, color: Colors.green, size: 32),
-              SizedBox(width: 12),
+              const Icon(Icons.lightbulb, color: Colors.green, size: 32),
+              const SizedBox(width: 12),
               Expanded(
-                  child: Text(
-                      'Tip: practise numbers next. It is the area with the most room to grow.')),
+                  child: Text(parentTipFor(store.progress.activityStars))),
             ]),
           ),
         ),
         const SizedBox(height: 14),
         FilledButton.tonalIcon(
-          onPressed: () => openParentArea(context, store: store),
+          onPressed: () => openParentArea(
+            context,
+            store: store,
+            auth: auth,
+            firestore: firestore,
+            gateService: gateService,
+            skipGate: true,
+          ),
           icon: const Icon(Icons.admin_panel_settings),
-          label: const Text('Grown-ups only'),
+          label: const Text('Open learning dashboard'),
         ),
         const SizedBox(height: 10),
         OutlinedButton.icon(
@@ -2792,8 +2838,15 @@ class _OverviewRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+        Expanded(child: Text(label)),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
       ]),
     );
   }

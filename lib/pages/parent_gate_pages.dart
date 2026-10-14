@@ -19,6 +19,7 @@ Future<void> openParentArea(
   ParentGateService? gateService,
   ProgressStore? store,
   FirestoreService? firestore,
+  bool skipGate = false,
 }) async {
   try {
     final authService = auth ?? AuthService();
@@ -33,7 +34,7 @@ Future<void> openParentArea(
     }
     if (!context.mounted) return;
     final gate = gateService ?? ParentGateService.instance;
-    final unlocked = await gate.unlock(context);
+    final unlocked = skipGate || await gate.unlock(context);
     if (!unlocked || !context.mounted) return;
     Navigator.push(
       context,

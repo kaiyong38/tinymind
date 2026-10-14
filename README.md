@@ -15,6 +15,8 @@ services and currently targets Android only.
 - Parent pages for learner profiles, settings, and progress.
 - Learning reports that can be exported and shared.
 - A parent gate requiring a four-digit PIN on every parent-area entry.
+- The Grown-ups page in the child menu requires the PIN every time it is
+  opened, and returns to Play when the app goes to the background.
 - The app starts with an anonymous Firebase account and opens the child picker
   directly. A parent must enter the device-only PIN on every parent-area entry.
 - Email backup is optional. Linking an email backs up the current account and

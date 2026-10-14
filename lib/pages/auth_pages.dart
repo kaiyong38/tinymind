@@ -259,7 +259,7 @@ class WelcomePage extends StatelessWidget {
                               Expanded(
                                 child: _RoleButton(
                                   icon: Icons.family_restroom_rounded,
-                                  title: 'Parent or teacher',
+                                  title: 'Parent',
                                   subtitle: 'Add learners, view progress',
                                   color: TinyMindColors.primary,
                                   compact: true,
@@ -283,7 +283,7 @@ class WelcomePage extends StatelessWidget {
                       else ...[
                         _RoleButton(
                           icon: Icons.family_restroom_rounded,
-                          title: 'Parent or teacher',
+                          title: 'Parent',
                           subtitle: 'Add learners, view progress',
                           color: TinyMindColors.primary,
                           compact: compact,
@@ -952,7 +952,7 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
                 Text(
                   signedIn
                       ? 'Choose an avatar and nickname for your child.'
-                      : 'Please ask a parent or teacher to log in before setting up a child profile.',
+                      : 'Please ask a parent to log in before setting up a child profile.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 18, color: Colors.black54),
                 ),
@@ -1089,7 +1089,7 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
                         ? 'Saving…'
                         : signedIn
                             ? 'Start learning'
-                            : 'Parent or teacher login',
+                            : 'Parent login',
                   ),
                 ),
               ],
