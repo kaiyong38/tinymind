@@ -2802,7 +2802,7 @@ class ParentPage extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         FilledButton.tonalIcon(
-          onPressed: () => openParentArea(context),
+          onPressed: () => openParentArea(context, store: store),
           icon: const Icon(Icons.admin_panel_settings),
           label: const Text('Grown-ups only'),
         ),

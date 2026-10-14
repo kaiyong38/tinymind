@@ -16,6 +16,8 @@ import 'package:tinymind/services/parent_gate_service.dart';
 import 'package:tinymind/services/progress_store.dart';
 import 'package:tinymind/widgets/drag_answer.dart';
 
+import 'support/fake_firebase_auth.dart';
+
 void _setCompactLandscape(WidgetTester tester) {
   tester.view.physicalSize = const Size(640, 390);
   tester.view.devicePixelRatio = 1;
@@ -223,7 +225,8 @@ void _ignoreAnswer(int index) {}
 
 class _TestAuthService implements AuthService {
   @override
-  User? get currentUser => null;
+  User? get currentUser =>
+      FakeFirebaseUser(uid: 'parent-1', isAnonymous: false);
 
   @override
   bool get isAnonymous => false;
@@ -248,7 +251,6 @@ Widget _adminApp() {
     settings: settings,
     child: MaterialApp(
       home: AdminPage(
-        parentUid: 'parent-1',
         firestore: _TestFirestoreService(),
         auth: _TestAuthService(),
         gateService: gateService,

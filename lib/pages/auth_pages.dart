@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tinymind/app_info.dart';
 
 import '../services/auth_service.dart';
+import '../services/child_transfer.dart';
 import '../services/firestore_service.dart';
 import '../services/progress_store.dart';
 import '../widgets/bouncy_tap.dart';
@@ -13,6 +14,37 @@ import '../widgets/emoji_glyph.dart';
 import '../theme/tinymind_colors.dart';
 import 'privacy_policy_page.dart';
 import 'parent_gate_pages.dart';
+
+/// Throws away every screen and starts again at a fresh [StartupGatePage].
+/// Use it after the account changes so no page keeps using the old uid.
+/// Works from any depth of the navigator stack.
+Future<void> restartToStartup(
+  BuildContext context, {
+  ProgressStore? store,
+  AuthService? auth,
+  FirestoreService? firestore,
+  String? message,
+}) async {
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final session = store ?? ProgressStore();
+  await session.clearSelection();
+  navigator.pushAndRemoveUntil(
+    MaterialPageRoute<void>(
+      builder: (_) => StartupGatePage(
+        store: session,
+        auth: auth,
+        firestore: firestore,
+      ),
+    ),
+    (route) => false,
+  );
+  if (message != null) {
+    messenger?.showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+enum _BringChoice { bring, skip }
 
 class StartupGatePage extends StatefulWidget {
   const StartupGatePage({
@@ -368,11 +400,13 @@ class LoginPage extends StatefulWidget {
     super.key,
     AuthService? auth,
     FirestoreService? firestore,
+    this.store,
   })  : auth = auth ?? AuthService(),
         firestore = firestore ?? FirestoreService();
 
   final AuthService auth;
   final FirestoreService firestore;
+  final ProgressStore? store;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -419,41 +453,72 @@ class _LoginPageState extends State<LoginPage> {
     });
     try {
       final current = widget.auth.currentUser;
+      final store = widget.store ?? ProgressStore();
+      final transfer = ChildTransfer(firestore: widget.firestore, store: store);
+      final oldUid = current?.uid;
+      List<TransferableChild>? toBring;
       if (current?.isAnonymous == true) {
         final childCount = await widget.firestore.countChildren(current!.uid);
         if (!mounted) return;
         if (childCount > 0) {
-          final confirmed = await showDialog<bool>(
+          final choice = await showDialog<_BringChoice>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Switch to your backup?'),
-              content: const Text(
-                'Children on this device will not be shown after signing in. '
-                'They are not deleted.',
+              title: const Text("Bring this phone's children into your account?"),
+              content: const SingleChildScrollView(
+                child: Text(
+                  'Children saved on this phone can be copied into the account '
+                  'you are signing in to. Your account\'s own children are not '
+                  'changed.',
+                ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Stay here'),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, _BringChoice.skip),
+                  child: const Text("Don't bring them"),
                 ),
                 FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Continue'),
+                  autofocus: true,
+                  onPressed: () => Navigator.pop(context, _BringChoice.bring),
+                  child: const Text('Bring them'),
                 ),
               ],
             ),
           );
-          if (confirmed != true) return;
+          if (choice == null) return;
+          if (choice == _BringChoice.bring) {
+            toBring = await transfer.collect(current.uid);
+          }
         }
       }
       await widget.auth.signIn(_email.text, _password.text);
+      final newUid = widget.auth.currentUser?.uid;
+      if (toBring != null &&
+          toBring.isNotEmpty &&
+          oldUid != null &&
+          newUid != null &&
+          newUid != oldUid) {
+        await transfer.copyInto(newUid, oldUid, toBring);
+      }
       final prefs = await SharedPreferences.getInstance();
       if (_rememberMe) {
         await prefs.setString(_rememberedEmailKey, _email.text.trim());
       } else {
         await prefs.remove(_rememberedEmailKey);
       }
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        await restartToStartup(
+          context,
+          store: store,
+          auth: widget.auth,
+          firestore: widget.firestore,
+          message: 'Welcome back! Your children are ready.',
+        );
+      }
     } on FirebaseAuthException catch (error) {
       if (mounted) {
         setState(() => _error = _friendlyAuthError(error));
@@ -771,11 +836,13 @@ class ChildProfilePage extends StatefulWidget {
   const ChildProfilePage({
     required this.store,
     required this.auth,
+    this.firestore,
     super.key,
   });
 
   final ProgressStore store;
   final AuthService auth;
+  final FirestoreService? firestore;
 
   @override
   State<ChildProfilePage> createState() => _ChildProfilePageState();
@@ -806,7 +873,7 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
       await Navigator.push(
         context,
         MaterialPageRoute<void>(
-          builder: (_) => LoginPage(auth: widget.auth),
+          builder: (_) => LoginPage(auth: widget.auth, store: widget.store),
         ),
       );
       if (mounted) setState(() {});
@@ -822,13 +889,31 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
       // silently overwrites the first child's data under the same id.
       final childId =
           'child-${parent.uid}-${DateTime.now().microsecondsSinceEpoch}';
-      widget.store.configureChild(parentUid: parent.uid, childId: childId);
-      await widget.store.load();
-      await widget.store.setChildProfile(
-        name: _name.text,
+      final name = _name.text.trim();
+      // A plain write that Firestore's local cache shows right away, so the
+      // child appears in the picker even while offline.
+      await (widget.firestore ?? FirestoreService()).createChildProfile(
+        parent.uid,
+        childId,
+        name: name,
         avatar: _avatar,
         age: _age,
       );
+      Future<void> saveProgress() async {
+        widget.store.configureChild(parentUid: parent.uid, childId: childId);
+        await widget.store.load();
+        await widget.store.setChildProfile(
+          name: _name.text,
+          avatar: _avatar,
+          age: _age,
+        );
+      }
+
+      // Offline, the progress write is queued by the store; do not keep the
+      // screen waiting for the network.
+      final saving = saveProgress();
+      unawaited(saving.then<void>((_) {}, onError: (Object _) {}));
+      await saving.timeout(const Duration(seconds: 4), onTimeout: () {});
       if (mounted) Navigator.pop(context);
     } on FirebaseException catch (error) {
       if (mounted) setState(() => _error = error.message);

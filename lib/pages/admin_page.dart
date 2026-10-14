@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/activities.dart';
@@ -5,6 +6,7 @@ import '../models/learning.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/parent_gate_service.dart';
+import '../services/progress_store.dart';
 import '../widgets/bouncy_tap.dart';
 import '../widgets/emoji_glyph.dart';
 import 'auth_pages.dart';
@@ -12,20 +14,56 @@ import 'child_detail_page.dart';
 import 'parent_settings_page.dart';
 import 'privacy_policy_page.dart';
 
-class AdminPage extends StatelessWidget {
+class AdminPage extends StatefulWidget {
   AdminPage({
-    required this.parentUid,
     FirestoreService? firestore,
     AuthService? auth,
     ParentGateService? gateService,
+    this.store,
     super.key,
   })  : firestore = firestore ?? FirestoreService(),
         auth = auth ?? AuthService(),
         gateService = gateService ?? ParentGateService.instance;
-  final String parentUid;
   final FirestoreService firestore;
   final AuthService auth;
   final ParentGateService gateService;
+  final ProgressStore? store;
+
+  @override
+  State<AdminPage> createState() => _AdminPageState();
+}
+
+class _AdminPageState extends State<AdminPage> {
+  FirestoreService get firestore => widget.firestore;
+  AuthService get auth => widget.auth;
+  ParentGateService get gateService => widget.gateService;
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _childrenStream;
+  String? _streamUid;
+  int _attempt = 0;
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _streamFor(String uid) {
+    if (_childrenStream == null || _streamUid != uid) {
+      _streamUid = uid;
+      _childrenStream = firestore.watchChildren(uid);
+    }
+    return _childrenStream!;
+  }
+
+  void _retry() => setState(() {
+        _childrenStream = null;
+        _attempt++;
+      });
+
+  Future<void> _push(Widget page) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => page),
+    );
+    // Linking an email keeps the uid, so only refresh.
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -38,13 +76,12 @@ class AdminPage extends StatelessWidget {
                 minHeight: 48,
               ),
               icon: const Icon(Icons.settings_rounded),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => ParentSettingsPage(
-                    gateService: gateService,
-                    auth: auth,
-                  ),
+              onPressed: () => _push(
+                ParentSettingsPage(
+                  gateService: gateService,
+                  auth: auth,
+                  store: widget.store,
+                  firestore: firestore,
                 ),
               ),
             ),
@@ -53,17 +90,13 @@ class AdminPage extends StatelessWidget {
               tooltip: 'Account',
               onSelected: (value) async {
                 if (value == 'change_password') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => ChangePasswordPage(auth: auth),
-                    ),
-                  );
+                  await _push(ChangePasswordPage(auth: auth));
                 } else if (value == 'sign_in_backup') {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => LoginPage(auth: auth),
+                  await _push(
+                    LoginPage(
+                      auth: auth,
+                      firestore: firestore,
+                      store: widget.store,
                     ),
                   );
                 } else if (value == 'sign_out') {
@@ -92,12 +125,24 @@ class AdminPage extends StatelessWidget {
                   if (shouldSignOut != true) return;
                   await auth.signOut();
                   if (context.mounted) {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    await restartToStartup(
+                      context,
+                      store: widget.store,
+                      auth: auth,
+                      firestore: firestore,
+                    );
                   }
                 } else if (value == 'privacy_policy') {
                   await openPrivacyPolicy(context);
                 } else if (value == 'delete_account') {
-                  await _deleteAccount(context, auth, gateService);
+                  await _deleteAccount(
+                    context,
+                    auth,
+                    gateService,
+                    store: widget.store,
+                    firestore: firestore,
+                  );
+                  if (mounted) setState(() {});
                 }
               },
               itemBuilder: (context) => [
@@ -135,20 +180,16 @@ class AdminPage extends StatelessWidget {
           children: [
             _AnonymousBackupBanner(auth: auth, gateService: gateService),
             Expanded(
-              child: StreamBuilder(
-                stream: firestore.watchChildren(parentUid),
-                builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Unable to load children: ${snapshot.error}',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              );
-            }
+              child: StreamBuilder<User?>(
+                stream: auth.authStateChanges,
+                builder: (context, authSnapshot) {
+                  final uid = auth.currentUser?.uid;
+                  if (uid == null) return _retryState();
+                  return StreamBuilder(
+                    key: ValueKey('$uid-$_attempt'),
+                    stream: _streamFor(uid),
+                    builder: (context, snapshot) {
+            if (snapshot.hasError) return _retryState();
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
@@ -198,15 +239,14 @@ class AdminPage extends StatelessWidget {
                         final data = doc.data();
                         if (data['age'] == null ||
                             data['activityStars'] == null) {
-                          firestore.backfillProfileFromProgress(
-                              parentUid, doc.id);
+                          firestore.backfillProfileFromProgress(uid, doc.id);
                         }
                         return BouncyTap(
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute<void>(
                               builder: (_) => ChildDetailPage(
-                                parentUid: parentUid,
+                                parentUid: uid,
                                 childId: doc.id,
                                 summary: data,
                                 firestore: firestore,
@@ -221,10 +261,30 @@ class AdminPage extends StatelessWidget {
                 );
               },
             );
+                    },
+                  );
                 },
               ),
             ),
           ],
+        ),
+      );
+
+  Widget _retryState() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Could not load children. Please try again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: _retry, child: const Text('Retry')),
+            ],
+          ),
         ),
       );
 }
@@ -284,8 +344,10 @@ class _AnonymousBackupBannerState extends State<_AnonymousBackupBanner> {
 Future<void> _deleteAccount(
   BuildContext context,
   AuthService auth,
-  ParentGateService gateService,
-) async {
+  ParentGateService gateService, {
+  ProgressStore? store,
+  FirestoreService? firestore,
+}) async {
   if (auth.hasEmailBackup) {
     final passwordController = TextEditingController();
     final password = await showDialog<String>(
@@ -355,7 +417,12 @@ Future<void> _deleteAccount(
   try {
     await auth.deleteAccountAndData();
     if (context.mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      await restartToStartup(
+        context,
+        store: store,
+        auth: auth,
+        firestore: firestore,
+      );
     }
   } on FirebaseAuthException catch (error) {
     if (context.mounted) {
@@ -394,7 +461,7 @@ class _ChildProgressCard extends StatelessWidget {
         Map<String, dynamic>.from(data['activityStars'] as Map? ?? {});
     final totalActivities = worldCatalogs.values.fold<int>(
       0,
-      (sum, catalog) => sum + catalog.activities.length,
+      (int total, catalog) => total + catalog.activities.length,
     );
     final completedActivities = worldCatalogs.values
         .expand((catalog) => catalog.activities)

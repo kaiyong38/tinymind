@@ -1,4 +1,14 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// A child read from an account, ready to be copied to another account.
+class TransferableChild {
+  const TransferableChild(this.id, this.data);
+
+  final String id;
+  final Map<String, dynamic> data;
+}
 
 class FirestoreService {
   FirestoreService({FirebaseFirestore? firestore})
@@ -158,7 +168,92 @@ class FirestoreService {
   Stream<QuerySnapshot<Map<String, dynamic>>> watchChildren(String parentUid) {
     return _children(parentUid)
         .orderBy('updatedAt', descending: true)
-        .snapshots();
+        .snapshots(includeMetadataChanges: false);
+  }
+
+  /// Writes the child's profile document with a plain (non-transaction) set so
+  /// it works offline: Firestore's local cache shows it in [watchChildren] at
+  /// once and the write is sent when the phone is back online. The returned
+  /// future never waits for the server.
+  Future<void> createChildProfile(
+    String parentUid,
+    String childId, {
+    required String name,
+    required String avatar,
+    required int age,
+  }) async {
+    final write = _children(parentUid).doc(childId).set(
+      {
+        'childId': childId,
+        'name': name,
+        'avatar': avatar,
+        'age': age,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+    unawaited(write.catchError((Object _) {}));
+  }
+
+  /// Reads every child (profile merged with its progress summary) so it can
+  /// be copied to another account. Values are JSON-safe.
+  Future<List<TransferableChild>> readChildrenForTransfer(
+    String parentUid,
+  ) async {
+    final children = await _children(parentUid).get();
+    final result = <TransferableChild>[];
+    for (final doc in children.docs) {
+      final profile = doc.data();
+      final summary = (await _progress(parentUid, doc.id).get()).data();
+      final base = <String, dynamic>{
+        for (final field in _profileProgressFields)
+          if (profile[field] != null) field: profile[field],
+        if (profile['name'] != null) 'childName': profile['name'],
+        if (profile['avatar'] != null) 'avatar': profile['avatar'],
+        if (profile['age'] != null) 'childAge': profile['age'],
+      };
+      result.add(
+        TransferableChild(
+          doc.id,
+          jsonSafeProgress(mergeProgressData(base, summary ?? const {})),
+        ),
+      );
+    }
+    return result;
+  }
+
+  static const _profileProgressFields = [
+    'points',
+    'streak',
+    'totalQuestions',
+    'correctAnswers',
+    'completedByModule',
+    'activityStars',
+    'dailyStats',
+    'completedQuestionIds',
+    'lastPlayed',
+  ];
+
+  /// Drops server-only bookkeeping fields and converts timestamps so the map
+  /// can be stored in the pending queue as JSON.
+  static Map<String, dynamic> jsonSafeProgress(Map<String, dynamic> data) {
+    Object? convert(Object? value) {
+      if (value is Timestamp) return value.toDate().toIso8601String();
+      if (value is DateTime) return value.toIso8601String();
+      if (value is Map) {
+        return {for (final e in value.entries) '${e.key}': convert(e.value)};
+      }
+      if (value is Iterable) return [for (final e in value) convert(e)];
+      return value;
+    }
+
+    return {
+      for (final entry in data.entries)
+        if (entry.key != 'updatedAt' &&
+            entry.key != 'childId' &&
+            entry.value != null)
+          entry.key: convert(entry.value),
+    };
   }
 
   Future<void> deleteChild(String parentUid, String childId) async {

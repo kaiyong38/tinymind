@@ -2,19 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../services/accessibility_settings.dart';
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import '../services/narration_service.dart';
 import '../services/parent_gate_service.dart';
+import '../services/progress_store.dart';
 import 'auth_pages.dart';
 
 class ParentSettingsPage extends StatelessWidget {
   const ParentSettingsPage({
     required this.gateService,
     this.auth,
+    this.store,
+    this.firestore,
     super.key,
   });
 
   final ParentGateService gateService;
   final AuthService? auth;
+  final ProgressStore? store;
+  final FirestoreService? firestore;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -22,7 +28,12 @@ class ParentSettingsPage extends StatelessWidget {
         body: ListView(
           padding: const EdgeInsets.symmetric(vertical: 12),
           children: [
-            if (auth != null) _EmailBackupSection(auth: auth!),
+            if (auth != null)
+              _EmailBackupSection(
+                auth: auth!,
+                store: store,
+                firestore: firestore,
+              ),
             const _VoiceStatusRow(),
             const _ColorFriendlyModeRow(),
             _GrownUpLockSection(service: gateService),
@@ -32,9 +43,11 @@ class ParentSettingsPage extends StatelessWidget {
 }
 
 class _EmailBackupSection extends StatefulWidget {
-  const _EmailBackupSection({required this.auth});
+  const _EmailBackupSection({required this.auth, this.store, this.firestore});
 
   final AuthService auth;
+  final ProgressStore? store;
+  final FirestoreService? firestore;
 
   @override
   State<_EmailBackupSection> createState() => _EmailBackupSectionState();
@@ -55,7 +68,11 @@ class _EmailBackupSectionState extends State<_EmailBackupSection> {
     await Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => LoginPage(auth: widget.auth),
+        builder: (_) => LoginPage(
+          auth: widget.auth,
+          firestore: widget.firestore,
+          store: widget.store,
+        ),
       ),
     );
   }

@@ -31,6 +31,8 @@ import 'package:tinymind/widgets/large_screen_scaler.dart';
 import 'package:tinymind/widgets/question_cue_card.dart';
 import 'package:tinymind/widgets/text_scale_limit.dart';
 
+import 'support/fake_firebase_auth.dart';
+
 final _theme = buildAppTheme();
 late AccessibilitySettings _accessibilitySettings;
 late void Function(FlutterErrorDetails details)? _previousFlutterErrorHandler;
@@ -371,9 +373,8 @@ void main() {
       }),
       _ScreenCase('AdminPage', [1, 1.3, 1.6], () {
         return AdminPage(
-          parentUid: 'parent-audit',
           firestore: firestore,
-          auth: auth,
+          auth: AuthService(auth: _SignedInFirebaseAuth()),
           gateService: gateService,
         );
       }),
@@ -812,9 +813,8 @@ void main() {
                     auth: auth,
                   )
                 : AdminPage(
-                    parentUid: 'parent-audit',
                     firestore: firestore,
-                    auth: auth,
+                    auth: AuthService(auth: _SignedInFirebaseAuth()),
                     gateService: gateService,
                   );
             await pumpScreen(tester, widget, size, scale);
@@ -1176,6 +1176,16 @@ class _ScreenCase {
   final String name;
   final List<double> scales;
   final Widget Function() build;
+}
+
+class _SignedInFirebaseAuth extends Fake implements FirebaseAuth {
+  final User _user = FakeFirebaseUser(uid: 'parent-audit', isAnonymous: false);
+
+  @override
+  User? get currentUser => _user;
+
+  @override
+  Stream<User?> authStateChanges() => Stream.value(_user);
 }
 
 class _UnusedFirebaseAuth extends Fake implements FirebaseAuth {

@@ -37,8 +37,8 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
-  android: true
-  ios: true
+  android: false
+  ios: false
   web:
-    generate: true
+    generate: false
   image_path: "assets/branding/tinymind_logo.png"

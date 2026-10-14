@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tinymind/pages/admin_page.dart';
 import 'package:tinymind/pages/auth_pages.dart';
 import 'package:tinymind/pages/parent_gate_pages.dart';
@@ -34,7 +38,6 @@ void main() {
 
     expect(firebaseAuth.anonymousSignInCalls, 1);
     expect(find.byType(ChildPickerPage), findsOneWidget);
-    expect(find.text('Who is playing?'), findsNothing);
     expect(tester.takeException(), isNull);
     await firebaseAuth.dispose();
   });
@@ -169,27 +172,162 @@ void main() {
     );
   });
 
-  testWidgets('backup sign-in warns when local child profiles exist',
+  group('backup sign-in with children on this phone', () {
+    late FakeFirebaseAuth firebaseAuth;
+    late _FakeFirestoreService firestore;
+    late ProgressStore store;
+
+    Future<void> pumpLogin(WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({
+        'tinymind_pending_progress::local-uid::child-local-pending': jsonEncode({
+          'childName': 'Mei',
+          'avatar': '🦊',
+          'childAge': 5,
+          'points': 99,
+        }),
+      });
+      firebaseAuth = FakeFirebaseAuth(
+        user: FakeFirebaseUser(uid: 'local-uid', isAnonymous: true),
+        backupUser: FakeFirebaseUser(
+          uid: 'backup-uid',
+          isAnonymous: false,
+          email: 'parent@example.com',
+          emailProvider: true,
+        ),
+      );
+      firestore = _FakeFirestoreService()
+        ..children['local-uid'] = {
+          'child-a': {'childName': 'Mei', 'avatar': '🐼', 'childAge': 4, 'points': 10},
+          'child-local-pending': {
+            'childName': 'Mei',
+            'avatar': '🦊',
+            'childAge': 5,
+            'points': 1,
+          },
+          'child-b': {'childName': 'Kai', 'avatar': '🐸', 'childAge': 6},
+        }
+        ..children['backup-uid'] = {
+          'existing': {'childName': 'Mei', 'avatar': '🦄', 'childAge': 3},
+        };
+      store = ProgressStore(
+        firestore: firestore,
+        currentUid: () => firebaseAuth.currentUser?.uid,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(
+            auth: AuthService(auth: firebaseAuth, firestore: firestore),
+            firestore: firestore,
+            store: store,
+          ),
+        ),
+      );
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(0), 'parent@example.com');
+      await tester.enterText(fields.at(1), 'backup-password');
+      await tester.tap(find.text('Log in'));
+      await tester.pumpAndSettle();
+      expect(find.text("Bring this phone's children into your account?"),
+          findsOneWidget);
+    }
+
+    testWidgets('Cancel stops the sign-in', (tester) async {
+      await pumpLogin(tester);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(firebaseAuth.signInCalls, 0);
+      expect(firebaseAuth.currentUser!.uid, 'local-uid');
+      expect(firestore.saved, isEmpty);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets("Don't bring them signs in without copying and restarts",
+        (tester) async {
+      await pumpLogin(tester);
+      await tester.tap(find.text("Don't bring them"));
+      await tester.pumpAndSettle();
+
+      expect(firebaseAuth.signInCalls, 1);
+      expect(firestore.saved, isEmpty);
+      expect(firestore.created, isEmpty);
+      expect(find.byType(LoginPage), findsNothing);
+      expect(find.byType(ChildPickerPage), findsOneWidget);
+      expect(find.text('Welcome back! Your children are ready.'),
+          findsOneWidget);
+      expect(find.text('Kai'), findsNothing);
+      expect(find.text('Mei'), findsOneWidget);
+      final picker =
+          tester.widget<ChildPickerPage>(find.byType(ChildPickerPage));
+      expect(picker.parentUid, 'backup-uid');
+      expect(firebaseAuth.anonymousSignInCalls, 0);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('Bring them queues new children, keeps duplicates, merges '
+        'pending progress and clears old keys', (tester) async {
+      await pumpLogin(tester);
+      await tester.tap(find.text('Bring them'));
+      await tester.pumpAndSettle();
+
+      expect(firebaseAuth.signInCalls, 1);
+      expect(find.byType(ChildPickerPage), findsOneWidget);
+      expect(find.text('Welcome back! Your children are ready.'),
+          findsOneWidget);
+
+      final newDocs = firestore.saved['backup-uid']!;
+      expect(newDocs.length, 3);
+      final prefix = RegExp(r'^child-backup-uid-\d+-\d+$');
+      for (final id in newDocs.keys) {
+        expect(prefix.hasMatch(id), isTrue, reason: id);
+        expect(id, isNot(anyOf('child-a', 'child-b', 'existing')));
+      }
+      final names = newDocs.values.map((d) => d['childName']).toList()..sort();
+      expect(names, ['Kai', 'Mei', 'Mei']);
+      // Pending anonymous progress was merged over the cloud copy.
+      final pendingMei =
+          newDocs.values.firstWhere((d) => d['avatar'] == '🦊');
+      expect(pendingMei['points'], 99);
+      // The account's own child is untouched and nothing is left queued.
+      expect(firestore.saved['backup-uid']!.containsKey('existing'), isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getKeys().where((k) => k.startsWith('tinymind_pending_progress')),
+        isEmpty,
+      );
+      expect(firestore.saved.containsKey('local-uid'), isFalse);
+      await firebaseAuth.dispose();
+    });
+  });
+
+  testWidgets('sign-in to an existing backup shows the account children',
       (tester) async {
-    final anonymous =
-        FakeFirebaseUser(uid: 'local-uid', isAnonymous: true);
-    final existingBackup = FakeFirebaseUser(
-      uid: 'backup-uid',
-      isAnonymous: false,
-      email: 'parent@example.com',
-      emailProvider: true,
-    );
+    SharedPreferences.setMockInitialValues({});
     final firebaseAuth = FakeFirebaseAuth(
-      user: anonymous,
-      backupUser: existingBackup,
+      user: FakeFirebaseUser(uid: 'local-uid', isAnonymous: true),
+      backupUser: FakeFirebaseUser(
+        uid: 'backup-uid',
+        isAnonymous: false,
+        email: 'parent@example.com',
+        emailProvider: true,
+      ),
     );
-    final firestore = _FakeFirestoreService(childCount: 1);
+    final firestore = _FakeFirestoreService()
+      ..children['local-uid'] = {
+        'x': {'childName': 'OldChild', 'avatar': '🐼', 'childAge': 4},
+      }
+      ..children['backup-uid'] = {
+        'y': {'childName': 'AccountChild', 'avatar': '🦄', 'childAge': 4},
+      };
+    final store = ProgressStore(
+      firestore: firestore,
+      currentUid: () => firebaseAuth.currentUser?.uid,
+    );
+    store.configureChild(parentUid: 'local-uid', childId: 'x');
+    final auth = AuthService(auth: firebaseAuth, firestore: firestore);
     await tester.pumpWidget(
       MaterialApp(
-        home: LoginPage(
-          auth: AuthService(auth: firebaseAuth, firestore: firestore),
-          firestore: firestore,
-        ),
+        home: LoginPage(auth: auth, firestore: firestore, store: store),
       ),
     );
     final fields = find.byType(TextField);
@@ -197,20 +335,112 @@ void main() {
     await tester.enterText(fields.at(1), 'backup-password');
     await tester.tap(find.text('Log in'));
     await tester.pumpAndSettle();
-
-    expect(
-      find.text(
-        'Children on this device will not be shown after signing in. '
-        'They are not deleted.',
-      ),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('Continue'));
+    await tester.tap(find.text("Don't bring them"));
     await tester.pumpAndSettle();
 
-    expect(firebaseAuth.signInCalls, 1);
-    expect(firestore.deleteParentDataCalls, 0);
-    expect(firebaseAuth.currentUser!.uid, 'backup-uid');
+    expect(find.byType(StartupGatePage), findsOneWidget);
+    expect(find.text('AccountChild'), findsOneWidget);
+    expect(find.text('OldChild'), findsNothing);
+    expect(store.parentUid, isNull);
+    expect(store.childId, isNull);
+    await firebaseAuth.dispose();
+  });
+
+  testWidgets('clearSelection resets the store without touching other data',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'tinymind_progress': '{}'});
+    final store = ProgressStore(firestore: _FakeFirestoreService());
+    store.configureChild(parentUid: 'p', childId: 'c');
+    await store.setChildProfile(name: 'Mei', avatar: '🐼', age: 4);
+    expect(store.progress.childName, 'Mei');
+    await store.clearSelection();
+    expect(store.parentUid, isNull);
+    expect(store.childId, isNull);
+    expect(store.progress.childName, isNot('Mei'));
+  });
+
+  testWidgets('dashboard never shows raw Firestore errors', (tester) async {
+    final auth = AuthService(
+      auth: FakeFirebaseAuth(
+        user: FakeFirebaseUser(uid: 'parent', isAnonymous: false),
+      ),
+    );
+    final firestore = _FakeFirestoreService()..watchError = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdminPage(
+          auth: auth,
+          firestore: firestore,
+          gateService: ParentGateService(storage: _FakeGateStorage()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Could not load children. Please try again.'),
+        findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.textContaining('permission-denied'), findsNothing);
+    expect(find.textContaining('cloud_firestore'), findsNothing);
+  });
+
+  testWidgets('dashboard shows the retry state without a signed-in user',
+      (tester) async {
+    final auth = AuthService(auth: FakeFirebaseAuth());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdminPage(
+          auth: auth,
+          firestore: _FakeFirestoreService(),
+          gateService: ParentGateService(storage: _FakeGateStorage()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Could not load children. Please try again.'),
+        findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('a child created offline appears without waiting for the server',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final firebaseAuth = FakeFirebaseAuth(
+      user: FakeFirebaseUser(uid: 'anon', isAnonymous: true),
+    );
+    final firestore = _FakeFirestoreService()..offline = true;
+    final store = ProgressStore(
+      firestore: firestore,
+      currentUid: () => firebaseAuth.currentUser?.uid,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChildPickerPage(
+          store: store,
+          parentUid: 'anon',
+          auth: AuthService(auth: firebaseAuth, firestore: firestore),
+          firestore: firestore,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Luna');
+    await tester.ensureVisible(find.text('Start learning'));
+    await tester.tap(find.text('Start learning'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // The progress transaction never completes offline, but the profile was
+    // written by the plain set and the picker already shows it.
+    expect(firestore.created.length, 1);
+    expect(find.text('Luna'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.text('Luna'), findsOneWidget);
     await firebaseAuth.dispose();
   });
 
@@ -248,7 +478,6 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AdminPage(
-          parentUid: 'anon',
           auth: auth,
           firestore: _FakeFirestoreService(),
           gateService: ParentGateService(storage: _FakeGateStorage()),
@@ -321,10 +550,18 @@ void main() {
     await tester.tap(find.text('Sign out').last);
     await _pumpAnimations(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Sign out'));
-    await _pumpAnimations(tester);
+    await tester.pumpAndSettle();
 
-    expect(firebaseAuth.currentUser, isNull);
     expect(firebaseAuth.signOutCalls, 1);
+    // The app restarts at a fresh startup gate, which signs in anonymously
+    // and shows a picker for the NEW uid; the admin page is gone.
+    expect(find.byType(AdminPage), findsNothing);
+    expect(find.byType(ChildPickerPage), findsOneWidget);
+    expect(firebaseAuth.anonymousSignInCalls, 1);
+    expect(firebaseAuth.currentUser!.isAnonymous, isTrue);
+    expect(firebaseAuth.currentUser!.uid, isNot('linked'));
+    final picker = tester.widget<ChildPickerPage>(find.byType(ChildPickerPage));
+    expect(picker.parentUid, firebaseAuth.currentUser!.uid);
     await firebaseAuth.dispose();
   });
 
@@ -394,7 +631,6 @@ void main() {
 
 Widget _adminApp(AuthService auth) => MaterialApp(
       home: AdminPage(
-        parentUid: 'parent',
         auth: auth,
         firestore: _FakeFirestoreService(),
         gateService: ParentGateService(storage: _FakeGateStorage()),
@@ -416,23 +652,112 @@ class _FailingGateService extends ParentGateService {
 }
 
 class _FakeFirestoreService extends FirestoreService {
-  _FakeFirestoreService({this.childCount = 0})
-      : super(firestore: _UnusedFirestore());
+  _FakeFirestoreService() : super(firestore: _UnusedFirestore());
 
-  final int childCount;
+  // uid -> childId -> data using progress-map keys (childName, avatar, ...).
+  final Map<String, Map<String, Map<String, dynamic>>> children = {};
+  final Map<String, Map<String, Map<String, dynamic>>> saved = {};
+  final List<String> created = [];
+  final _changes = StreamController<void>.broadcast(sync: true);
   int deleteParentDataCalls = 0;
+  bool watchError = false;
+  bool offline = false;
 
   @override
-  Stream<QuerySnapshot<Map<String, dynamic>>> watchChildren(String parentUid) =>
-      const Stream<QuerySnapshot<Map<String, dynamic>>>.empty();
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchChildren(String parentUid) {
+    if (watchError) {
+      return Stream.error(StateError('[cloud_firestore/permission-denied] x'));
+    }
+    return Stream.multi((controller) {
+      QuerySnapshot<Map<String, dynamic>> snapshot() => _FakeChildrenSnapshot([
+            for (final entry in (children[parentUid] ?? {}).entries)
+              _FakeChildDoc(entry.key, {
+                'name': entry.value['childName'] ?? entry.value['name'],
+                'avatar': entry.value['avatar'],
+                'age': entry.value['childAge'] ?? entry.value['age'],
+              }),
+          ]);
+      controller.add(snapshot());
+      final sub = _changes.stream.listen((_) => controller.add(snapshot()));
+      controller.onCancel = sub.cancel;
+    });
+  }
 
   @override
-  Future<int> countChildren(String parentUid) async => childCount;
+  Stream<DocumentSnapshot<Map<String, dynamic>>> watchProgress(
+          String parentUid, String childId) =>
+      const Stream.empty();
+
+  @override
+  Future<Map<String, dynamic>?> loadProgress(
+          String parentUid, String childId) async =>
+      null;
+
+  @override
+  Future<int> countChildren(String parentUid) async =>
+      children[parentUid]?.length ?? 0;
+
+  @override
+  Future<List<TransferableChild>> readChildrenForTransfer(
+          String parentUid) async =>
+      [
+        for (final entry in (children[parentUid] ?? {}).entries)
+          TransferableChild(entry.key, Map<String, dynamic>.from(entry.value)),
+      ];
+
+  @override
+  Future<void> createChildProfile(
+    String parentUid,
+    String childId, {
+    required String name,
+    required String avatar,
+    required int age,
+  }) async {
+    created.add(childId);
+    (children[parentUid] ??= {})[childId] = {
+      'childName': name,
+      'avatar': avatar,
+      'childAge': age,
+    };
+    _changes.add(null);
+  }
+
+  @override
+  Future<void> saveProgress(
+    String parentUid,
+    String childId,
+    Map<String, dynamic> data,
+  ) async {
+    // Offline transactions never complete.
+    if (offline) return Completer<void>().future;
+    (saved[parentUid] ??= {})[childId] = data;
+  }
 
   @override
   Future<void> deleteParentData(String parentUid) async {
     deleteParentDataCalls++;
   }
+}
+
+// ignore: subtype_of_sealed_class
+class _FakeChildDoc extends Fake
+    implements QueryDocumentSnapshot<Map<String, dynamic>> {
+  _FakeChildDoc(this.id, this._data);
+
+  @override
+  final String id;
+  final Map<String, dynamic> _data;
+
+  @override
+  Map<String, dynamic> data() => _data;
+}
+
+class _FakeChildrenSnapshot extends Fake
+    implements QuerySnapshot<Map<String, dynamic>> {
+  _FakeChildrenSnapshot(this.docs);
+
+  @override
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
 }
 
 class _UnusedFirestore extends Fake implements FirebaseFirestore {}

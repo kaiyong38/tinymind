@@ -15,10 +15,14 @@ class ProgressStore extends ChangeNotifier {
   static const _storageKey = 'tinymind_progress';
   static const _childIdKey = 'tinymind_child_id';
   UserProgress progress = UserProgress();
-  ProgressStore({FirestoreService? firestore})
-      : _firestore = firestore;
+  ProgressStore({
+    FirestoreService? firestore,
+    String? Function()? currentUid,
+  })  : _firestore = firestore,
+        _currentUid = currentUid;
 
   FirestoreService? _firestore;
+  final String? Function()? _currentUid;
   String? _parentUid;
   String? _childId;
   StreamSubscription? _progressSubscription;
@@ -45,6 +49,77 @@ class ProgressStore extends ChangeNotifier {
   }) {
     _parentUid = parentUid;
     _childId = childId;
+  }
+
+  /// Forgets the selected child (used when the account changes) without
+  /// touching any cached or queued data.
+  Future<void> clearSelection() async {
+    final subscription = _progressSubscription;
+    _progressSubscription = null;
+    _parentUid = null;
+    _childId = null;
+    progress = UserProgress();
+    notifyListeners();
+    await subscription?.cancel();
+  }
+
+  Future<void> queuePendingProgress(
+    String parentUid,
+    String childId,
+    Map<String, dynamic> data,
+  ) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(
+      _pendingKeyFor(parentUid, childId),
+      jsonEncode(data),
+    );
+  }
+
+  /// Queued (not yet synced) progress for [parentUid], keyed by child id.
+  Future<Map<String, Map<String, dynamic>>> readPendingProgress(
+    String parentUid,
+  ) async {
+    final preferences = await SharedPreferences.getInstance();
+    final prefix = '$_pendingPrefix$parentUid::';
+    final result = <String, Map<String, dynamic>>{};
+    for (final key in preferences.getKeys().where(
+          (key) => key.startsWith(prefix),
+        )) {
+      final raw = preferences.getString(key);
+      if (raw == null) continue;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          result[key.substring(prefix.length)] = decoded;
+        }
+      } on FormatException {
+        continue;
+      }
+    }
+    return result;
+  }
+
+  Future<void> removePendingProgress(String parentUid) async {
+    final preferences = await SharedPreferences.getInstance();
+    final prefix = '$_pendingPrefix$parentUid::';
+    for (final key in preferences
+        .getKeys()
+        .where((key) => key.startsWith(prefix))
+        .toList()) {
+      await preferences.remove(key);
+    }
+  }
+
+  /// Runs the queued-progress sync now; anything that fails stays queued and
+  /// is retried by the periodic timer.
+  Future<void> syncPendingNow() async {
+    await _syncPending();
+    final preferences = await SharedPreferences.getInstance();
+    if (preferences.getKeys().any((key) => key.startsWith(_pendingPrefix))) {
+      _syncTimer ??= Timer.periodic(const Duration(seconds: 10), (_) {
+        _syncPending();
+      });
+    }
   }
 
   Future<void> clearCachedChildIfMatches(String childId) async {
@@ -199,19 +274,28 @@ class ProgressStore extends ChangeNotifier {
     notifyListeners();
     final preferences = await SharedPreferences.getInstance();
     await _saveCache(preferences);
-    if (_parentUid != null && _childId != null) {
+    final parentUid = _parentUid;
+    final childId = _childId;
+    if (parentUid != null && childId != null) {
+      final data = progress.toJson();
       try {
         _firestore ??= FirestoreService();
-        await _firestore!.saveProgress(
-          _parentUid!,
-          _childId!,
-          progress.toJson(),
-        );
-        await preferences.remove(_pendingKey);
+        await _firestore!.saveProgress(parentUid, childId, data);
+        await preferences.remove(_pendingKeyFor(parentUid, childId));
       } on FirebaseException {
-        await _queueCloudSync(preferences);
+        await preferences.setString(
+          _pendingKeyFor(parentUid, childId),
+          jsonEncode(data),
+        );
+        _startSyncTimer();
       }
     }
+  }
+
+  void _startSyncTimer() {
+    _syncTimer ??= Timer.periodic(const Duration(seconds: 10), (_) {
+      _syncPending();
+    });
   }
 
   String get _pendingKey => _pendingKeyFor(_parentUid!, _childId!);
@@ -239,7 +323,10 @@ class ProgressStore extends ChangeNotifier {
       _syncTimer = null;
       return;
     }
-    final signedInUid = FirebaseAuth.instance.currentUser?.uid;
+    final uidProvider = _currentUid;
+    final signedInUid = uidProvider != null
+        ? uidProvider()
+        : FirebaseAuth.instance.currentUser?.uid;
     if (signedInUid == null) return;
     final hasCurrentAccountWrites = keys.any((key) {
       final values = key.substring(_pendingPrefix.length).split('::');

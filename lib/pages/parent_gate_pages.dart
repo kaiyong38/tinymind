@@ -15,6 +15,8 @@ Future<void> openParentArea(
   BuildContext context, {
   AuthService? auth,
   ParentGateService? gateService,
+  ProgressStore? store,
+  FirestoreService? firestore,
 }) async {
   try {
     final authService = auth ?? AuthService();
@@ -35,9 +37,10 @@ Future<void> openParentArea(
       context,
       MaterialPageRoute<void>(
         builder: (_) => AdminPage(
-          parentUid: user.uid,
           auth: authService,
           gateService: gate,
+          store: store,
+          firestore: firestore,
         ),
       ),
     );
@@ -94,8 +97,11 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
     await Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (_) =>
-            ChildProfilePage(store: widget.store, auth: widget.auth),
+        builder: (_) => ChildProfilePage(
+          store: widget.store,
+          auth: widget.auth,
+          firestore: widget.firestore,
+        ),
       ),
     );
   }
@@ -244,8 +250,12 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                             ),
                           ),
                           TextButton.icon(
-                            onPressed: () =>
-                                openParentArea(context, auth: widget.auth),
+                            onPressed: () => openParentArea(
+                              context,
+                              auth: widget.auth,
+                              store: widget.store,
+                              firestore: widget.firestore,
+                            ),
                             icon: const Icon(Icons.family_restroom_rounded,
                                 size: 18, color: Colors.black45),
                             label: const Text('For parents',
