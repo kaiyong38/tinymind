@@ -21,8 +21,8 @@ services and currently targets Android only.
   keeps its identifier; without a backup, data is lost if the app is
   uninstalled or the device is changed.
 - Privacy information and controls for deleting an account.
-- Music and voice volume controls are available in the menu. Music can be
-  muted; voice volume has a minimum of 30%.
+- Music volume is adjusted in the menu (and music can be muted). Voice volume
+  is not adjustable; narration always plays at full volume.
 
 ## Large screens
 

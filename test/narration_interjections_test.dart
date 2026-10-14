@@ -181,27 +181,15 @@ void main() {
 
 class _FakeNarrationService implements NarrationService {
   final calls = <({String text, String? spokenText})>[];
-  final _voiceVolume = ValueNotifier<double>(1.0);
 
   @override
   bool get voiceAvailable => true;
 
   @override
-  double get voiceVolume => _voiceVolume.value;
-
-  @override
-  ValueNotifier<double> get voiceVolumeNotifier => _voiceVolume;
+  double get voiceVolume => 1.0;
 
   @override
   Future<void> init() async {}
-
-  @override
-  Future<void> setVoiceVolume(double volume) async {
-    _voiceVolume.value = volume.clamp(0.3, 1.0).toDouble();
-  }
-
-  @override
-  Future<void> saveVoiceVolume() async {}
 
   @override
   Future<void> speak(String text, {String? spokenText}) async {

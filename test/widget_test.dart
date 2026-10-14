@@ -54,7 +54,7 @@ void main() {
     expect(find.bySemanticsLabel('Unmute music'), findsNothing);
   });
 
-  testWidgets('menu contains Music and Voice volume sliders', (tester) async {
+  testWidgets('menu contains only the Music volume slider', (tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view
       ..physicalSize = const Size(568, 320)
@@ -75,12 +75,11 @@ void main() {
     await tester.tap(find.byTooltip('Menu'));
     await _pumpRoute(tester);
 
-    expect(find.bySemanticsLabel('Voice volume'), findsOneWidget);
+    expect(find.bySemanticsLabel('Music volume'), findsOneWidget);
+    expect(find.bySemanticsLabel('Voice volume'), findsNothing);
     expect(find.byTooltip('Mute music'), findsOneWidget);
     final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
-    expect(sliders, hasLength(2));
-    expect(sliders[1].min, 0.3);
-    expect(sliders[1].max, 1);
+    expect(sliders, hasLength(1));
     expect(tester.takeException(), isNull);
   });
 
@@ -96,18 +95,18 @@ void main() {
 
     await tester.tap(find.byKey(const Key('home-menu-handle')));
     await _pumpRoute(tester);
-    expect(find.bySemanticsLabel('Voice volume'), findsNothing);
+    expect(find.bySemanticsLabel('Music volume'), findsNothing);
     expect(find.text('Learning worlds'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Menu'));
     await _pumpRoute(tester);
     await tester.tapAt(const Offset(2, 2));
     await _pumpRoute(tester);
-    expect(find.bySemanticsLabel('Voice volume'), findsNothing);
+    expect(find.bySemanticsLabel('Music volume'), findsNothing);
     expect(find.text('Learning worlds'), findsOneWidget);
   });
 
-  testWidgets('Stars closes the menu and Music and Voice sliders stay open',
+  testWidgets('Stars closes the menu and the Music slider stays open',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
@@ -124,7 +123,7 @@ void main() {
     await tester.ensureVisible(find.text('Stars'));
     await tester.tap(find.text('Stars'));
     await _pumpRoute(tester);
-    expect(find.bySemanticsLabel('Voice volume'), findsNothing);
+    expect(find.bySemanticsLabel('Music volume'), findsNothing);
 
     await tester.tap(find.byTooltip('Menu'));
     await _pumpRoute(tester);
@@ -139,16 +138,9 @@ void main() {
     ttsCalls.clear();
     await tester.ensureVisible(find.byType(Slider).first);
     await tester.drag(find.byType(Slider).first, const Offset(36, 0));
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.bySemanticsLabel('Voice volume'), findsOneWidget);
-    await tester.ensureVisible(find.byType(Slider).last);
-    await tester.drag(find.byType(Slider).last, const Offset(-36, 0));
     await _pumpRoute(tester);
-    expect(find.bySemanticsLabel('Voice volume'), findsOneWidget);
-    expect(
-      ttsCalls.where((call) => call.method == 'speak').last.arguments,
-      'Hello, friend!',
-    );
+    expect(find.bySemanticsLabel('Music volume'), findsOneWidget);
+    expect(ttsCalls.where((call) => call.method == 'speak'), isEmpty);
   });
 
   testWidgets('scaled menu dismisses from the lower-right dark area',
@@ -170,7 +162,7 @@ void main() {
     await tester.tapAt(const Offset(1275, 795));
     await _pumpRoute(tester);
 
-    expect(find.bySemanticsLabel('Voice volume'), findsNothing);
+    expect(find.bySemanticsLabel('Music volume'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -209,16 +201,13 @@ void main() {
       await _pumpRoute(tester);
 
       expect(
-        find.bySemanticsLabel('Voice volume'),
-        findsOneWidget,
-        reason: '$size',
+        find.bySemanticsLabel('Music volume'), findsOneWidget, reason: '$size',
       );
       expect(tester.takeException(), isNull, reason: '$size');
       await tester.tapAt(Offset(size.width - 2, size.height - 2));
       await _pumpRoute(tester);
       expect(
-        find.bySemanticsLabel('Voice volume'),
-        findsNothing,
+        find.bySemanticsLabel('Music volume'), findsNothing,
         reason: '$size',
       );
     }

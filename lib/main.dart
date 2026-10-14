@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -245,7 +246,6 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
   }
 
   Future<void> _openMenu() async {
-    final narration = NarrationService.instance;
     final selected = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -254,15 +254,9 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
       builder: (context) => _HomeMenuSheet(
         currentIndex: _tabIndex,
         musicSettings: _music.settingsNotifier,
-        voiceVolume: narration.voiceVolumeNotifier,
         onToggleMusic: _toggleMusic,
         onVolumeChanged: (value) => _music.setVolume(value),
         onVolumeChangeEnd: (_) => _music.saveSettings(),
-        onVoiceVolumeChanged: (value) => narration.setVoiceVolume(value),
-        onVoiceVolumeChangeEnd: (_) async {
-          await narration.saveVoiceVolume();
-          await narration.speak('Hello, friend!');
-        },
       ),
     );
     if (selected != null) setState(() => _tabIndex = selected);
@@ -274,34 +268,32 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell> {
       body: TextScaleLimit(
         maxScale: 1.3,
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 52,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: _MenuButton(onTap: _openMenu),
+          child: Stack(
+            children: [
+              IndexedStack(
+                index: _tabIndex,
+                children: [
+                  HomePage(
+                    store: widget.store,
+                    onModuleTap: _openLibrary,
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: IndexedStack(
-                    index: _tabIndex,
-                    children: [
-                      HomePage(
-                        store: widget.store,
-                        onModuleTap: _openLibrary,
-                      ),
-                      ProgressPage(store: widget.store),
-                      ParentPage(store: widget.store),
-                    ],
+                  // Other tabs keep clear of the floating menu button.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(78, 0, 12, 0),
+                    child: ProgressPage(store: widget.store),
                   ),
-                ),
-              ],
-            ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(78, 0, 12, 0),
+                    child: ParentPage(store: widget.store),
+                  ),
+                ],
+              ),
+              Positioned(
+                left: 12,
+                top: 4,
+                child: _MenuButton(onTap: _openMenu),
+              ),
+            ],
           ),
         ),
       ),
@@ -347,22 +339,16 @@ class _HomeMenuSheet extends StatelessWidget {
   const _HomeMenuSheet({
     required this.currentIndex,
     required this.musicSettings,
-    required this.voiceVolume,
     required this.onToggleMusic,
     required this.onVolumeChanged,
     required this.onVolumeChangeEnd,
-    required this.onVoiceVolumeChanged,
-    required this.onVoiceVolumeChangeEnd,
   });
 
   final int currentIndex;
   final ValueListenable<MusicSettings> musicSettings;
-  final ValueListenable<double> voiceVolume;
   final VoidCallback onToggleMusic;
   final ValueChanged<double> onVolumeChanged;
   final ValueChanged<double> onVolumeChangeEnd;
-  final ValueChanged<double> onVoiceVolumeChanged;
-  final ValueChanged<double> onVoiceVolumeChangeEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -453,15 +439,6 @@ class _HomeMenuSheet extends StatelessWidget {
                           onVolumeChangeEnd: onVolumeChangeEnd,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      ValueListenableBuilder<double>(
-                        valueListenable: voiceVolume,
-                        builder: (context, volume, _) => _VoiceVolumeRow(
-                          volume: volume,
-                          onVolumeChanged: onVoiceVolumeChanged,
-                          onVolumeChangeEnd: onVoiceVolumeChangeEnd,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -472,59 +449,6 @@ class _HomeMenuSheet extends StatelessWidget {
       ),
     );
   }
-}
-
-class _VoiceVolumeRow extends StatelessWidget {
-  const _VoiceVolumeRow({
-    required this.volume,
-    required this.onVolumeChanged,
-    required this.onVolumeChangeEnd,
-  });
-
-  final double volume;
-  final ValueChanged<double> onVolumeChanged;
-  final ValueChanged<double> onVolumeChangeEnd;
-
-  @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          const SizedBox(
-            width: 60,
-            child: Text(
-              'Voice',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-            ),
-          ),
-          const SizedBox(
-            width: 48,
-            height: 48,
-            child: Icon(Icons.record_voice_over_rounded, size: 28),
-          ),
-          Expanded(
-            child: Semantics(
-              label: 'Voice volume',
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 12,
-                    disabledThumbRadius: 12,
-                  ),
-                  overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 24),
-                  trackHeight: 6,
-                ),
-                child: Slider(
-                  value: volume,
-                  min: 0.3,
-                  max: 1,
-                  onChanged: onVolumeChanged,
-                  onChangeEnd: onVolumeChangeEnd,
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
 }
 
 class _MusicVolumeRow extends StatelessWidget {
@@ -658,30 +582,25 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = store.progress;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Learning worlds',
-                  textAlign: TextAlign.left,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 0),
-          Expanded(
-            child: _WorldCarousel(
-              progress: progress,
-              onModuleTap: (module) => onModuleTap(context, module),
+    return Column(
+      children: [
+        SizedBox(
+          height: 52,
+          child: Center(
+            child: Text(
+              'Learning worlds',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
             ),
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: _WorldCarousel(
+            progress: progress,
+            onModuleTap: (module) => onModuleTap(context, module),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -988,6 +907,15 @@ class _ActivityTile extends StatelessWidget {
 /// One learning world at a time, swiped between — rather than a grid of
 /// four competing for attention, closer to the "one big friendly tile"
 /// feel of Khan Academy Kids' home screen.
+///
+/// [_phoneWorldViewport] / [_tabletWorldViewport] is the share of the screen
+/// width taken by one page; the neighbours are cut off by the screen edges.
+const double _phoneWorldViewport = 0.62;
+const double _tabletWorldViewport = 0.5;
+const double _tabletMinWidth = 900;
+const double _sideCardScale = 0.82;
+const double _sideCardOpacity = 0.65;
+
 class _WorldCarousel extends StatefulWidget {
   const _WorldCarousel({required this.progress, required this.onModuleTap});
 
@@ -1000,7 +928,9 @@ class _WorldCarousel extends StatefulWidget {
 
 class _WorldCarouselState extends State<_WorldCarousel>
     with SingleTickerProviderStateMixin {
-  final _controller = PageController(viewportFraction: 0.75);
+  PageController _controller =
+      PageController(viewportFraction: _phoneWorldViewport);
+  double _fraction = _phoneWorldViewport;
   late final AnimationController _mascotController;
   late final Animation<double> _mascotFloat;
   int _page = 0;
@@ -1026,11 +956,26 @@ class _WorldCarouselState extends State<_WorldCarousel>
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final fraction =
+        width >= _tabletMinWidth ? _tabletWorldViewport : _phoneWorldViewport;
+    if (fraction != _fraction) {
+      final old = _controller;
+      _fraction = fraction;
+      _controller = PageController(
+        viewportFraction: fraction,
+        initialPage: _page,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    }
     return Column(
       children: [
         Expanded(
           child: PageView.builder(
+            key: ValueKey(_fraction),
             controller: _controller,
+            pageSnapping: true,
+            clipBehavior: Clip.hardEdge,
             itemCount: learningModules.length,
             onPageChanged: (index) => setState(() => _page = index),
             itemBuilder: (context, index) {
@@ -1038,23 +983,29 @@ class _WorldCarouselState extends State<_WorldCarousel>
               return AnimatedBuilder(
                 animation: _controller,
                 builder: (context, child) {
-                  var scale = 1.0;
+                  var distance = (_page - index).abs().toDouble();
                   if (_controller.position.haveDimensions) {
-                    scale = (1 -
-                            ((_controller.page ?? _page.toDouble()) - index)
-                                    .abs() *
-                                0.14)
-                        .clamp(0.86, 1.0);
+                    distance =
+                        ((_controller.page ?? _page.toDouble()) - index).abs();
                   }
-                  return Transform.scale(scale: scale, child: child);
+                  distance = distance.clamp(0.0, 1.0);
+                  final scale = 1 - (1 - _sideCardScale) * distance;
+                  final opacity = 1 - (1 - _sideCardOpacity) * distance;
+                  return Opacity(
+                    opacity: opacity,
+                    child: Transform.scale(scale: scale, child: child),
+                  );
                 },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _LearningWorldCard(
-                    module: module,
-                    progress: widget.progress,
-                    mascotFloat: _mascotFloat,
-                    onTap: () => widget.onModuleTap(module),
+                child: IgnorePointer(
+                  ignoring: index != _page,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: _LearningWorldCard(
+                      module: module,
+                      progress: widget.progress,
+                      mascotFloat: _mascotFloat,
+                      onTap: () => widget.onModuleTap(module),
+                    ),
                   ),
                 ),
               );
@@ -2428,6 +2379,11 @@ class ResultPage extends StatelessWidget {
                       ),
                     ],
                   );
+                  final buttonHeight = math.max(48.0, metrics.size(46));
+                  Widget oneLine(String label) => FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(label, maxLines: 1, softWrap: false),
+                      );
                   final buttons = Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2442,19 +2398,19 @@ class ResultPage extends StatelessWidget {
                         ),
                         style: FilledButton.styleFrom(
                           backgroundColor: world.color,
-                          minimumSize: Size.fromHeight(metrics.size(46)),
+                          minimumSize: Size.fromHeight(buttonHeight),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text('Play again'),
+                        child: oneLine('Play again'),
                       ),
                       SizedBox(height: metrics.size(8)),
                       OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          minimumSize: Size.fromHeight(metrics.size(46)),
+                          minimumSize: Size.fromHeight(buttonHeight),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text('Back to library'),
+                        child: oneLine('Back to library'),
                       ),
                       if (nextActivity != null) ...[
                         SizedBox(height: metrics.size(8)),
@@ -2469,10 +2425,10 @@ class ResultPage extends StatelessWidget {
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            minimumSize: Size.fromHeight(metrics.size(46)),
+                            minimumSize: Size.fromHeight(buttonHeight),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: const Text('Next'),
+                          child: oneLine('Next'),
                         ),
                       ],
                       if (!hasSuggestion) ...[

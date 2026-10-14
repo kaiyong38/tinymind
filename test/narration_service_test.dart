@@ -42,29 +42,14 @@ void main() {
     expect(narration.voiceVolume, 1.0);
   });
 
-  test('voice volume is clamped and persisted across initialization', () async {
+  test('voice volume is fixed at 1.0 and ignores old stored values', () async {
+    SharedPreferences.setMockInitialValues({'tinymind_voice_volume': 0.5});
     final narration = NarrationService();
     await narration.init();
-    await narration.setVoiceVolume(0.1);
-    expect(narration.voiceVolume, 0.3);
-
-    await narration.setVoiceVolume(0.5);
-    await narration.saveVoiceVolume();
-
-    final restored = NarrationService();
-    await restored.init();
-    expect(restored.voiceVolume, 0.5);
-  });
-
-  test('setVoiceVolume updates the TTS volume', () async {
-    final narration = NarrationService();
-    await narration.init();
-    calls.clear();
-
-    await narration.setVoiceVolume(0.5);
+    expect(narration.voiceVolume, 1.0);
 
     final volumeCalls = calls.where((call) => call.method == 'setVolume');
-    expect(volumeCalls, hasLength(1));
-    expect(volumeCalls.single.arguments, 0.5);
+    expect(volumeCalls, isNotEmpty);
+    expect(volumeCalls.every((call) => call.arguments == 1.0), isTrue);
   });
 }
