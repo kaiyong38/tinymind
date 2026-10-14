@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -9,6 +10,7 @@ import '../theme/adaptive_metrics.dart';
 import '../widgets/emoji_glyph.dart';
 import 'admin_page.dart';
 import 'auth_pages.dart';
+import 'edit_child_page.dart';
 
 /// The single gate every "go to parent stuff" entry point must pass through.
 Future<void> openParentArea(
@@ -65,14 +67,17 @@ class ChildPickerPage extends StatefulWidget {
     required this.parentUid,
     FirestoreService? firestore,
     AuthService? auth,
+    ParentGateService? gateService,
     super.key,
   })  : firestore = firestore ?? FirestoreService(),
-        auth = auth ?? AuthService();
+        auth = auth ?? AuthService(),
+        gateService = gateService ?? ParentGateService.instance;
 
   final ProgressStore store;
   final String parentUid;
   final FirestoreService firestore;
   final AuthService auth;
+  final ParentGateService gateService;
 
   @override
   State<ChildPickerPage> createState() => _ChildPickerPageState();
@@ -107,8 +112,26 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
   }
 
   Future<void> _startManaging() async {
-    final unlocked = await ParentGateService.instance.unlock(context);
+    final unlocked = await widget.gateService.unlock(context);
     if (unlocked == true && mounted) setState(() => _managing = true);
+  }
+
+  Future<void> _editChild(QueryDocumentSnapshot<Map<String, dynamic>> doc) async {
+    final data = doc.data();
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => EditChildPage(
+          store: widget.store,
+          firestore: widget.firestore,
+          parentUid: widget.parentUid,
+          childId: doc.id,
+          name: (data['name'] as String?) ?? 'Little Learner',
+          avatar: (data['avatar'] as String?) ?? '🧒',
+          age: (data['age'] as num?)?.toInt() ?? 4,
+        ),
+      ),
+    );
   }
 
   Future<void> _removeChild(String childId, String name) async {
@@ -232,12 +255,13 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                                     height: itemHeight,
                                     avatarRadius: avatarRadius,
                                     managing: _managing,
+                                    onDelete: () => _removeChild(
+                                      doc.id,
+                                      (doc.data()['name'] as String?) ??
+                                          'Little Learner',
+                                    ),
                                     onTap: _managing
-                                        ? () => _removeChild(
-                                              doc.id,
-                                              (doc.data()['name'] as String?) ??
-                                                  'Little Learner',
-                                            )
+                                        ? () => _editChild(doc)
                                         : () => _selectChild(doc.id),
                                   ),
                                 _FlatAddAvatar(
@@ -287,10 +311,12 @@ class _FlatChildAvatar extends StatelessWidget {
     required this.height,
     required this.avatarRadius,
     required this.managing,
+    required this.onDelete,
   });
   final String name;
   final String avatar;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
   final double width;
   final double height;
   final double avatarRadius;
@@ -315,16 +341,42 @@ class _FlatChildAvatar extends StatelessWidget {
                   backgroundColor: const Color(0xFFFFD166),
                   child: EmojiGlyph(avatar, avatarRadius * 0.9),
                 ),
-                if (managing)
+                if (managing) ...[
                   const Positioned(
-                    right: -3,
-                    top: -3,
+                    left: -3,
+                    bottom: -3,
                     child: CircleAvatar(
                       radius: 12,
-                      backgroundColor: Colors.red,
-                      child: Icon(Icons.close, size: 16, color: Colors.white),
+                      backgroundColor: Color(0xFF3D8BFD),
+                      child: Icon(Icons.edit_rounded,
+                          size: 14, color: Colors.white),
                     ),
                   ),
+                  Positioned(
+                    right: -6,
+                    top: -6,
+                    child: Tooltip(
+                      message: 'Remove $name',
+                      child: InkWell(
+                        key: Key('remove-child-$name'),
+                        onTap: onDelete,
+                        customBorder: const CircleBorder(),
+                        child: const SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: Center(
+                            child: CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.red,
+                              child: Icon(Icons.close,
+                                  size: 16, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 4),

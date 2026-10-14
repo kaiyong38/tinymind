@@ -195,6 +195,54 @@ class FirestoreService {
     unawaited(write.catchError((Object _) {}));
   }
 
+  /// The fields an edit touches in the child document and in the progress
+  /// summary document. Stars, answers and daily stats are never included.
+  static ({Map<String, dynamic> child, Map<String, dynamic> progress})
+      profileEditFields({
+    required String name,
+    required String avatar,
+    required int age,
+  }) =>
+          (
+            child: {
+              'name': name,
+              'avatar': avatar,
+              'age': age,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            progress: {
+              'childName': name,
+              'avatar': avatar,
+              'childAge': age,
+            },
+          );
+
+  /// Updates a child's nickname, avatar and age in both documents with one
+  /// batch of merging writes. Offline, the batch is kept by Firestore's local
+  /// cache and the future completes only once the server confirms it, so
+  /// callers should apply a timeout.
+  Future<void> updateChildProfile(
+    String parentUid,
+    String childId, {
+    required String name,
+    required String avatar,
+    required int age,
+  }) {
+    final fields = profileEditFields(name: name, avatar: avatar, age: age);
+    final batch = _firestore.batch()
+      ..set(
+        _children(parentUid).doc(childId),
+        fields.child,
+        SetOptions(merge: true),
+      )
+      ..set(
+        _progress(parentUid, childId),
+        fields.progress,
+        SetOptions(merge: true),
+      );
+    return batch.commit();
+  }
+
   /// Reads every child (profile merged with its progress summary) so it can
   /// be copied to another account. Values are JSON-safe.
   Future<List<TransferableChild>> readChildrenForTransfer(

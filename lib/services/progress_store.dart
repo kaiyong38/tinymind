@@ -268,6 +268,76 @@ class ProgressStore extends ChangeNotifier {
     await _save();
   }
 
+  /// Applies a profile edit (nickname, avatar, age) to this phone's copies so
+  /// an older cached name cannot overwrite the new one when the child is
+  /// loaded: the local cache, the queued sync entry and, if it is the selected
+  /// child, the in-memory progress. With [queueForSync] the edit is also put in
+  /// the sync queue (used when the cloud write could not be confirmed).
+  Future<void> applyProfileEdit(
+    String childId, {
+    required String name,
+    required String avatar,
+    required int age,
+    String? parentUid,
+    bool queueForSync = false,
+  }) async {
+    final preferences = await SharedPreferences.getInstance();
+    final fields = <String, dynamic>{
+      'childName': name,
+      'avatar': avatar,
+      'childAge': age,
+    };
+
+    if (preferences.getString(_childIdKey) == childId) {
+      final raw = preferences.getString(_storageKey);
+      if (raw != null) {
+        try {
+          final cached = jsonDecode(raw) as Map<String, dynamic>;
+          await preferences.setString(
+            _storageKey,
+            jsonEncode({...cached, ...fields}),
+          );
+        } on FormatException {
+          // An unreadable cache is replaced the next time progress is saved.
+        } on TypeError {
+          // Same as above.
+        }
+      }
+    }
+
+    final uid = parentUid ??
+        _parentUid ??
+        (_currentUid?.call() ?? FirebaseAuth.instance.currentUser?.uid);
+    if (uid != null) {
+      final key = _pendingKeyFor(uid, childId);
+      final raw = preferences.getString(key);
+      Map<String, dynamic>? pending;
+      if (raw != null) {
+        try {
+          pending = jsonDecode(raw) as Map<String, dynamic>;
+        } on FormatException {
+          pending = null;
+        } on TypeError {
+          pending = null;
+        }
+      }
+      if (pending != null || queueForSync) {
+        await preferences.setString(
+          key,
+          jsonEncode({...?pending, ...fields}),
+        );
+        _startSyncTimer();
+      }
+    }
+
+    if (_childId == childId) {
+      progress.childName = name;
+      progress.avatar = avatar;
+      progress.childAge = age;
+      notifyListeners();
+    }
+  }
+
   Future<void> _save() async {
     // The in-memory progress has already changed; tell the screens now rather
     // than after the (slower) disk and cloud writes.

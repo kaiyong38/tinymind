@@ -21,6 +21,9 @@ services and currently targets Android only.
   keeps its identifier; without a backup, data is lost if the app is
   uninstalled or the device is changed.
 - Privacy information and controls for deleting an account.
+- In Manage mode on the child picker, a grown-up can change a learner's
+  nickname, age and avatar (and still remove a learner). Changing the age
+  changes which activities are suggested.
 - Music volume is adjusted in the menu (and music can be muted). Voice volume
   is not adjustable; narration always plays at full volume.
 

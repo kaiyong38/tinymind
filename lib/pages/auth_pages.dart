@@ -832,6 +832,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       );
 }
 
+const childAvatarChoices = ['🧒', '👧', '🦊', '🐼', '🐸', '🦄', '🚀', '🌈'];
+const childAgeChoices = [3, 4, 5, 6];
+
+const nicknameErrorText =
+    'Please enter a nickname of up to 20 characters with no spaces.';
+
 class ChildProfilePage extends StatefulWidget {
   const ChildProfilePage({
     required this.store,
@@ -850,7 +856,7 @@ class ChildProfilePage extends StatefulWidget {
 
 class _ChildProfilePageState extends State<ChildProfilePage> {
   final _name = TextEditingController();
-  static const _avatars = ['🧒', '👧', '🦊', '🐼', '🐸', '🦄', '🚀', '🌈'];
+  static const _avatars = childAvatarChoices;
   String _avatar = '🧒';
   int _age = 4;
   bool _busy = false;
@@ -864,8 +870,7 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
 
   Future<void> _continue() async {
     if (!isValidNickname(_name.text)) {
-      setState(() => _error =
-          'Please enter a nickname of up to 20 characters with no spaces.');
+      setState(() => _error = nicknameErrorText);
       return;
     }
     final parent = widget.auth.currentUser;
@@ -1025,7 +1030,7 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
                   ),
                   const SizedBox(height: 10),
                   Row(
-                    children: [3, 4, 5, 6].map((age) {
+                    children: childAgeChoices.map((age) {
                       final selected = age == _age;
                       return Expanded(
                         child: Padding(
