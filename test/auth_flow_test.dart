@@ -352,6 +352,29 @@ void main() {
       await firebaseAuth.dispose();
     });
 
+    testWidgets('an offline delete times out and still signs in',
+        (tester) async {
+      await pumpLogin(tester);
+      firestore.deleteHangs = true;
+      await tester.tap(find.text("Don't bring them"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete them'));
+      await tester.pump();
+      expect(firebaseAuth.signInCalls, 0);
+
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+
+      expect(events, [
+        'deleteParentData:local-uid',
+        'removePendingProgress:local-uid',
+        'deleteUser',
+        'signIn',
+      ]);
+      expectSignedInToBackup(tester);
+      await firebaseAuth.dispose();
+    });
+
     testWidgets('a wrong password shows an error before any dialog',
         (tester) async {
       await pumpLogin(tester, password: 'wrong-password', expectDialog: false);
@@ -842,6 +865,8 @@ class _FakeFirestoreService extends FirestoreService {
     deleteParentDataCalls++;
     deletedParents.add(parentUid);
     events.add('deleteParentData:$parentUid');
+    // Offline batch commits never complete.
+    if (deleteHangs) return Completer<void>().future;
     if (deleteError) {
       throw FirebaseException(plugin: 'cloud_firestore', code: 'unavailable');
     }
@@ -850,6 +875,7 @@ class _FakeFirestoreService extends FirestoreService {
   final List<String> deletedParents = [];
   List<String> events = [];
   bool deleteError = false;
+  bool deleteHangs = false;
 }
 
 class _FakeAuthService extends AuthService {

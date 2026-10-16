@@ -501,7 +501,9 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Deletes the anonymous account's data while still signed in as it (the
   /// rules allow that). Failures are ignored: leftover data is better than a
-  /// parent who cannot sign in.
+  /// parent who cannot sign in. Remote steps time out because Firestore
+  /// writes never complete while offline; queued writes left behind fail on
+  /// permissions once the anonymous account is gone.
   Future<void> _deleteAnonymousData(
     User anonymous,
     String oldUid,
@@ -509,13 +511,15 @@ class _LoginPageState extends State<LoginPage> {
   ) async {
     if (!anonymous.isAnonymous || anonymous.uid != oldUid) return;
     try {
-      await widget.firestore.deleteParentData(oldUid);
+      await widget.firestore
+          .deleteParentData(oldUid)
+          .timeout(const Duration(seconds: 5));
     } catch (_) {}
     try {
       await store.removePendingProgress(oldUid);
     } catch (_) {}
     try {
-      await anonymous.delete();
+      await anonymous.delete().timeout(const Duration(seconds: 5));
     } catch (_) {}
   }
 
