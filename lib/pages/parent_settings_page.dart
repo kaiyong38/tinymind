@@ -84,7 +84,8 @@ class _EmailBackupSectionState extends State<_EmailBackupSection> {
   @override
   Widget build(BuildContext context) {
     final user = widget.auth.currentUser;
-    final emailLinked = widget.auth.hasEmailBackup && user?.email != null;
+    final backedUp = widget.auth.hasBackup;
+    final email = user?.email;
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Padding(
@@ -97,11 +98,13 @@ class _EmailBackupSectionState extends State<_EmailBackupSection> {
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
-            Text(emailLinked
-                ? 'Backed up as ${user!.email}'
-                : 'Not backed up (this device only)'),
+            Text(!backedUp
+                ? 'Not backed up (this device only)'
+                : email != null && email.isNotEmpty
+                    ? 'Backed up as $email'
+                    : 'Backed up'),
             const SizedBox(height: 6),
-            if (!emailLinked) ...[
+            if (!backedUp) ...[
               const Text(
                 'Without a backup, data is lost if you uninstall the app or change phone.',
               ),
@@ -110,7 +113,7 @@ class _EmailBackupSectionState extends State<_EmailBackupSection> {
                 children: [
                   FilledButton(
                     onPressed: _openBackup,
-                    child: const Text('Back up my data (link email)'),
+                    child: const Text('Back up my data'),
                   ),
                   TextButton(
                     onPressed: _openSignIn,

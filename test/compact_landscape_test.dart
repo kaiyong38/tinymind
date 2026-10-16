@@ -235,6 +235,9 @@ class _TestAuthService implements AuthService {
   bool get hasEmailBackup => false;
 
   @override
+  bool get hasBackup => false;
+
+  @override
   Stream<User?> get authStateChanges => Stream.value(null);
 
   @override

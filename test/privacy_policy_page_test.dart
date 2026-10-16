@@ -52,10 +52,12 @@ void main() {
     );
     expect(
       find.textContaining(
-        'Without an email backup, data is lost if the app is uninstalled',
+        'Without a backup, data is lost if the app is uninstalled',
       ),
       findsOneWidget,
     );
+    expect(find.textContaining('verify their email address'), findsOneWidget);
+    expect(find.textContaining('choose not to copy them'), findsOneWidget);
     expect(find.textContaining(AppInfo.supportEmail), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsOneWidget);
   });
@@ -65,6 +67,22 @@ void main() {
     final hostedPolicy = File('public/privacy-policy.html').readAsStringSync();
 
     expect(hostedPolicy, docsPolicy);
+  });
+
+  test('hosted privacy policies describe Google backup and the copy choice',
+      () {
+    for (final path in [
+      'docs/privacy-policy.html',
+      'public/privacy-policy.html',
+    ]) {
+      final policy = File(path).readAsStringSync();
+
+      expect(policy, contains('Google account'), reason: path);
+      expect(policy, contains('Without a backup'), reason: path);
+      expect(policy, contains('chooses not to copy them'), reason: path);
+      expect(policy, isNot(contains('Without an email backup')),
+          reason: path);
+    }
   });
 
   testWidgets('forgot password shows reset guidance and support email',

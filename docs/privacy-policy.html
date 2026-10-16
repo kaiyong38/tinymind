@@ -19,7 +19,7 @@
     <h1>TinyMind Privacy Policy</h1>
 
     <h2>What we collect</h2>
-    <p>TinyMind creates an anonymous Firebase Authentication account on this device by default. Email backup is optional; if a parent links an email and password, Firebase processes those details, but TinyMind does not store the password itself.</p>
+    <p>TinyMind creates an anonymous Firebase Authentication account on this device by default. Backup is optional; if a parent links a Google account or an email and password, Firebase processes those details (for Google, only the account identifier and email address), but TinyMind does not store the password itself. Email accounts are asked to verify their email address by a verification link sent by Firebase.</p>
     <p>For each child profile, we store the child’s nickname, avatar, age, points, answer statistics, activity stars and daily learning records in Cloud Firestore under the current account.</p>
     <p>On the device, SharedPreferences stores the music mute and color-friendly mode settings, the parent PIN record, and a local cache of learning progress. The PIN is required every time the parent area is opened and is not synced.</p>
 
@@ -38,7 +38,7 @@
     <p>TinyMind is designed for children aged 3–6 to use at home with a parent’s supervision. The app starts with an anonymous account so children can reach the child picker without an email login. The parent area requires the device PIN on every entry.</p>
 
     <h2>Your choices</h2>
-    <p>Parents can optionally link an email as a backup while keeping the same account. Without an email backup, data is lost if the app is uninstalled or the device is changed. Signing in to an existing backup shows that account’s children. If children are saved on the phone, the parent can choose to copy them into the account as new children. The previous anonymous record stays unreachable and may remain stored until it is cleaned up.</p>
+    <p>Parents can optionally link a Google account or an email as a backup while keeping the same account. Without a backup, data is lost if the app is uninstalled or the device is changed. Signing in to an existing backup shows that account’s children. If children are saved on the phone, the parent can choose to copy them into the account as new children, or choose not to copy them. If the parent chooses not to copy them, the children saved on the phone are deleted. If they are copied, the previous anonymous record stays unreachable and may remain stored until it is cleaned up.</p>
     <p>Parents can delete a child profile at any time from the parent area. Deleting the parent account also deletes its child profiles and learning data.</p>
     <p>Parents can export a learning report from the parent area. The report is generated on the phone, and parents decide whom to share it with. TinyMind does not send it automatically.</p>
 

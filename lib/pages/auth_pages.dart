@@ -897,7 +897,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) => _ParentAuthScaffold(
         title: 'Back up my data',
-        subtitle: 'Link an email to keep your children’s progress safe.',
+        subtitle: 'Keep your children’s progress safe with a backup.',
         action: 'Back up my data',
         busy: _busy,
         error: _error,

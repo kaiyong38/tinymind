@@ -199,8 +199,18 @@ class _AdminPageState extends State<AdminPage> {
                   await _verifyEmail();
                 } else if (value == 'sign_out') {
                   if (_needsEmailVerification) {
-                    await _askToVerifyBeforeSignOut();
-                    return;
+                    // The link may have been opened since the page loaded.
+                    bool verified;
+                    try {
+                      verified = await auth.refreshEmailVerified();
+                    } catch (_) {
+                      verified = false;
+                    }
+                    if (!context.mounted) return;
+                    if (!verified) {
+                      await _askToVerifyBeforeSignOut();
+                      return;
+                    }
                   }
                   final shouldSignOut = await showDialog<bool>(
                     context: context,

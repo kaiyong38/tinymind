@@ -761,6 +761,55 @@ void main() {
       expect(firebaseAuth.signOutCalls, 0);
       await firebaseAuth.dispose();
     });
+
+    Future<_RefreshVerifiedAuthService> pumpWithRefresh(
+      WidgetTester tester, {
+      required bool refreshResult,
+    }) async {
+      user = FakeFirebaseUser(
+        uid: 'linked',
+        isAnonymous: false,
+        email: 'parent@example.com',
+        emailProvider: true,
+        emailVerified: false,
+      );
+      firebaseAuth = FakeFirebaseAuth(user: user);
+      final auth = _RefreshVerifiedAuthService(
+        refreshResult,
+        auth: firebaseAuth,
+      );
+      await tester.pumpWidget(_adminApp(auth));
+      return auth;
+    }
+
+    testWidgets('Sign out continues when the refresh finds a verified email',
+        (tester) async {
+      final auth = await pumpWithRefresh(tester, refreshResult: true);
+      await openMenu(tester);
+      await tester.tap(find.text('Sign out'));
+      await _pumpAnimations(tester);
+
+      expect(auth.refreshCalls, 1);
+      expect(find.textContaining('Please verify your email first'),
+          findsNothing);
+      expect(find.text('Sign out?'), findsOneWidget);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('Sign out stays blocked when the refresh finds no verification',
+        (tester) async {
+      final auth = await pumpWithRefresh(tester, refreshResult: false);
+      await openMenu(tester);
+      await tester.tap(find.text('Sign out'));
+      await _pumpAnimations(tester);
+
+      expect(auth.refreshCalls, 1);
+      expect(find.textContaining('Please verify your email first'),
+          findsOneWidget);
+      expect(find.text('Sign out?'), findsNothing);
+      expect(firebaseAuth.signOutCalls, 0);
+      await firebaseAuth.dispose();
+    });
   });
 
   testWidgets('sign-in to an existing backup shows the account children',
@@ -1090,7 +1139,39 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Back up my data (link email)'), findsOneWidget);
+    expect(find.text('Back up my data'), findsOneWidget);
+  });
+
+  testWidgets('settings shows a Google account as backed up', (tester) async {
+    final accessibility = AccessibilitySettings();
+    final auth = AuthService(
+      auth: FakeFirebaseAuth(
+        user: FakeFirebaseUser(
+          uid: 'google-uid',
+          isAnonymous: false,
+          email: 'parent@gmail.com',
+          googleProvider: true,
+        ),
+      ),
+    );
+    expect(auth.hasGoogleBackup, isTrue);
+    await tester.pumpWidget(
+      AccessibilitySettingsScope(
+        settings: accessibility,
+        child: MaterialApp(
+          home: ParentSettingsPage(
+            gateService: ParentGateService(storage: _FakeGateStorage()),
+            auth: auth,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Backed up as parent@gmail.com'), findsOneWidget);
+    expect(find.text('Not backed up (this device only)'), findsNothing);
+    expect(find.text('Back up my data'), findsNothing);
+    expect(find.text('I already have a backup (sign in)'), findsNothing);
   });
 
   test('linkGoogle keeps the anonymous uid and reports a Google backup',
@@ -1786,5 +1867,18 @@ class _FakeGateStorage implements ParentGateStorage {
   @override
   Future<void> writePinRecord(String record) async {
     pinRecord = record;
+  }
+}
+
+class _RefreshVerifiedAuthService extends AuthService {
+  _RefreshVerifiedAuthService(this.refreshResult, {super.auth});
+
+  final bool refreshResult;
+  int refreshCalls = 0;
+
+  @override
+  Future<bool> refreshEmailVerified() async {
+    refreshCalls++;
+    return refreshResult;
   }
 }

@@ -19,9 +19,11 @@ services and currently targets Android only.
   opened, and returns to Play when the app goes to the background.
 - The app starts with an anonymous Firebase account and opens the child picker
   directly. A parent must enter the device-only PIN on every parent-area entry.
-- Email backup is optional. Linking an email backs up the current account and
-  keeps its identifier; without a backup, data is lost if the app is
-  uninstalled or the device is changed.
+- Backup is optional. A parent can link a Google account or an email and
+  password to back up the current account; the account identifier is kept.
+  Email accounts must verify their email before they can sign in on a new
+  phone. Without a backup, data is lost if the app is uninstalled or the
+  device is changed.
 - Privacy information and controls for deleting an account.
 - In Manage mode on the child picker, a grown-up can change a learner's
   nickname, age and avatar (and still remove a learner). Changing the age
@@ -185,4 +187,5 @@ future work.
 - Family sharing is not supported.
 - The parent PIN is stored on this device and is not synced.
 - The PIN lockout timer is kept in memory and resets when the app restarts.
-- Google sign-in is not supported.
+- Backup needs a Google account or an email address. Phones without Google
+  services can still use the app anonymously, but cannot use Google backup.
