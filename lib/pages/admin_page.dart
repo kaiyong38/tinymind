@@ -105,8 +105,8 @@ class _AdminPageState extends State<AdminPage> {
                     builder: (dialogContext) => AlertDialog(
                       title: const Text('Sign out?'),
                       content: const Text(
-                        'This phone will start fresh. Sign in again with your '
-                        'email to get your children back.',
+                        'This phone will start fresh. You can sign back in '
+                        'with the same account to get your children back.',
                       ),
                       actions: [
                         TextButton(
@@ -382,6 +382,25 @@ Future<void> _deleteAccount(
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error.message ?? 'Password check failed.')),
+        );
+      }
+      return;
+    }
+  } else if (auth.hasGoogleBackup) {
+    try {
+      await auth.reauthenticateWithGoogle();
+    } catch (error) {
+      if (context.mounted) {
+        final cancelled =
+            error is FirebaseAuthException && error.code == 'cancelled';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              cancelled
+                  ? 'Google sign-in was cancelled.'
+                  : 'Google sign-in check failed. Please try again.',
+            ),
+          ),
         );
       }
       return;

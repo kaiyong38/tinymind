@@ -101,7 +101,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Please agree to the Privacy Policy before linking an email.'),
+      find.text('Please agree to the Privacy Policy first.'),
       findsOneWidget,
     );
   });

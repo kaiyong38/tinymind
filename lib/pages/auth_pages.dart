@@ -46,6 +46,166 @@ Future<void> restartToStartup(
 
 enum _BringChoice { bring, skip }
 
+Future<_BringChoice?> _askBringChoice(BuildContext context) =>
+    showDialog<_BringChoice>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Bring this phone's children into your account?"),
+        content: const SingleChildScrollView(
+          child: Text(
+            'Children saved on this phone can be copied into the account '
+            'you are signing in to. Your account\'s own children are not '
+            'changed.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, _BringChoice.skip),
+            child: const Text("Don't bring them"),
+          ),
+          FilledButton(
+            autofocus: true,
+            onPressed: () => Navigator.pop(context, _BringChoice.bring),
+            child: const Text('Bring them'),
+          ),
+        ],
+      ),
+    );
+
+Future<bool?> _confirmDeleteLocalChildren(BuildContext context) =>
+    showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete this phone's children?"),
+        content: const SingleChildScrollView(
+          child: Text(
+            'These children and their progress will be deleted and cannot '
+            'be recovered. This only affects the children saved on this '
+            'phone before you signed in. Your account\'s own children are '
+            'not changed.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Go back'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete them'),
+          ),
+        ],
+      ),
+    );
+
+/// Deletes the anonymous account's data while still signed in as it (the
+/// rules allow that). Failures are ignored: leftover data is better than a
+/// parent who cannot sign in. Remote steps time out because Firestore
+/// writes never complete while offline; queued writes left behind fail on
+/// permissions once the anonymous account is gone.
+Future<void> _deleteAnonymousData(
+  FirestoreService firestore,
+  User anonymous,
+  String oldUid,
+  ProgressStore store,
+) async {
+  if (!anonymous.isAnonymous || anonymous.uid != oldUid) return;
+  try {
+    await firestore
+        .deleteParentData(oldUid)
+        .timeout(const Duration(seconds: 5));
+  } catch (_) {}
+  try {
+    await store.removePendingProgress(oldUid);
+  } catch (_) {}
+  try {
+    await anonymous.delete().timeout(const Duration(seconds: 5));
+  } catch (_) {}
+}
+
+/// Signs in to an existing backup account. When this phone's anonymous
+/// account has children, the parent chooses to bring them along (copied in
+/// as new children) or delete them first. [verify] runs before any dialog so
+/// wrong details never delete anything. [onSignedIn] runs after sign-in,
+/// before the app restarts. Errors are left for the caller to show.
+Future<void> _switchAccountFromAnonymous({
+  required BuildContext context,
+  required AuthService auth,
+  required FirestoreService firestore,
+  required ProgressStore store,
+  required Future<UserCredential> Function() signIn,
+  Future<void> Function()? verify,
+  Future<void> Function()? onSignedIn,
+}) async {
+  final current = auth.currentUser;
+  final transfer = ChildTransfer(firestore: firestore, store: store);
+  final oldUid = current?.uid;
+  List<TransferableChild>? toBring;
+  var deleteLocalChildren = false;
+  if (current?.isAnonymous == true) {
+    final childCount = await firestore.countChildren(current!.uid);
+    if (!context.mounted) return;
+    if (childCount > 0) {
+      if (verify != null) {
+        await verify();
+        if (!context.mounted) return;
+      }
+      _BringChoice? choice;
+      while (true) {
+        choice = await _askBringChoice(context);
+        if (!context.mounted) return;
+        if (choice != _BringChoice.skip) break;
+        if (await _confirmDeleteLocalChildren(context) == true) break;
+        if (!context.mounted) return;
+      }
+      if (choice == null) return;
+      if (choice == _BringChoice.bring) {
+        toBring = await transfer.collect(current.uid);
+      } else {
+        deleteLocalChildren = true;
+      }
+    }
+  }
+  if (deleteLocalChildren &&
+      current != null &&
+      current.isAnonymous &&
+      oldUid != null &&
+      auth.currentUser?.uid == oldUid) {
+    auth.isSwitchingAccount = true;
+    try {
+      await _deleteAnonymousData(firestore, current, oldUid, store);
+      await signIn();
+    } finally {
+      auth.isSwitchingAccount = false;
+    }
+  } else {
+    await signIn();
+  }
+  final newUid = auth.currentUser?.uid;
+  if (toBring != null &&
+      toBring.isNotEmpty &&
+      oldUid != null &&
+      newUid != null &&
+      newUid != oldUid) {
+    await transfer.copyInto(newUid, oldUid, toBring);
+  }
+  if (onSignedIn != null) await onSignedIn();
+  if (context.mounted) {
+    await restartToStartup(
+      context,
+      store: store,
+      auth: auth,
+      firestore: firestore,
+      message: 'Welcome back! Your children are ready.',
+    );
+  }
+}
+
 class StartupGatePage extends StatefulWidget {
   const StartupGatePage({
     required this.store,
@@ -444,85 +604,6 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<_BringChoice?> _askBringChoice() => showDialog<_BringChoice>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Bring this phone's children into your account?"),
-          content: const SingleChildScrollView(
-            child: Text(
-              'Children saved on this phone can be copied into the account '
-              'you are signing in to. Your account\'s own children are not '
-              'changed.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, _BringChoice.skip),
-              child: const Text("Don't bring them"),
-            ),
-            FilledButton(
-              autofocus: true,
-              onPressed: () => Navigator.pop(context, _BringChoice.bring),
-              child: const Text('Bring them'),
-            ),
-          ],
-        ),
-      );
-
-  Future<bool?> _confirmDeleteLocalChildren() => showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Delete this phone's children?"),
-          content: const SingleChildScrollView(
-            child: Text(
-              'These children and their progress will be deleted and cannot '
-              'be recovered. This only affects the children saved on this '
-              'phone before you signed in. Your account\'s own children are '
-              'not changed.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Go back'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete them'),
-            ),
-          ],
-        ),
-      );
-
-  /// Deletes the anonymous account's data while still signed in as it (the
-  /// rules allow that). Failures are ignored: leftover data is better than a
-  /// parent who cannot sign in. Remote steps time out because Firestore
-  /// writes never complete while offline; queued writes left behind fail on
-  /// permissions once the anonymous account is gone.
-  Future<void> _deleteAnonymousData(
-    User anonymous,
-    String oldUid,
-    ProgressStore store,
-  ) async {
-    if (!anonymous.isAnonymous || anonymous.uid != oldUid) return;
-    try {
-      await widget.firestore
-          .deleteParentData(oldUid)
-          .timeout(const Duration(seconds: 5));
-    } catch (_) {}
-    try {
-      await store.removePendingProgress(oldUid);
-    } catch (_) {}
-    try {
-      await anonymous.delete().timeout(const Duration(seconds: 5));
-    } catch (_) {}
-  }
-
   Future<void> _submit() async {
     if (_email.text.trim().isEmpty || _password.text.isEmpty) {
       setState(() => _error = 'Please enter your email and password.');
@@ -533,73 +614,23 @@ class _LoginPageState extends State<LoginPage> {
       _error = null;
     });
     try {
-      final current = widget.auth.currentUser;
-      final store = widget.store ?? ProgressStore();
-      final transfer = ChildTransfer(firestore: widget.firestore, store: store);
-      final oldUid = current?.uid;
-      List<TransferableChild>? toBring;
-      var deleteLocalChildren = false;
-      if (current?.isAnonymous == true) {
-        final childCount = await widget.firestore.countChildren(current!.uid);
-        if (!mounted) return;
-        if (childCount > 0) {
-          // Check the password first so a typo never deletes anything.
-          await widget.auth.verifyPassword(_email.text, _password.text);
-          if (!mounted) return;
-          _BringChoice? choice;
-          while (true) {
-            choice = await _askBringChoice();
-            if (!mounted) return;
-            if (choice != _BringChoice.skip) break;
-            if (await _confirmDeleteLocalChildren() == true) break;
-            if (!mounted) return;
-          }
-          if (choice == null) return;
-          if (choice == _BringChoice.bring) {
-            toBring = await transfer.collect(current.uid);
+      await _switchAccountFromAnonymous(
+        context: context,
+        auth: widget.auth,
+        firestore: widget.firestore,
+        store: widget.store ?? ProgressStore(),
+        // Check the password first so a typo never deletes anything.
+        verify: () => widget.auth.verifyPassword(_email.text, _password.text),
+        signIn: () => widget.auth.signIn(_email.text, _password.text),
+        onSignedIn: () async {
+          final prefs = await SharedPreferences.getInstance();
+          if (_rememberMe) {
+            await prefs.setString(_rememberedEmailKey, _email.text.trim());
           } else {
-            deleteLocalChildren = true;
+            await prefs.remove(_rememberedEmailKey);
           }
-        }
-      }
-      if (deleteLocalChildren &&
-          current != null &&
-          current.isAnonymous &&
-          oldUid != null &&
-          widget.auth.currentUser?.uid == oldUid) {
-        widget.auth.isSwitchingAccount = true;
-        try {
-          await _deleteAnonymousData(current, oldUid, store);
-          await widget.auth.signIn(_email.text, _password.text);
-        } finally {
-          widget.auth.isSwitchingAccount = false;
-        }
-      } else {
-        await widget.auth.signIn(_email.text, _password.text);
-      }
-      final newUid = widget.auth.currentUser?.uid;
-      if (toBring != null &&
-          toBring.isNotEmpty &&
-          oldUid != null &&
-          newUid != null &&
-          newUid != oldUid) {
-        await transfer.copyInto(newUid, oldUid, toBring);
-      }
-      final prefs = await SharedPreferences.getInstance();
-      if (_rememberMe) {
-        await prefs.setString(_rememberedEmailKey, _email.text.trim());
-      } else {
-        await prefs.remove(_rememberedEmailKey);
-      }
-      if (mounted) {
-        await restartToStartup(
-          context,
-          store: store,
-          auth: widget.auth,
-          firestore: widget.firestore,
-          message: 'Welcome back! Your children are ready.',
-        );
-      }
+        },
+      );
     } on FirebaseAuthException catch (error) {
       if (mounted) {
         setState(() => _error = _friendlyAuthError(error));
@@ -609,6 +640,30 @@ class _LoginPageState extends State<LoginPage> {
         setState(() => _error =
             'We could not check this device yet. Please try again.');
       }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _continueWithGoogle() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final credential = await widget.auth.pickGoogleCredential();
+      if (credential == null || !mounted) return;
+      await _switchAccountFromAnonymous(
+        context: context,
+        auth: widget.auth,
+        firestore: widget.firestore,
+        store: widget.store ?? ProgressStore(),
+        signIn: () => widget.auth.signInWithCredential(credential),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (mounted) setState(() => _error = _friendlyGoogleError(error));
+    } catch (_) {
+      if (mounted) setState(() => _error = _googleFailedText);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -624,6 +679,9 @@ class _LoginPageState extends State<LoginPage> {
         fields: [_email, _password],
         hints: const ['Email address', 'Password'],
         onSubmit: _submit,
+        header: _GoogleHeader(
+          onPressed: _busy ? null : _continueWithGoogle,
+        ),
         footer: Column(
           children: [
             CheckboxListTile(
@@ -648,7 +706,11 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute<void>(
-                  builder: (_) => RegisterPage(auth: widget.auth),
+                  builder: (_) => RegisterPage(
+                    auth: widget.auth,
+                    firestore: widget.firestore,
+                    store: widget.store,
+                  ),
                 ),
               ),
               child: const Text('Create a parent account'),
@@ -663,9 +725,16 @@ class _LoginPageState extends State<LoginPage> {
 }
 
 class RegisterPage extends StatefulWidget {
-  RegisterPage({super.key, AuthService? auth}) : auth = auth ?? AuthService();
+  RegisterPage({
+    super.key,
+    AuthService? auth,
+    this.firestore,
+    this.store,
+  }) : auth = auth ?? AuthService();
 
   final AuthService auth;
+  final FirestoreService? firestore;
+  final ProgressStore? store;
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -689,8 +758,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _submit() async {
     if (!_acceptedPrivacyPolicy) {
-      setState(() => _error =
-          'Please agree to the Privacy Policy before linking an email.');
+      setState(() => _error = _agreePrivacyPolicyText);
       return;
     }
     if (_email.text.trim().isEmpty || _password.text.length < 6) {
@@ -717,6 +785,42 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
+  Future<void> _continueWithGoogle() async {
+    if (!_acceptedPrivacyPolicy) {
+      setState(() => _error = _agreePrivacyPolicyText);
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final credential = await widget.auth.pickGoogleCredential();
+      if (credential == null || !mounted) return;
+      final result = await widget.auth.linkGoogle(credential);
+      if (!mounted) return;
+      if (result.status == GoogleLinkStatus.linked) {
+        Navigator.pop(context, true);
+        return;
+      }
+      // This Google account already has its own backup: sign in to it.
+      final backup = result.credential ?? credential;
+      await _switchAccountFromAnonymous(
+        context: context,
+        auth: widget.auth,
+        firestore: widget.firestore ?? FirestoreService(),
+        store: widget.store ?? ProgressStore(),
+        signIn: () => widget.auth.signInWithCredential(backup),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (mounted) setState(() => _error = _friendlyGoogleError(error));
+    } catch (_) {
+      if (mounted) setState(() => _error = _googleFailedText);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => _ParentAuthScaffold(
         title: 'Back up my data',
@@ -727,6 +831,12 @@ class _RegisterPageState extends State<RegisterPage> {
         fields: [_email, _password, _confirmPassword],
         hints: const ['Email address', 'Password', 'Confirm password'],
         onSubmit: _submit,
+        header: _GoogleHeader(
+          onPressed: _busy ? null : _continueWithGoogle,
+          emailNote: 'We recommend Google. If you use an email instead, '
+              'please use a real address, or you will not be able to reset '
+              'your password.',
+        ),
         footer: Column(
           children: [
             CheckboxListTile(
@@ -747,6 +857,67 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ],
         ),
+      );
+}
+
+const _agreePrivacyPolicyText = 'Please agree to the Privacy Policy first.';
+
+const _googleFailedText =
+    'We could not finish signing in with Google. Please try again.';
+
+String _friendlyGoogleError(FirebaseAuthException error) => switch (error.code) {
+      'account-exists-with-different-credential' || 'email-already-in-use' =>
+        "This email already has an email backup. Use 'I already have a backup' "
+            'with your email and password.',
+      _ => _googleFailedText,
+    };
+
+/// The "Continue with Google" button and the divider before the email form.
+class _GoogleHeader extends StatelessWidget {
+  const _GoogleHeader({required this.onPressed, this.emailNote});
+
+  final VoidCallback? onPressed;
+  final String? emailNote;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FilledButton.icon(
+            onPressed: onPressed,
+            icon: const Icon(Icons.account_circle),
+            label: const Text('Continue with Google'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(56),
+              textStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Row(
+            children: [
+              Expanded(child: Divider()),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'or use an email',
+                  style: TextStyle(color: Colors.black54),
+                ),
+              ),
+              Expanded(child: Divider()),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (emailNote != null) ...[
+            Text(
+              emailNote!,
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            const SizedBox(height: 14),
+          ],
+        ],
       );
 }
 
@@ -1197,6 +1368,7 @@ class _ParentAuthScaffold extends StatelessWidget {
     this.error,
     this.success,
     this.busy = false,
+    this.header,
     this.footer,
   });
 
@@ -1213,6 +1385,9 @@ class _ParentAuthScaffold extends StatelessWidget {
   /// a failure.
   final String? success;
   final bool busy;
+
+  /// Shown above the text fields, e.g. the "Continue with Google" button.
+  final Widget? header;
   final Widget? footer;
 
   @override
@@ -1247,6 +1422,7 @@ class _ParentAuthScaffold extends StatelessWidget {
                     style: const TextStyle(fontSize: 18, color: Colors.black54),
                   ),
                   const SizedBox(height: 28),
+                  if (header != null) header!,
                   for (var i = 0; i < fields.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),

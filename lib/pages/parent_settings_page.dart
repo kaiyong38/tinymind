@@ -58,7 +58,11 @@ class _EmailBackupSectionState extends State<_EmailBackupSection> {
     final linked = await Navigator.push<bool>(
       context,
       MaterialPageRoute<bool>(
-        builder: (_) => RegisterPage(auth: widget.auth),
+        builder: (_) => RegisterPage(
+          auth: widget.auth,
+          firestore: widget.firestore,
+          store: widget.store,
+        ),
       ),
     );
     if (linked == true && mounted) setState(() {});

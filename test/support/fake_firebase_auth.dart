@@ -16,6 +16,7 @@ class FakeFirebaseAuth extends Fake implements FirebaseAuth {
   final StreamController<User?> _changes = StreamController.broadcast();
   int anonymousSignInCalls = 0;
   int signInCalls = 0;
+  int credentialSignInCalls = 0;
   int signOutCalls = 0;
 
   @override
@@ -50,6 +51,20 @@ class FakeFirebaseAuth extends Fake implements FirebaseAuth {
   }
 
   @override
+  Future<UserCredential> signInWithCredential(
+    AuthCredential credential,
+  ) async {
+    credentialSignInCalls++;
+    final user = backupUser;
+    if (user == null) {
+      throw FirebaseAuthException(code: 'invalid-credential');
+    }
+    _user = user;
+    _changes.add(_user);
+    return FakeUserCredential(_user);
+  }
+
+  @override
   Future<void> signOut() async {
     signOutCalls++;
     _user = null;
@@ -65,9 +80,12 @@ class FakeFirebaseUser extends Fake implements User {
     required this.isAnonymous,
     this.email,
     bool emailProvider = false,
+    bool googleProvider = false,
     this.linkError,
-  }) : providerData =
-            emailProvider ? [FakeUserInfo(providerId: 'password')] : const [];
+  }) : providerData = [
+          if (emailProvider) FakeUserInfo(providerId: 'password'),
+          if (googleProvider) FakeUserInfo(providerId: 'google.com'),
+        ];
 
   @override
   final String uid;

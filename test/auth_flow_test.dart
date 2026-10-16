@@ -662,8 +662,8 @@ void main() {
 
     expect(
       find.text(
-        'This phone will start fresh. Sign in again with your email to get '
-        'your children back.',
+        'This phone will start fresh. You can sign back in with the same '
+        'account to get your children back.',
       ),
       findsOneWidget,
     );
@@ -754,6 +754,446 @@ void main() {
     );
     expect(find.text('Back up my data (link email)'), findsOneWidget);
   });
+
+  test('linkGoogle keeps the anonymous uid and reports a Google backup',
+      () async {
+    final user = FakeFirebaseUser(uid: 'same-device-uid', isAnonymous: true);
+    final service = AuthService(
+      auth: FakeFirebaseAuth(user: user),
+      googleProvider: FakeGoogleCredentialProvider(),
+    );
+    final credential = _fakeGoogleCredential();
+
+    final result = await service.linkGoogle(credential);
+
+    expect(result.status, GoogleLinkStatus.linked);
+    expect(user.uid, 'same-device-uid');
+    expect(user.linkedCredential, same(credential));
+    expect(
+      AuthService(
+        auth: FakeFirebaseAuth(
+          user: FakeFirebaseUser(
+            uid: 'g',
+            isAnonymous: false,
+            googleProvider: true,
+          ),
+        ),
+      ).hasBackup,
+      isTrue,
+    );
+  });
+
+  test('linkGoogle returns the existing backup credential', () async {
+    final existing = _fakeGoogleCredential('existing-token');
+    final service = AuthService(
+      auth: FakeFirebaseAuth(
+        user: FakeFirebaseUser(
+          uid: 'anon',
+          isAnonymous: true,
+          linkError: FirebaseAuthException(
+            code: 'credential-already-in-use',
+            credential: existing,
+          ),
+        ),
+      ),
+      googleProvider: FakeGoogleCredentialProvider(),
+    );
+
+    final result = await service.linkGoogle(_fakeGoogleCredential());
+
+    expect(result.status, GoogleLinkStatus.alreadyHasBackup);
+    expect(result.credential, same(existing));
+  });
+
+  group('Continue with Google', () {
+    late FakeFirebaseAuth firebaseAuth;
+    late _FakeFirestoreService firestore;
+    late ProgressStore store;
+    late FakeGoogleCredentialProvider google;
+    late _FakeAuthService auth;
+    late List<String> events;
+
+    void setUpAccounts({
+      Object? linkError,
+      bool withLocalChildren = true,
+    }) {
+      events = [];
+      SharedPreferences.setMockInitialValues({});
+      firebaseAuth = FakeFirebaseAuth(
+        user: FakeFirebaseUser(
+          uid: 'local-uid',
+          isAnonymous: true,
+          linkError: linkError,
+        )..onDelete = () => events.add('deleteUser'),
+        backupUser: FakeFirebaseUser(
+          uid: 'backup-uid',
+          isAnonymous: false,
+          email: 'parent@gmail.com',
+          googleProvider: true,
+        ),
+      );
+      firestore = _FakeFirestoreService()
+        ..events = events
+        ..children['backup-uid'] = {
+          'existing': {'childName': 'Mei', 'avatar': '🦄', 'childAge': 3},
+        };
+      if (withLocalChildren) {
+        firestore.children['local-uid'] = {
+          'child-a': {'childName': 'Kai', 'avatar': '🐸', 'childAge': 6},
+        };
+      }
+      store = _RecordingProgressStore(
+        events,
+        firestore: firestore,
+        currentUid: () => firebaseAuth.currentUser?.uid,
+      );
+      google = FakeGoogleCredentialProvider(_fakeGoogleCredential());
+      auth = _FakeAuthService(
+        events,
+        auth: firebaseAuth,
+        firestore: firestore,
+        googleProvider: google,
+      );
+    }
+
+    Future<void> pumpRegister(WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  final linked = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RegisterPage(
+                        auth: auth,
+                        firestore: firestore,
+                        store: store,
+                      ),
+                    ),
+                  );
+                  events.add('registerResult:$linked');
+                },
+                child: const Text('Open register'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open register'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> acceptPrivacyPolicy(WidgetTester tester) async {
+      await tester.ensureVisible(find.byType(CheckboxListTile));
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+    }
+
+    Future<void> tapGoogle(WidgetTester tester) async {
+      final button = find.text('Continue with Google');
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+    }
+
+    void expectSignedInWithGoogle() {
+      expect(auth.credentialSignIns, [same(google.credential)]);
+      expect(firebaseAuth.credentialSignInCalls, 1);
+      expect(firebaseAuth.signInCalls, 0);
+      expect(auth.verifyPasswordCalls, 0);
+      expect(find.byType(ChildPickerPage), findsOneWidget);
+      expect(find.text('Welcome back! Your children are ready.'),
+          findsOneWidget);
+      expect(firebaseAuth.anonymousSignInCalls, 0);
+    }
+
+    testWidgets('needs the Privacy Policy before calling Google',
+        (tester) async {
+      setUpAccounts();
+      await pumpRegister(tester);
+      await tapGoogle(tester);
+
+      expect(find.text('Please agree to the Privacy Policy first.'),
+          findsOneWidget);
+      expect(google.calls, 0);
+      expect(auth.linkGoogleCalls, 0);
+      expect(firebaseAuth.credentialSignInCalls, 0);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('the email path shows the same Privacy Policy prompt',
+        (tester) async {
+      setUpAccounts();
+      await pumpRegister(tester);
+      final submit = find.widgetWithText(FilledButton, 'Back up my data');
+      await tester.ensureVisible(submit);
+      await tester.tap(submit);
+      await tester.pump();
+
+      expect(find.text('Please agree to the Privacy Policy first.'),
+          findsOneWidget);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('cancelling Google does nothing', (tester) async {
+      setUpAccounts();
+      google.credential = null;
+      await pumpRegister(tester);
+      await acceptPrivacyPolicy(tester);
+      await tapGoogle(tester);
+
+      expect(google.calls, 1);
+      expect(auth.linkGoogleCalls, 0);
+      expect(find.byType(RegisterPage), findsOneWidget);
+      expect(find.textContaining('Google. Please try again'), findsNothing);
+      expect(find.text('Please agree to the Privacy Policy first.'),
+          findsNothing);
+      expect(tester.takeException(), isNull);
+      expect(firebaseAuth.currentUser!.uid, 'local-uid');
+      expect(events, isEmpty);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('a linked Google backup returns true', (tester) async {
+      setUpAccounts();
+      await pumpRegister(tester);
+      await acceptPrivacyPolicy(tester);
+      await tapGoogle(tester);
+
+      expect(auth.linkGoogleCalls, 1);
+      expect(find.byType(RegisterPage), findsNothing);
+      expect(events, ['linkGoogle', 'registerResult:true']);
+      expect(
+        (firebaseAuth.currentUser! as FakeFirebaseUser).linkedCredential,
+        same(google.credential),
+      );
+      expect(firebaseAuth.credentialSignInCalls, 0);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('a Google email that has an email backup explains what to do',
+        (tester) async {
+      setUpAccounts(
+        linkError: FirebaseAuthException(code: 'email-already-in-use'),
+      );
+      await pumpRegister(tester);
+      await acceptPrivacyPolicy(tester);
+      await tapGoogle(tester);
+
+      expect(
+        find.text(
+          "This email already has an email backup. Use 'I already have a "
+          "backup' with your email and password.",
+        ),
+        findsOneWidget,
+      );
+      expect(firebaseAuth.credentialSignInCalls, 0);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('an existing Google backup can bring the children along',
+        (tester) async {
+      setUpAccounts(
+        linkError: FirebaseAuthException(code: 'credential-already-in-use'),
+      );
+      await pumpRegister(tester);
+      await acceptPrivacyPolicy(tester);
+      await tapGoogle(tester);
+
+      expect(find.text("Bring this phone's children into your account?"),
+          findsOneWidget);
+      expect(firebaseAuth.credentialSignInCalls, 0);
+      await tester.tap(find.text('Bring them'));
+      await tester.pumpAndSettle();
+
+      expectSignedInWithGoogle();
+      final newDocs = firestore.saved['backup-uid']!;
+      expect(newDocs.length, 1);
+      expect(newDocs.values.single['childName'], 'Kai');
+      expect(firestore.deletedParents, isEmpty);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets("an existing Google backup can delete this phone's children "
+        'first', (tester) async {
+      setUpAccounts(
+        linkError: FirebaseAuthException(code: 'credential-already-in-use'),
+      );
+      await pumpRegister(tester);
+      await acceptPrivacyPolicy(tester);
+      await tapGoogle(tester);
+      await tester.tap(find.text("Don't bring them"));
+      await tester.pumpAndSettle();
+      expect(find.text("Delete this phone's children?"), findsOneWidget);
+      await tester.tap(find.text('Delete them'));
+      await tester.pumpAndSettle();
+
+      expect(events, [
+        'linkGoogle',
+        'deleteParentData:local-uid',
+        'removePendingProgress:local-uid',
+        'deleteUser',
+        'signInWithCredential',
+        // The restart removes RegisterPage without a result.
+        'registerResult:null',
+      ]);
+      expect(firestore.saved, isEmpty);
+      expectSignedInWithGoogle();
+      expect(find.text('Kai'), findsNothing);
+      expect(find.text('Mei'), findsOneWidget);
+      await firebaseAuth.dispose();
+    });
+
+    Future<void> pumpLoginAndTapGoogle(WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(auth: auth, firestore: firestore, store: store),
+        ),
+      );
+      await tapGoogle(tester);
+    }
+
+    testWidgets('LoginPage signs in with Google and brings the children',
+        (tester) async {
+      setUpAccounts();
+      await pumpLoginAndTapGoogle(tester);
+
+      expect(find.text("Bring this phone's children into your account?"),
+          findsOneWidget);
+      await tester.tap(find.text('Bring them'));
+      await tester.pumpAndSettle();
+
+      expectSignedInWithGoogle();
+      expect(auth.linkGoogleCalls, 0);
+      expect(firestore.saved['backup-uid']!.length, 1);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('LoginPage with Google can delete the local children first',
+        (tester) async {
+      setUpAccounts();
+      await pumpLoginAndTapGoogle(tester);
+      await tester.tap(find.text("Don't bring them"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete them'));
+      await tester.pumpAndSettle();
+
+      expect(events, [
+        'deleteParentData:local-uid',
+        'removePendingProgress:local-uid',
+        'deleteUser',
+        'signInWithCredential',
+      ]);
+      expectSignedInWithGoogle();
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('LoginPage with no local children signs straight in',
+        (tester) async {
+      setUpAccounts(withLocalChildren: false);
+      await pumpLoginAndTapGoogle(tester);
+
+      expect(find.text("Bring this phone's children into your account?"),
+          findsNothing);
+      expectSignedInWithGoogle();
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('LoginPage ignores a cancelled Google sign-in',
+        (tester) async {
+      setUpAccounts();
+      google.credential = null;
+      await pumpLoginAndTapGoogle(tester);
+
+      expect(find.byType(LoginPage), findsOneWidget);
+      expect(find.text("Bring this phone's children into your account?"),
+          findsNothing);
+      expect(firebaseAuth.credentialSignInCalls, 0);
+      expect(firebaseAuth.currentUser!.uid, 'local-uid');
+      expect(events, isEmpty);
+      await firebaseAuth.dispose();
+    });
+  });
+
+  group('Google account menu', () {
+    late FakeFirebaseUser user;
+    late FakeGoogleCredentialProvider google;
+    late _FakeAuthService auth;
+
+    Future<void> pumpAdmin(WidgetTester tester) async {
+      user = FakeFirebaseUser(
+        uid: 'google-uid',
+        isAnonymous: false,
+        email: 'parent@gmail.com',
+        googleProvider: true,
+      );
+      google = FakeGoogleCredentialProvider(_fakeGoogleCredential());
+      auth = _FakeAuthService(
+        [],
+        auth: FakeFirebaseAuth(user: user),
+        googleProvider: google,
+      );
+      await tester.pumpWidget(_adminApp(auth));
+      await tester.tap(find.byTooltip('Account'));
+      await _pumpAnimations(tester);
+    }
+
+    testWidgets('has no Change password', (tester) async {
+      await pumpAdmin(tester);
+
+      expect(find.text('Change password'), findsNothing);
+      expect(find.text('Sign out'), findsOneWidget);
+      expect(find.text('I already have a backup (sign in)'), findsNothing);
+    });
+
+    testWidgets('delete account checks Google instead of a password',
+        (tester) async {
+      await pumpAdmin(tester);
+      await tester.tap(find.text('Delete account and all data'));
+      await _pumpAnimations(tester);
+
+      expect(find.text('Verify your password'), findsNothing);
+      expect(auth.reauthenticateWithGoogleCalls, 1);
+      expect(user.reauthenticationCalls, 1);
+      expect(find.text('Delete account and all data?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await _pumpAnimations(tester);
+      expect(user.deleteCalls, 0);
+    });
+
+    testWidgets('a cancelled Google check stops the delete', (tester) async {
+      await pumpAdmin(tester);
+      google.credential = null;
+      await tester.tap(find.text('Delete account and all data'));
+      await _pumpAnimations(tester);
+
+      expect(find.text('Verify your password'), findsNothing);
+      expect(auth.reauthenticateWithGoogleCalls, 1);
+      expect(user.reauthenticationCalls, 0);
+      expect(find.text('Google sign-in was cancelled.'), findsOneWidget);
+      expect(find.text('Delete account and all data?'), findsNothing);
+      expect(user.deleteCalls, 0);
+    });
+  });
+}
+
+AuthCredential _fakeGoogleCredential([String idToken = 'fake-id-token']) =>
+    GoogleAuthProvider.credential(idToken: idToken);
+
+class FakeGoogleCredentialProvider implements GoogleCredentialProvider {
+  FakeGoogleCredentialProvider([this.credential]);
+
+  /// What the next pick returns; null acts like the parent cancelling.
+  AuthCredential? credential;
+  int calls = 0;
+
+  @override
+  Future<AuthCredential?> getCredential() async {
+    calls++;
+    return credential;
+  }
 }
 
 Widget _adminApp(AuthService auth) => MaterialApp(
@@ -879,11 +1319,39 @@ class _FakeFirestoreService extends FirestoreService {
 }
 
 class _FakeAuthService extends AuthService {
-  _FakeAuthService(this.events, {super.auth, super.firestore});
+  _FakeAuthService(
+    this.events, {
+    super.auth,
+    super.firestore,
+    super.googleProvider,
+  });
 
   static const correctPassword = 'backup-password';
   final List<String> events;
   int verifyPasswordCalls = 0;
+  int linkGoogleCalls = 0;
+  int reauthenticateWithGoogleCalls = 0;
+  final List<AuthCredential> credentialSignIns = [];
+
+  @override
+  Future<GoogleLinkResult> linkGoogle(AuthCredential credential) {
+    linkGoogleCalls++;
+    events.add('linkGoogle');
+    return super.linkGoogle(credential);
+  }
+
+  @override
+  Future<UserCredential> signInWithCredential(AuthCredential credential) {
+    credentialSignIns.add(credential);
+    events.add('signInWithCredential');
+    return super.signInWithCredential(credential);
+  }
+
+  @override
+  Future<void> reauthenticateWithGoogle() {
+    reauthenticateWithGoogleCalls++;
+    return super.reauthenticateWithGoogle();
+  }
 
   @override
   Future<void> verifyPassword(String email, String password) async {

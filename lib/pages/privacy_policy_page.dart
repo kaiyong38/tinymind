@@ -10,9 +10,10 @@ class PrivacyPolicyPage extends StatelessWidget {
     MapEntry(
       'What we collect',
       'TinyMind creates an anonymous Firebase Authentication account on this '
-          'device by default. Email backup is optional; if a parent links an '
-          'email and password, Firebase processes those details, but TinyMind '
-          'does not store the password itself.\n\n'
+          'device by default. Backup is optional; if a parent links a Google '
+          'account or an email and password, Firebase processes those details '
+          '(for Google, only the account identifier and email address), but '
+          'TinyMind does not store the password itself.\n\n'
           'For each child profile, we store the child’s nickname, avatar, age, '
           'points, answer statistics, activity stars and daily learning '
           'records in Cloud Firestore under the current account.\n\n'
@@ -53,8 +54,8 @@ class PrivacyPolicyPage extends StatelessWidget {
     ),
     MapEntry(
       'Your choices',
-      'Parents can optionally link an email as a backup while keeping the '
-          'same account. Without an email backup, data is lost if the app is '
+      'Parents can optionally link a Google account or an email as a backup '
+          'while keeping the same account. Without an email backup, data is lost if the app is '
           'uninstalled or the device is changed. Signing in to an existing '
           'backup shows that account’s children. If children are saved on the '
           'phone, the parent can choose to copy them into the account as new '

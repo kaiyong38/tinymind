@@ -14,7 +14,7 @@
       },
       "oauth_client": [
         {
-          "client_id": "20018846997-4mkh7t5m332itfv6sri62vur643qgcvc.apps.googleusercontent.com",
+          "client_id": "20018846997-rf1cpucffg1e8qgm3037s7m39sep3dvv.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -50,7 +50,23 @@
       },
       "oauth_client": [
         {
-          "client_id": "20018846997-4mkh7t5m332itfv6sri62vur643qgcvc.apps.googleusercontent.com",
+          "client_id": "20018846997-116gkk0tjv8ai2t17j6qkfqkrcudn0nq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kaiyong.tinymind",
+            "certificate_hash": "05e82f40953256c4b9d850d87e3163c9d37a1fe3"
+          }
+        },
+        {
+          "client_id": "20018846997-u2jq3ka0592r48ibj6tnlovmk10qjcq4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kaiyong.tinymind",
+            "certificate_hash": "8e8f3b1294bfffdda8bc2073f3f95ed20c1064db"
+          }
+        },
+        {
+          "client_id": "20018846997-rf1cpucffg1e8qgm3037s7m39sep3dvv.apps.googleusercontent.com",
           "client_type": 3
         }
       ],

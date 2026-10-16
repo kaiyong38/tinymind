@@ -1,15 +1,75 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../app_info.dart';
 import 'firestore_service.dart';
 
+/// Asks the parent to pick a Google account and returns a Firebase
+/// credential for it, or null when they cancel.
+abstract interface class GoogleCredentialProvider {
+  Future<AuthCredential?> getCredential();
+}
+
+class GoogleSignInCredentialProvider implements GoogleCredentialProvider {
+  static Future<void>? _initialized;
+
+  @override
+  Future<AuthCredential?> getCredential() async {
+    final signIn = GoogleSignIn.instance;
+    // initialize must run exactly once; allow a retry if it failed.
+    try {
+      await (_initialized ??=
+          signIn.initialize(serverClientId: AppInfo.googleServerClientId));
+    } catch (_) {
+      _initialized = null;
+      rethrow;
+    }
+    final GoogleSignInAccount account;
+    try {
+      account = await signIn.authenticate();
+    } on GoogleSignInException catch (error) {
+      if (error.code == GoogleSignInExceptionCode.canceled) return null;
+      rethrow;
+    }
+    final idToken = account.authentication.idToken;
+    if (idToken == null) {
+      throw FirebaseAuthException(
+        code: 'missing-id-token',
+        message: 'Google did not return an ID token.',
+      );
+    }
+    return GoogleAuthProvider.credential(idToken: idToken);
+  }
+}
+
+enum GoogleLinkStatus { linked, alreadyHasBackup }
+
+class GoogleLinkResult {
+  const GoogleLinkResult.linked()
+      : status = GoogleLinkStatus.linked,
+        credential = null;
+  const GoogleLinkResult.alreadyHasBackup(this.credential)
+      : status = GoogleLinkStatus.alreadyHasBackup;
+
+  final GoogleLinkStatus status;
+
+  /// For [GoogleLinkStatus.alreadyHasBackup]: signs in to that backup.
+  final AuthCredential? credential;
+}
+
 class AuthService {
-  AuthService({FirebaseAuth? auth, FirestoreService? firestore})
-      : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore;
+  AuthService({
+    FirebaseAuth? auth,
+    FirestoreService? firestore,
+    GoogleCredentialProvider? googleProvider,
+  })  : _auth = auth ?? FirebaseAuth.instance,
+        _firestore = firestore,
+        _googleProvider = googleProvider ?? GoogleSignInCredentialProvider();
   final FirebaseAuth _auth;
   final FirestoreService? _firestore;
+  final GoogleCredentialProvider _googleProvider;
 
   User? get currentUser => _auth.currentUser;
   bool get isAnonymous => currentUser?.isAnonymous ?? false;
@@ -17,6 +77,11 @@ class AuthService {
       currentUser?.providerData
           .any((provider) => provider.providerId == 'password') ??
       false;
+  bool get hasGoogleBackup =>
+      currentUser?.providerData
+          .any((provider) => provider.providerId == 'google.com') ??
+      false;
+  bool get hasBackup => hasEmailBackup || hasGoogleBackup;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// True while LoginPage swaps accounts. Deleting the anonymous user signs
@@ -63,6 +128,50 @@ class AuthService {
     return user.linkWithCredential(
       EmailAuthProvider.credential(email: email.trim(), password: password),
     );
+  }
+
+  Future<AuthCredential?> pickGoogleCredential() =>
+      _googleProvider.getCredential();
+
+  /// Links a Google account to this phone's anonymous account, keeping the
+  /// uid. If that Google account already has its own backup, returns
+  /// [GoogleLinkResult.alreadyHasBackup] with a credential to sign in to it.
+  Future<GoogleLinkResult> linkGoogle(AuthCredential credential) async {
+    final user = _auth.currentUser;
+    if (user == null || !user.isAnonymous) {
+      throw FirebaseAuthException(
+        code: 'not-anonymous',
+        message: 'An anonymous account is required to link Google.',
+      );
+    }
+    try {
+      await user.linkWithCredential(credential);
+      return const GoogleLinkResult.linked();
+    } on FirebaseAuthException catch (error) {
+      if (error.code != 'credential-already-in-use') rethrow;
+      return GoogleLinkResult.alreadyHasBackup(error.credential ?? credential);
+    }
+  }
+
+  Future<UserCredential> signInWithCredential(AuthCredential credential) =>
+      _auth.signInWithCredential(credential);
+
+  Future<void> reauthenticateWithGoogle() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'You need to be signed in to delete your account.',
+      );
+    }
+    final credential = await pickGoogleCredential();
+    if (credential == null) {
+      throw FirebaseAuthException(
+        code: 'cancelled',
+        message: 'Google sign-in was cancelled.',
+      );
+    }
+    await user.reauthenticateWithCredential(credential);
   }
 
   Future<void> sendPasswordReset(String email) =>
