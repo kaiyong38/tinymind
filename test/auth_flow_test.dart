@@ -550,18 +550,32 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('shows the Google recommendation above the email form',
+    testWidgets('shows the email note under the fields and Google last',
         (tester) async {
       await pumpRegister(tester);
 
-      expect(
-        find.text(
-          'We recommend Google. If you use an email instead, please use a '
-          'real address, or you will not be able to reset your password.',
-        ),
-        findsOneWidget,
+      final note = find.text(
+        'Please use a real email address, or you will not be able to reset '
+        'your password. Check your spam folder for the verification link.',
       );
+      expect(note, findsOneWidget);
       expect(find.text('Confirm email'), findsOneWidget);
+      expect(find.textContaining('Recommend'), findsNothing);
+      expect(find.textContaining('recommend'), findsNothing);
+
+      double top(Finder finder) => tester.getTopLeft(finder).dy;
+      final lastField = find.byType(TextField).at(3);
+      final checkbox = find.byType(CheckboxListTile);
+      final submit = find.widgetWithText(FilledButton, 'Back up my data');
+      final or = find.text('or');
+      final google =
+          find.widgetWithText(OutlinedButton, 'Continue with Google');
+      expect(google, findsOneWidget);
+      expect(top(lastField), lessThan(top(note)));
+      expect(top(note), lessThan(top(checkbox)));
+      expect(top(checkbox), lessThan(top(submit)));
+      expect(top(submit), lessThan(top(or)));
+      expect(top(or), lessThan(top(google)));
     });
 
     testWidgets('a saved backup sends one verification link', (tester) async {

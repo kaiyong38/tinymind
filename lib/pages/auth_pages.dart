@@ -723,10 +723,8 @@ class _LoginPageState extends State<LoginPage> {
         fields: [_email, _password],
         hints: const ['Email address', 'Password'],
         onSubmit: _submit,
-        header: _GoogleHeader(
-          onPressed: _busy ? null : _continueWithGoogle,
-        ),
         footer: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             CheckboxListTile(
               value: _rememberMe,
@@ -762,6 +760,9 @@ class _LoginPageState extends State<LoginPage> {
             TextButton(
               onPressed: () => openPrivacyPolicy(context),
               child: const Text('Privacy Policy'),
+            ),
+            _GoogleFooter(
+              onPressed: _busy ? null : _continueWithGoogle,
             ),
           ],
         ),
@@ -908,14 +909,14 @@ class _RegisterPageState extends State<RegisterPage> {
           'Confirm password',
         ],
         onSubmit: _submit,
-        header: _GoogleHeader(
-          onPressed: _busy ? null : _continueWithGoogle,
-          emailNote: 'We recommend Google. If you use an email instead, '
-              'please use a real address, or you will not be able to reset '
-              'your password.',
-        ),
-        footer: Column(
+        beforeSubmit: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const Text(
+              _registerEmailNote,
+              style: TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            const SizedBox(height: 8),
             CheckboxListTile(
               value: _acceptedPrivacyPolicy,
               onChanged: _busy
@@ -934,8 +935,15 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ],
         ),
+        footer: _GoogleFooter(
+          onPressed: _busy ? null : _continueWithGoogle,
+        ),
       );
 }
+
+const _registerEmailNote = 'Please use a real email address, or you will '
+    'not be able to reset your password. Check your spam folder for the '
+    'verification link.';
 
 const _agreePrivacyPolicyText = 'Please agree to the Privacy Policy first.';
 
@@ -958,29 +966,17 @@ String _friendlyGoogleError(FirebaseAuthException error) => switch (error.code) 
       _ => _googleFailedText,
     };
 
-/// The "Continue with Google" button and the divider before the email form.
-class _GoogleHeader extends StatelessWidget {
-  const _GoogleHeader({required this.onPressed, this.emailNote});
+/// The "or" divider and the secondary "Continue with Google" button shown at
+/// the bottom of the email forms.
+class _GoogleFooter extends StatelessWidget {
+  const _GoogleFooter({required this.onPressed});
 
   final VoidCallback? onPressed;
-  final String? emailNote;
 
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FilledButton.icon(
-            onPressed: onPressed,
-            icon: const Icon(Icons.account_circle),
-            label: const Text('Continue with Google'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(56),
-              textStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
           const SizedBox(height: 18),
           const Row(
             children: [
@@ -988,21 +984,26 @@ class _GoogleHeader extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
-                  'or use an email',
+                  'or',
                   style: TextStyle(color: Colors.black54),
                 ),
               ),
               Expanded(child: Divider()),
             ],
           ),
-          const SizedBox(height: 14),
-          if (emailNote != null) ...[
-            Text(
-              emailNote!,
-              style: const TextStyle(fontSize: 14, color: Colors.black54),
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: onPressed,
+            icon: const Icon(Icons.account_circle),
+            label: const Text('Continue with Google'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(56),
+              textStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-            const SizedBox(height: 14),
-          ],
+          ),
         ],
       );
 }
@@ -1455,7 +1456,7 @@ class _ParentAuthScaffold extends StatelessWidget {
     this.errorAction,
     this.success,
     this.busy = false,
-    this.header,
+    this.beforeSubmit,
     this.footer,
   });
 
@@ -1476,8 +1477,9 @@ class _ParentAuthScaffold extends StatelessWidget {
   final String? success;
   final bool busy;
 
-  /// Shown above the text fields, e.g. the "Continue with Google" button.
-  final Widget? header;
+  /// Shown between the text fields and the submit button, e.g. the
+  /// Privacy Policy checkbox.
+  final Widget? beforeSubmit;
   final Widget? footer;
 
   @override
@@ -1512,7 +1514,6 @@ class _ParentAuthScaffold extends StatelessWidget {
                     style: const TextStyle(fontSize: 18, color: Colors.black54),
                   ),
                   const SizedBox(height: 28),
-                  if (header != null) header!,
                   for (var i = 0; i < fields.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
@@ -1537,6 +1538,7 @@ class _ParentAuthScaffold extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (beforeSubmit != null) beforeSubmit!,
                   if (error != null)
                     Text(
                       error!,
