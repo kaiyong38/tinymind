@@ -176,8 +176,14 @@ void main() {
     late FakeFirebaseAuth firebaseAuth;
     late _FakeFirestoreService firestore;
     late ProgressStore store;
+    late List<String> events;
 
-    Future<void> pumpLogin(WidgetTester tester) async {
+    Future<void> pumpLogin(
+      WidgetTester tester, {
+      String password = 'backup-password',
+      bool expectDialog = true,
+    }) async {
+      events = [];
       SharedPreferences.setMockInitialValues({
         'tinymind_pending_progress::local-uid::child-local-pending': jsonEncode({
           'childName': 'Mei',
@@ -187,7 +193,8 @@ void main() {
         }),
       });
       firebaseAuth = FakeFirebaseAuth(
-        user: FakeFirebaseUser(uid: 'local-uid', isAnonymous: true),
+        user: FakeFirebaseUser(uid: 'local-uid', isAnonymous: true)
+          ..onDelete = () => events.add('deleteUser'),
         backupUser: FakeFirebaseUser(
           uid: 'backup-uid',
           isAnonymous: false,
@@ -196,6 +203,7 @@ void main() {
         ),
       );
       firestore = _FakeFirestoreService()
+        ..events = events
         ..children['local-uid'] = {
           'child-a': {'childName': 'Mei', 'avatar': '🐼', 'childAge': 4, 'points': 10},
           'child-local-pending': {
@@ -209,14 +217,19 @@ void main() {
         ..children['backup-uid'] = {
           'existing': {'childName': 'Mei', 'avatar': '🦄', 'childAge': 3},
         };
-      store = ProgressStore(
+      store = _RecordingProgressStore(
+        events,
         firestore: firestore,
         currentUid: () => firebaseAuth.currentUser?.uid,
       );
       await tester.pumpWidget(
         MaterialApp(
           home: LoginPage(
-            auth: AuthService(auth: firebaseAuth, firestore: firestore),
+            auth: _FakeAuthService(
+              events,
+              auth: firebaseAuth,
+              firestore: firestore,
+            ),
             firestore: firestore,
             store: store,
           ),
@@ -224,11 +237,31 @@ void main() {
       );
       final fields = find.byType(TextField);
       await tester.enterText(fields.at(0), 'parent@example.com');
-      await tester.enterText(fields.at(1), 'backup-password');
+      await tester.enterText(fields.at(1), password);
       await tester.tap(find.text('Log in'));
       await tester.pumpAndSettle();
       expect(find.text("Bring this phone's children into your account?"),
+          expectDialog ? findsOneWidget : findsNothing);
+    }
+
+    Future<void> chooseDeleteThem(WidgetTester tester) async {
+      await tester.tap(find.text("Don't bring them"));
+      await tester.pumpAndSettle();
+      expect(find.text("Delete this phone's children?"), findsOneWidget);
+      await tester.tap(find.text('Delete them'));
+      await tester.pumpAndSettle();
+    }
+
+    void expectSignedInToBackup(WidgetTester tester) {
+      expect(firebaseAuth.signInCalls, 1);
+      expect(find.byType(LoginPage), findsNothing);
+      expect(find.byType(ChildPickerPage), findsOneWidget);
+      expect(find.text('Welcome back! Your children are ready.'),
           findsOneWidget);
+      final picker =
+          tester.widget<ChildPickerPage>(find.byType(ChildPickerPage));
+      expect(picker.parentUid, 'backup-uid');
+      expect(firebaseAuth.anonymousSignInCalls, 0);
     }
 
     testWidgets('Cancel stops the sign-in', (tester) async {
@@ -239,28 +272,97 @@ void main() {
       expect(firebaseAuth.signInCalls, 0);
       expect(firebaseAuth.currentUser!.uid, 'local-uid');
       expect(firestore.saved, isEmpty);
+      expect(firestore.deletedParents, isEmpty);
+      expect(events, isEmpty);
       await firebaseAuth.dispose();
     });
 
-    testWidgets("Don't bring them signs in without copying and restarts",
-        (tester) async {
+    testWidgets("Don't bring them asks first, and Go back returns to the "
+        'choice without deleting', (tester) async {
       await pumpLogin(tester);
       await tester.tap(find.text("Don't bring them"));
       await tester.pumpAndSettle();
 
-      expect(firebaseAuth.signInCalls, 1);
+      expect(find.text("Delete this phone's children?"), findsOneWidget);
+      expect(
+        find.text(
+          'These children and their progress will be deleted and cannot be '
+          'recovered. This only affects the children saved on this phone '
+          "before you signed in. Your account's own children are not changed.",
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Go back'));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Delete this phone's children?"), findsNothing);
+      expect(find.text("Bring this phone's children into your account?"),
+          findsOneWidget);
+      expect(firestore.deletedParents, isEmpty);
+      expect(events, isEmpty);
+      expect(firebaseAuth.signInCalls, 0);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(firebaseAuth.signInCalls, 0);
+      expect(firebaseAuth.currentUser!.uid, 'local-uid');
+      expect(events, isEmpty);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets("Don't bring them deletes this phone's children, signs in "
+        'and restarts', (tester) async {
+      await pumpLogin(tester);
+      await chooseDeleteThem(tester);
+      final prefs = await SharedPreferences.getInstance();
+
+      expect(events, [
+        'deleteParentData:local-uid',
+        'removePendingProgress:local-uid',
+        'deleteUser',
+        'signIn',
+      ]);
+      expect(firestore.deletedParents, ['local-uid']);
+      expect(
+        prefs.getKeys().where((k) => k.startsWith('tinymind_pending_progress')),
+        isEmpty,
+      );
       expect(firestore.saved, isEmpty);
       expect(firestore.created, isEmpty);
-      expect(find.byType(LoginPage), findsNothing);
-      expect(find.byType(ChildPickerPage), findsOneWidget);
-      expect(find.text('Welcome back! Your children are ready.'),
-          findsOneWidget);
+      expectSignedInToBackup(tester);
       expect(find.text('Kai'), findsNothing);
       expect(find.text('Mei'), findsOneWidget);
-      final picker =
-          tester.widget<ChildPickerPage>(find.byType(ChildPickerPage));
-      expect(picker.parentUid, 'backup-uid');
-      expect(firebaseAuth.anonymousSignInCalls, 0);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('a failed delete still signs in', (tester) async {
+      await pumpLogin(tester);
+      firestore.deleteError = true;
+      (firebaseAuth.currentUser! as FakeFirebaseUser).deleteError =
+          FirebaseAuthException(code: 'network-request-failed');
+      await chooseDeleteThem(tester);
+
+      expect(events, [
+        'deleteParentData:local-uid',
+        'removePendingProgress:local-uid',
+        'deleteUser',
+        'signIn',
+      ]);
+      expectSignedInToBackup(tester);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('a wrong password shows an error before any dialog',
+        (tester) async {
+      await pumpLogin(tester, password: 'wrong-password', expectDialog: false);
+
+      expect(find.text('That email and password do not match.'),
+          findsOneWidget);
+      expect(find.text("Delete this phone's children?"), findsNothing);
+      expect(firebaseAuth.signInCalls, 0);
+      expect(firebaseAuth.currentUser!.uid, 'local-uid');
+      expect(firestore.deletedParents, isEmpty);
+      expect(events, isEmpty);
       await firebaseAuth.dispose();
     });
 
@@ -324,7 +426,7 @@ void main() {
       currentUid: () => firebaseAuth.currentUser?.uid,
     );
     store.configureChild(parentUid: 'local-uid', childId: 'x');
-    final auth = AuthService(auth: firebaseAuth, firestore: firestore);
+    final auth = _FakeAuthService([], auth: firebaseAuth, firestore: firestore);
     await tester.pumpWidget(
       MaterialApp(
         home: LoginPage(auth: auth, firestore: firestore, store: store),
@@ -336,6 +438,8 @@ void main() {
     await tester.tap(find.text('Log in'));
     await tester.pumpAndSettle();
     await tester.tap(find.text("Don't bring them"));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete them'));
     await tester.pumpAndSettle();
 
     expect(find.byType(StartupGatePage), findsOneWidget);
@@ -736,6 +840,49 @@ class _FakeFirestoreService extends FirestoreService {
   @override
   Future<void> deleteParentData(String parentUid) async {
     deleteParentDataCalls++;
+    deletedParents.add(parentUid);
+    events.add('deleteParentData:$parentUid');
+    if (deleteError) {
+      throw FirebaseException(plugin: 'cloud_firestore', code: 'unavailable');
+    }
+  }
+
+  final List<String> deletedParents = [];
+  List<String> events = [];
+  bool deleteError = false;
+}
+
+class _FakeAuthService extends AuthService {
+  _FakeAuthService(this.events, {super.auth, super.firestore});
+
+  static const correctPassword = 'backup-password';
+  final List<String> events;
+  int verifyPasswordCalls = 0;
+
+  @override
+  Future<void> verifyPassword(String email, String password) async {
+    verifyPasswordCalls++;
+    if (password != correctPassword) {
+      throw FirebaseAuthException(code: 'wrong-password');
+    }
+  }
+
+  @override
+  Future<UserCredential> signIn(String email, String password) {
+    events.add('signIn');
+    return super.signIn(email, password);
+  }
+}
+
+class _RecordingProgressStore extends ProgressStore {
+  _RecordingProgressStore(this.events, {super.firestore, super.currentUid});
+
+  final List<String> events;
+
+  @override
+  Future<void> removePendingProgress(String parentUid) async {
+    events.add('removePendingProgress:$parentUid');
+    await super.removePendingProgress(parentUid);
   }
 }
 

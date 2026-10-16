@@ -80,6 +80,17 @@ class FakeFirebaseUser extends Fake implements User {
   final Object? linkError;
   AuthCredential? linkedCredential;
   int reauthenticationCalls = 0;
+  int deleteCalls = 0;
+  Object? deleteError;
+  void Function()? onDelete;
+
+  @override
+  Future<void> delete() async {
+    deleteCalls++;
+    onDelete?.call();
+    final error = deleteError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<UserCredential> linkWithCredential(AuthCredential credential) async {

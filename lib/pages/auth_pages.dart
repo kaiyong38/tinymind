@@ -72,13 +72,15 @@ class _StartupGatePageState extends State<StartupGatePage> {
   void initState() {
     super.initState();
     _retryTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (_failed) _signIn();
+      if (_failed || _auth.currentUser == null) _signIn();
     });
     _signIn();
   }
 
   Future<void> _signIn() async {
-    if (_signingIn || _auth.currentUser != null) return;
+    if (_signingIn || _auth.currentUser != null || _auth.isSwitchingAccount) {
+      return;
+    }
     setState(() {
       _signingIn = true;
       _failed = false;
@@ -442,6 +444,81 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  Future<_BringChoice?> _askBringChoice() => showDialog<_BringChoice>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Bring this phone's children into your account?"),
+          content: const SingleChildScrollView(
+            child: Text(
+              'Children saved on this phone can be copied into the account '
+              'you are signing in to. Your account\'s own children are not '
+              'changed.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, _BringChoice.skip),
+              child: const Text("Don't bring them"),
+            ),
+            FilledButton(
+              autofocus: true,
+              onPressed: () => Navigator.pop(context, _BringChoice.bring),
+              child: const Text('Bring them'),
+            ),
+          ],
+        ),
+      );
+
+  Future<bool?> _confirmDeleteLocalChildren() => showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Delete this phone's children?"),
+          content: const SingleChildScrollView(
+            child: Text(
+              'These children and their progress will be deleted and cannot '
+              'be recovered. This only affects the children saved on this '
+              'phone before you signed in. Your account\'s own children are '
+              'not changed.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Go back'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete them'),
+            ),
+          ],
+        ),
+      );
+
+  /// Deletes the anonymous account's data while still signed in as it (the
+  /// rules allow that). Failures are ignored: leftover data is better than a
+  /// parent who cannot sign in.
+  Future<void> _deleteAnonymousData(
+    User anonymous,
+    String oldUid,
+    ProgressStore store,
+  ) async {
+    if (!anonymous.isAnonymous || anonymous.uid != oldUid) return;
+    try {
+      await widget.firestore.deleteParentData(oldUid);
+    } catch (_) {}
+    try {
+      await store.removePendingProgress(oldUid);
+    } catch (_) {}
+    try {
+      await anonymous.delete();
+    } catch (_) {}
+  }
+
   Future<void> _submit() async {
     if (_email.text.trim().isEmpty || _password.text.isEmpty) {
       setState(() => _error = 'Please enter your email and password.');
@@ -457,45 +534,45 @@ class _LoginPageState extends State<LoginPage> {
       final transfer = ChildTransfer(firestore: widget.firestore, store: store);
       final oldUid = current?.uid;
       List<TransferableChild>? toBring;
+      var deleteLocalChildren = false;
       if (current?.isAnonymous == true) {
         final childCount = await widget.firestore.countChildren(current!.uid);
         if (!mounted) return;
         if (childCount > 0) {
-          final choice = await showDialog<_BringChoice>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text("Bring this phone's children into your account?"),
-              content: const SingleChildScrollView(
-                child: Text(
-                  'Children saved on this phone can be copied into the account '
-                  'you are signing in to. Your account\'s own children are not '
-                  'changed.',
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, _BringChoice.skip),
-                  child: const Text("Don't bring them"),
-                ),
-                FilledButton(
-                  autofocus: true,
-                  onPressed: () => Navigator.pop(context, _BringChoice.bring),
-                  child: const Text('Bring them'),
-                ),
-              ],
-            ),
-          );
+          // Check the password first so a typo never deletes anything.
+          await widget.auth.verifyPassword(_email.text, _password.text);
+          if (!mounted) return;
+          _BringChoice? choice;
+          while (true) {
+            choice = await _askBringChoice();
+            if (!mounted) return;
+            if (choice != _BringChoice.skip) break;
+            if (await _confirmDeleteLocalChildren() == true) break;
+            if (!mounted) return;
+          }
           if (choice == null) return;
           if (choice == _BringChoice.bring) {
             toBring = await transfer.collect(current.uid);
+          } else {
+            deleteLocalChildren = true;
           }
         }
       }
-      await widget.auth.signIn(_email.text, _password.text);
+      if (deleteLocalChildren &&
+          current != null &&
+          current.isAnonymous &&
+          oldUid != null &&
+          widget.auth.currentUser?.uid == oldUid) {
+        widget.auth.isSwitchingAccount = true;
+        try {
+          await _deleteAnonymousData(current, oldUid, store);
+          await widget.auth.signIn(_email.text, _password.text);
+        } finally {
+          widget.auth.isSwitchingAccount = false;
+        }
+      } else {
+        await widget.auth.signIn(_email.text, _password.text);
+      }
       final newUid = widget.auth.currentUser?.uid;
       if (toBring != null &&
           toBring.isNotEmpty &&
