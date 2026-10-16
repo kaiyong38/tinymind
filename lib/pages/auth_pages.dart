@@ -130,8 +130,9 @@ Future<void> _deleteAnonymousData(
 
 /// Signs in to an existing backup account. When this phone's anonymous
 /// account has children, the parent chooses to bring them along (copied in
-/// as new children) or delete them first. [verify] runs before any dialog so
-/// wrong details never delete anything. [onSignedIn] runs after sign-in,
+/// as new children) or delete them first. For an anonymous account [verify]
+/// always runs first, before any dialog, so wrong details or an unverified
+/// email never delete or copy anything. [onSignedIn] runs after sign-in,
 /// before the app restarts. Errors are left for the caller to show.
 Future<void> _switchAccountFromAnonymous({
   required BuildContext context,
@@ -148,13 +149,13 @@ Future<void> _switchAccountFromAnonymous({
   List<TransferableChild>? toBring;
   var deleteLocalChildren = false;
   if (current?.isAnonymous == true) {
+    if (verify != null) {
+      await verify();
+      if (!context.mounted) return;
+    }
     final childCount = await firestore.countChildren(current!.uid);
     if (!context.mounted) return;
     if (childCount > 0) {
-      if (verify != null) {
-        await verify();
-        if (!context.mounted) return;
-      }
       _BringChoice? choice;
       while (true) {
         choice = await _askBringChoice(context);
@@ -580,8 +581,10 @@ class _LoginPageState extends State<LoginPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   String? _error;
+  String? _success;
   bool _busy = false;
   bool _rememberMe = true;
+  bool _emailNotVerified = false;
 
   @override
   void initState() {
@@ -612,6 +615,8 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _busy = true;
       _error = null;
+      _success = null;
+      _emailNotVerified = false;
     });
     try {
       await _switchAccountFromAnonymous(
@@ -631,6 +636,13 @@ class _LoginPageState extends State<LoginPage> {
           }
         },
       );
+    } on EmailNotVerifiedException {
+      if (mounted) {
+        setState(() {
+          _error = _emailNotVerifiedText;
+          _emailNotVerified = true;
+        });
+      }
     } on FirebaseAuthException catch (error) {
       if (mounted) {
         setState(() => _error = _friendlyAuthError(error));
@@ -645,10 +657,35 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// The parent cannot sign in until the email is verified, so the link is
+  /// sent from a throwaway sign-in instead of the current account.
+  Future<void> _resendVerification() async {
+    setState(() {
+      _busy = true;
+      _success = null;
+    });
+    try {
+      await widget.auth.resendVerificationFor(_email.text, _password.text);
+      if (mounted) {
+        setState(() {
+          _error = null;
+          _emailNotVerified = false;
+          _success = verificationLinkSentText;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _error = _verificationSendFailedText);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _continueWithGoogle() async {
     setState(() {
       _busy = true;
       _error = null;
+      _success = null;
+      _emailNotVerified = false;
     });
     try {
       final credential = await widget.auth.pickGoogleCredential();
@@ -676,6 +713,13 @@ class _LoginPageState extends State<LoginPage> {
         action: 'Log in',
         busy: _busy,
         error: _error,
+        success: _success,
+        errorAction: _emailNotVerified
+            ? TextButton(
+                onPressed: _busy ? null : _resendVerification,
+                child: const Text('Send the link again'),
+              )
+            : null,
         fields: [_email, _password],
         hints: const ['Email address', 'Password'],
         onSubmit: _submit,
@@ -742,6 +786,7 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _email = TextEditingController();
+  final _confirmEmail = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
   String? _error;
@@ -751,6 +796,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void dispose() {
     _email.dispose();
+    _confirmEmail.dispose();
     _password.dispose();
     _confirmPassword.dispose();
     super.dispose();
@@ -765,6 +811,11 @@ class _RegisterPageState extends State<RegisterPage> {
       setState(() => _error = 'Use an email and a password of 6+ characters.');
       return;
     }
+    if (_email.text.trim().toLowerCase() !=
+        _confirmEmail.text.trim().toLowerCase()) {
+      setState(() => _error = 'The two emails do not match.');
+      return;
+    }
     if (_password.text != _confirmPassword.text) {
       setState(() => _error = 'The passwords do not match.');
       return;
@@ -775,7 +826,28 @@ class _RegisterPageState extends State<RegisterPage> {
     });
     try {
       await widget.auth.linkEmail(_email.text, _password.text);
-      if (mounted) Navigator.pop(context, true);
+      final email = _email.text.trim();
+      var sent = false;
+      try {
+        await widget.auth.sendVerificationEmail();
+        sent = true;
+      } catch (_) {
+        // The backup is saved; the link can be sent again from the menu.
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text(
+            sent
+                ? 'Backup saved. We sent a verification link to $email. '
+                    'Please open it to finish. Check your spam folder too.'
+                : 'Backup saved. We could not send the verification link '
+                    "yet. Use 'Verify my email' in the account menu.",
+          ),
+        ),
+      );
+      Navigator.pop(context, true);
     } on FirebaseAuthException catch (error) {
       if (mounted) {
         setState(() => _error = _friendlyAuthError(error));
@@ -828,8 +900,13 @@ class _RegisterPageState extends State<RegisterPage> {
         action: 'Back up my data',
         busy: _busy,
         error: _error,
-        fields: [_email, _password, _confirmPassword],
-        hints: const ['Email address', 'Password', 'Confirm password'],
+        fields: [_email, _confirmEmail, _password, _confirmPassword],
+        hints: const [
+          'Email address',
+          'Confirm email',
+          'Password',
+          'Confirm password',
+        ],
         onSubmit: _submit,
         header: _GoogleHeader(
           onPressed: _busy ? null : _continueWithGoogle,
@@ -861,6 +938,15 @@ class _RegisterPageState extends State<RegisterPage> {
 }
 
 const _agreePrivacyPolicyText = 'Please agree to the Privacy Policy first.';
+
+const _emailNotVerifiedText = 'This email is not verified yet. Open the '
+    'verification link we sent to this email, then try again.';
+
+const verificationLinkSentText =
+    'Verification link sent. Check your inbox and spam folder.';
+
+const _verificationSendFailedText =
+    'We could not send the link. Please try again later.';
 
 const _googleFailedText =
     'We could not finish signing in with Google. Please try again.';
@@ -1366,6 +1452,7 @@ class _ParentAuthScaffold extends StatelessWidget {
     required this.hints,
     required this.onSubmit,
     this.error,
+    this.errorAction,
     this.success,
     this.busy = false,
     this.header,
@@ -1379,6 +1466,9 @@ class _ParentAuthScaffold extends StatelessWidget {
   final List<String> hints;
   final Future<void> Function() onSubmit;
   final String? error;
+
+  /// Shown under [error], e.g. a button that fixes the problem.
+  final Widget? errorAction;
 
   /// A confirmation message (shown in green, not red) — distinct from
   /// [error] so a successful "check your inbox" message never looks like
@@ -1454,6 +1544,11 @@ class _ParentAuthScaffold extends StatelessWidget {
                         color: Colors.red,
                         fontSize: 16,
                       ),
+                    ),
+                  if (error != null && errorAction != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: errorAction,
                     ),
                   if (success != null)
                     Row(

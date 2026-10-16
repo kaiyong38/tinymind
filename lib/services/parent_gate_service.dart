@@ -38,6 +38,12 @@ abstract interface class ParentPasswordAuthenticator {
   Future<void> reauthenticate(String password);
 }
 
+/// Asks the parent to sign in to their Google account again. Throws when
+/// they cancel or the check fails.
+abstract interface class ParentGoogleAuthenticator {
+  Future<void> reauthenticate();
+}
+
 class LocalAuthPhoneAuthenticator implements ParentPhoneAuthenticator {
   LocalAuthPhoneAuthenticator({LocalAuthentication? authentication})
       : _authentication = authentication ?? LocalAuthentication();
@@ -99,6 +105,7 @@ class ParentGateService {
     ParentPhoneAuthenticator? phoneAuthenticator,
     ParentGateStorage? storage,
     ParentPasswordAuthenticator? passwordAuthenticator,
+    ParentGoogleAuthenticator? googleAuthenticator,
     AuthService? auth,
     DateTime Function()? clock,
   })  : _phoneAuthenticator =
@@ -106,6 +113,8 @@ class ParentGateService {
         _storage = storage ?? SharedPreferencesParentGateStorage(),
         _passwordAuthenticator = passwordAuthenticator ??
             _AuthServicePasswordAuthenticator(auth),
+        _googleAuthenticator =
+            googleAuthenticator ?? _AuthServiceGoogleAuthenticator(auth),
         _auth = auth,
         _clock = clock ?? DateTime.now;
 
@@ -115,6 +124,7 @@ class ParentGateService {
   final ParentPhoneAuthenticator _phoneAuthenticator;
   final ParentGateStorage _storage;
   final ParentPasswordAuthenticator _passwordAuthenticator;
+  final ParentGoogleAuthenticator _googleAuthenticator;
   final AuthService? _auth;
   final DateTime Function() _clock;
 
@@ -240,7 +250,8 @@ class ParentGateService {
   }
 
   Future<bool> _recoverForgottenPin(BuildContext context) async {
-    final user = (_auth ?? AuthService()).currentUser;
+    final auth = _auth ?? AuthService();
+    final user = auth.currentUser;
     final emailLinked = user != null &&
         !user.isAnonymous &&
         user.email != null &&
@@ -254,6 +265,12 @@ class ParentGateService {
       try {
         await _passwordAuthenticator.reauthenticate(password);
       } on FirebaseAuthException {
+        return false;
+      }
+    } else if (user != null && !user.isAnonymous && auth.hasGoogleBackup) {
+      try {
+        await _googleAuthenticator.reauthenticate();
+      } catch (_) {
         return false;
       }
     } else {
@@ -298,6 +315,16 @@ class _AuthServicePasswordAuthenticator implements ParentPasswordAuthenticator {
   @override
   Future<void> reauthenticate(String password) =>
       (auth ?? AuthService()).reauthenticate(password);
+}
+
+class _AuthServiceGoogleAuthenticator implements ParentGoogleAuthenticator {
+  const _AuthServiceGoogleAuthenticator(this.auth);
+
+  final AuthService? auth;
+
+  @override
+  Future<void> reauthenticate() =>
+      (auth ?? AuthService()).reauthenticateWithGoogle();
 }
 
 class _AdultReadingCheckDialog extends StatefulWidget {

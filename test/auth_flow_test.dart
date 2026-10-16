@@ -154,8 +154,9 @@ void main() {
 
     final fields = find.byType(TextField);
     await tester.enterText(fields.at(0), 'parent@example.com');
-    await tester.enterText(fields.at(1), 'strong-password');
+    await tester.enterText(fields.at(1), 'parent@example.com');
     await tester.enterText(fields.at(2), 'strong-password');
+    await tester.enterText(fields.at(3), 'strong-password');
     await tester.ensureVisible(find.byType(CheckboxListTile));
     await tester.tap(find.byType(CheckboxListTile));
     await tester.pump();
@@ -177,11 +178,14 @@ void main() {
     late _FakeFirestoreService firestore;
     late ProgressStore store;
     late List<String> events;
+    late _FakeAuthService auth;
 
     Future<void> pumpLogin(
       WidgetTester tester, {
       String password = 'backup-password',
       bool expectDialog = true,
+      bool emailVerified = true,
+      bool withLocalChildren = true,
     }) async {
       events = [];
       SharedPreferences.setMockInitialValues({
@@ -217,19 +221,21 @@ void main() {
         ..children['backup-uid'] = {
           'existing': {'childName': 'Mei', 'avatar': '🦄', 'childAge': 3},
         };
+      if (!withLocalChildren) firestore.children.remove('local-uid');
       store = _RecordingProgressStore(
         events,
         firestore: firestore,
         currentUid: () => firebaseAuth.currentUser?.uid,
       );
+      auth = _FakeAuthService(
+        events,
+        auth: firebaseAuth,
+        firestore: firestore,
+      )..emailVerified = emailVerified;
       await tester.pumpWidget(
         MaterialApp(
           home: LoginPage(
-            auth: _FakeAuthService(
-              events,
-              auth: firebaseAuth,
-              firestore: firestore,
-            ),
+            auth: auth,
             firestore: firestore,
             store: store,
           ),
@@ -421,6 +427,324 @@ void main() {
         isEmpty,
       );
       expect(firestore.saved.containsKey('local-uid'), isFalse);
+      await firebaseAuth.dispose();
+    });
+
+    void expectNothingTouched() {
+      expect(find.text("Bring this phone's children into your account?"),
+          findsNothing);
+      expect(find.text("Delete this phone's children?"), findsNothing);
+      expect(firebaseAuth.signInCalls, 0);
+      expect(firebaseAuth.currentUser!.uid, 'local-uid');
+      expect(firestore.deletedParents, isEmpty);
+      expect(firestore.saved, isEmpty);
+      expect(firestore.created, isEmpty);
+      expect(events, isEmpty);
+    }
+
+    testWidgets('an unverified email is refused before any dialog and can '
+        'resend the link', (tester) async {
+      await pumpLogin(tester, emailVerified: false, expectDialog: false);
+
+      expect(auth.verifyPasswordCalls, 1);
+      expect(
+        find.text(
+          'This email is not verified yet. Open the verification link we '
+          'sent to this email, then try again.',
+        ),
+        findsOneWidget,
+      );
+      expectNothingTouched();
+
+      await tester.ensureVisible(find.text('Send the link again'));
+      await tester.tap(find.text('Send the link again'));
+      await tester.pumpAndSettle();
+
+      expect(auth.resendVerificationCalls, 1);
+      expect(
+        find.text('Verification link sent. Check your inbox and spam folder.'),
+        findsOneWidget,
+      );
+      expectNothingTouched();
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('with no children the password is still checked first',
+        (tester) async {
+      await pumpLogin(tester, withLocalChildren: false, expectDialog: false);
+
+      expect(auth.verifyPasswordCalls, 1);
+      expect(events, ['signIn']);
+      expectSignedInToBackup(tester);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('with no children an unverified email is still refused',
+        (tester) async {
+      await pumpLogin(
+        tester,
+        withLocalChildren: false,
+        emailVerified: false,
+        expectDialog: false,
+      );
+
+      expect(auth.verifyPasswordCalls, 1);
+      expect(find.textContaining('This email is not verified yet.'),
+          findsOneWidget);
+      expectNothingTouched();
+      await firebaseAuth.dispose();
+    });
+  });
+
+  group('email backup verification', () {
+    late FakeFirebaseUser user;
+    late List<String> events;
+
+    Future<void> pumpRegister(WidgetTester tester) async {
+      events = [];
+      user = FakeFirebaseUser(
+        uid: 'anon',
+        isAnonymous: true,
+        emailVerified: false,
+      );
+      final auth = AuthService(auth: FakeFirebaseAuth(user: user));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  final linked = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RegisterPage(auth: auth),
+                    ),
+                  );
+                  events.add('registerResult:$linked');
+                },
+                child: const Text('Open register'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open register'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> fillAndSubmit(
+      WidgetTester tester, {
+      String confirmEmail = 'parent@example.com',
+    }) async {
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(0), 'parent@example.com');
+      await tester.enterText(fields.at(1), confirmEmail);
+      await tester.enterText(fields.at(2), 'strong-password');
+      await tester.enterText(fields.at(3), 'strong-password');
+      await tester.ensureVisible(find.byType(CheckboxListTile));
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+      final submit = find.widgetWithText(FilledButton, 'Back up my data');
+      await tester.ensureVisible(submit);
+      await tester.tap(submit);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows the Google recommendation above the email form',
+        (tester) async {
+      await pumpRegister(tester);
+
+      expect(
+        find.text(
+          'We recommend Google. If you use an email instead, please use a '
+          'real address, or you will not be able to reset your password.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Confirm email'), findsOneWidget);
+    });
+
+    testWidgets('a saved backup sends one verification link', (tester) async {
+      await pumpRegister(tester);
+      await fillAndSubmit(tester);
+
+      expect(user.linkedCredential, isA<EmailAuthCredential>());
+      expect(user.sendEmailVerificationCalls, 1);
+      expect(events, ['registerResult:true']);
+      expect(
+        find.text(
+          'Backup saved. We sent a verification link to parent@example.com. '
+          'Please open it to finish. Check your spam folder too.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a failed verification send still saves the backup',
+        (tester) async {
+      await pumpRegister(tester);
+      user.sendEmailVerificationError =
+          FirebaseAuthException(code: 'too-many-requests');
+      await fillAndSubmit(tester);
+
+      expect(user.linkedCredential, isA<EmailAuthCredential>());
+      expect(user.sendEmailVerificationCalls, 1);
+      expect(events, ['registerResult:true']);
+      expect(find.byType(RegisterPage), findsNothing);
+      expect(find.textContaining('Backup saved.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('different emails are refused before linking',
+        (tester) async {
+      await pumpRegister(tester);
+      await fillAndSubmit(tester, confirmEmail: 'parent@exmaple.com');
+
+      expect(find.text('The two emails do not match.'), findsOneWidget);
+      expect(user.linkedCredential, isNull);
+      expect(user.sendEmailVerificationCalls, 0);
+      expect(find.byType(RegisterPage), findsOneWidget);
+      expect(events, isEmpty);
+    });
+  });
+
+  group('email verification menu', () {
+    late FakeFirebaseAuth firebaseAuth;
+    late FakeFirebaseUser user;
+
+    Future<void> pumpAdmin(
+      WidgetTester tester, {
+      bool emailVerified = false,
+    }) async {
+      user = FakeFirebaseUser(
+        uid: 'linked',
+        isAnonymous: false,
+        email: 'parent@example.com',
+        emailProvider: true,
+        emailVerified: emailVerified,
+      );
+      firebaseAuth = FakeFirebaseAuth(user: user);
+      await tester.pumpWidget(_adminApp(AuthService(auth: firebaseAuth)));
+    }
+
+    Future<void> openMenu(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Account'));
+      await _pumpAnimations(tester);
+    }
+
+    Future<void> openVerifyDialog(WidgetTester tester) async {
+      await openMenu(tester);
+      await tester.tap(find.text('Verify my email'));
+      await _pumpAnimations(tester);
+      expect(
+        find.text('We will send a verification link to parent@example.com.'),
+        findsOneWidget,
+      );
+    }
+
+    testWidgets('an unverified email offers Verify my email', (tester) async {
+      await pumpAdmin(tester);
+      await openMenu(tester);
+
+      expect(find.text('Verify my email'), findsOneWidget);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('a verified email does not offer Verify my email',
+        (tester) async {
+      await pumpAdmin(tester, emailVerified: true);
+      await openMenu(tester);
+
+      expect(find.text('Verify my email'), findsNothing);
+      expect(find.text('Sign out'), findsOneWidget);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('Send link sends the verification email', (tester) async {
+      await pumpAdmin(tester);
+      await openVerifyDialog(tester);
+      await tester.tap(find.text('Send link'));
+      await _pumpAnimations(tester);
+
+      expect(user.sendEmailVerificationCalls, 1);
+      expect(
+        find.text('Verification link sent. Check your inbox and spam folder.'),
+        findsOneWidget,
+      );
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('Cancel sends nothing', (tester) async {
+      await pumpAdmin(tester);
+      await openVerifyDialog(tester);
+      await tester.tap(find.text('Cancel'));
+      await _pumpAnimations(tester);
+
+      expect(user.sendEmailVerificationCalls, 0);
+      expect(user.reloadCalls, 0);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('I have verified it refreshes and hides the menu item',
+        (tester) async {
+      await pumpAdmin(tester);
+      await openVerifyDialog(tester);
+      user.emailVerified = true;
+      await tester.tap(find.text('I have verified it'));
+      await _pumpAnimations(tester);
+
+      expect(user.reloadCalls, 1);
+      expect(find.text('Email verified. Thank you!'), findsOneWidget);
+      await openMenu(tester);
+      expect(find.text('Verify my email'), findsNothing);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('I have verified it says when the email is still unverified',
+        (tester) async {
+      await pumpAdmin(tester);
+      await openVerifyDialog(tester);
+      await tester.tap(find.text('I have verified it'));
+      await _pumpAnimations(tester);
+
+      expect(user.reloadCalls, 1);
+      expect(find.text('Not verified yet. Please open the link in the email.'),
+          findsOneWidget);
+      await openMenu(tester);
+      expect(find.text('Verify my email'), findsOneWidget);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('Sign out is blocked until the email is verified',
+        (tester) async {
+      await pumpAdmin(tester);
+      await openMenu(tester);
+      await tester.tap(find.text('Sign out'));
+      await _pumpAnimations(tester);
+
+      expect(
+        find.text(
+          'Please verify your email first. Otherwise you will not be able to '
+          'sign back in.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Sign out?'), findsNothing);
+      await tester.tap(find.text('OK'));
+      await _pumpAnimations(tester);
+      expect(firebaseAuth.signOutCalls, 0);
+      expect(firebaseAuth.currentUser, same(user));
+
+      await openMenu(tester);
+      await tester.tap(find.text('Sign out'));
+      await _pumpAnimations(tester);
+      await tester.tap(find.text('Verify now'));
+      await _pumpAnimations(tester);
+      expect(
+        find.text('We will send a verification link to parent@example.com.'),
+        findsOneWidget,
+      );
+      expect(firebaseAuth.signOutCalls, 0);
       await firebaseAuth.dispose();
     });
   });
@@ -1119,6 +1443,7 @@ void main() {
 
   group('Google account menu', () {
     late FakeFirebaseUser user;
+    late FakeFirebaseAuth firebaseAuth;
     late FakeGoogleCredentialProvider google;
     late _FakeAuthService auth;
 
@@ -1128,11 +1453,14 @@ void main() {
         isAnonymous: false,
         email: 'parent@gmail.com',
         googleProvider: true,
+        // Only email accounts need verifying; this must not matter here.
+        emailVerified: false,
       );
       google = FakeGoogleCredentialProvider(_fakeGoogleCredential());
+      firebaseAuth = FakeFirebaseAuth(user: user);
       auth = _FakeAuthService(
         [],
-        auth: FakeFirebaseAuth(user: user),
+        auth: firebaseAuth,
         googleProvider: google,
       );
       await tester.pumpWidget(_adminApp(auth));
@@ -1144,8 +1472,24 @@ void main() {
       await pumpAdmin(tester);
 
       expect(find.text('Change password'), findsNothing);
+      expect(find.text('Verify my email'), findsNothing);
       expect(find.text('Sign out'), findsOneWidget);
       expect(find.text('I already have a backup (sign in)'), findsNothing);
+    });
+
+    testWidgets('signs out normally', (tester) async {
+      await pumpAdmin(tester);
+      await tester.tap(find.text('Sign out'));
+      await _pumpAnimations(tester);
+
+      expect(find.textContaining('Please verify your email first'),
+          findsNothing);
+      await tester.tap(find.widgetWithText(FilledButton, 'Sign out'));
+      await tester.pumpAndSettle();
+
+      expect(firebaseAuth.signOutCalls, 1);
+      expect(find.byType(AdminPage), findsNothing);
+      await firebaseAuth.dispose();
     });
 
     testWidgets('delete account checks Google instead of a password',
@@ -1353,12 +1697,22 @@ class _FakeAuthService extends AuthService {
     return super.reauthenticateWithGoogle();
   }
 
+  /// What [verifyPassword] reports for a correct password.
+  bool emailVerified = true;
+  int resendVerificationCalls = 0;
+
   @override
   Future<void> verifyPassword(String email, String password) async {
     verifyPasswordCalls++;
     if (password != correctPassword) {
       throw FirebaseAuthException(code: 'wrong-password');
     }
+    if (!emailVerified) throw const EmailNotVerifiedException();
+  }
+
+  @override
+  Future<void> resendVerificationFor(String email, String password) async {
+    resendVerificationCalls++;
   }
 
   @override

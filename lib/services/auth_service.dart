@@ -59,6 +59,18 @@ class GoogleLinkResult {
   final AuthCredential? credential;
 }
 
+/// The email and password are right, but the email has not been verified.
+class EmailNotVerifiedException implements Exception {
+  const EmailNotVerifiedException([
+    this.message = 'This email has not been verified yet.',
+  ]);
+
+  final String message;
+
+  @override
+  String toString() => 'EmailNotVerifiedException: $message';
+}
+
 class AuthService {
   AuthService({
     FirebaseAuth? auth,
@@ -95,8 +107,36 @@ class AuthService {
 
   /// Checks an email and password without touching the current sign-in.
   /// It signs in on a throwaway second Firebase app, then removes that app.
-  /// Throws the original [FirebaseAuthException] when the details are wrong.
+  /// Throws the original [FirebaseAuthException] when the details are wrong,
+  /// and [EmailNotVerifiedException] when the email is not verified yet.
   Future<void> verifyPassword(String email, String password) async {
+    final verified = await _withTemporaryAuth((auth) async {
+      final credential = await auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      return credential.user?.emailVerified ?? false;
+    });
+    if (!verified) throw const EmailNotVerifiedException();
+  }
+
+  /// Sends the verification email again for an account the parent cannot
+  /// sign in to yet, using the same throwaway Firebase app as
+  /// [verifyPassword].
+  Future<void> resendVerificationFor(String email, String password) =>
+      _withTemporaryAuth((auth) async {
+        final credential = await auth.signInWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
+        await credential.user?.sendEmailVerification();
+      });
+
+  /// Runs [action] on a throwaway second Firebase app, then signs out and
+  /// removes that app even when [action] fails.
+  Future<T> _withTemporaryAuth<T>(
+    Future<T> Function(FirebaseAuth auth) action,
+  ) async {
     const name = 'tinymind_verify';
     final existing = Firebase.apps.where((app) => app.name == name);
     final app = existing.isNotEmpty
@@ -105,16 +145,29 @@ class AuthService {
             name: name,
             options: Firebase.app().options,
           );
+    final auth = FirebaseAuth.instanceFor(app: app);
     try {
-      final auth = FirebaseAuth.instanceFor(app: app);
-      await auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      await auth.signOut();
+      return await action(auth);
     } finally {
+      try {
+        await auth.signOut();
+      } catch (_) {}
       await app.delete();
     }
+  }
+
+  bool get isEmailVerified => currentUser?.emailVerified ?? false;
+
+  Future<void> sendVerificationEmail() async {
+    final user = currentUser;
+    if (user == null || user.emailVerified) return;
+    await user.sendEmailVerification();
+  }
+
+  /// Reloads the user from Firebase so a link opened in the email shows up.
+  Future<bool> refreshEmailVerified() async {
+    await currentUser?.reload();
+    return currentUser?.emailVerified ?? false;
   }
 
   Future<UserCredential> linkEmail(String email, String password) async {

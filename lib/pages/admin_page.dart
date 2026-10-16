@@ -14,6 +14,8 @@ import 'child_detail_page.dart';
 import 'parent_settings_page.dart';
 import 'privacy_policy_page.dart';
 
+enum _VerifyEmailChoice { send, check }
+
 class AdminPage extends StatefulWidget {
   AdminPage({
     FirestoreService? firestore,
@@ -64,6 +66,100 @@ class _AdminPageState extends State<AdminPage> {
     if (mounted) setState(() {});
   }
 
+  bool get _needsEmailVerification =>
+      auth.hasEmailBackup && !auth.isEmailVerified;
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _verifyEmail() async {
+    final choice = await showDialog<_VerifyEmailChoice>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Verify my email'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'We will send a verification link to '
+                '${auth.currentUser?.email ?? 'your email'}.',
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(dialogContext, _VerifyEmailChoice.check),
+                child: const Text('I have verified it'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, _VerifyEmailChoice.send),
+            child: const Text('Send link'),
+          ),
+        ],
+      ),
+    );
+    if (choice == _VerifyEmailChoice.send) {
+      try {
+        await auth.sendVerificationEmail();
+        _showMessage(verificationLinkSentText);
+      } catch (_) {
+        _showMessage('We could not send the link. Please try again later.');
+      }
+    } else if (choice == _VerifyEmailChoice.check) {
+      bool verified;
+      try {
+        verified = await auth.refreshEmailVerified();
+      } catch (_) {
+        verified = false;
+      }
+      _showMessage(
+        verified
+            ? 'Email verified. Thank you!'
+            : 'Not verified yet. Please open the link in the email.',
+      );
+      if (mounted) setState(() {});
+    }
+  }
+
+  /// Signing out of an unverified email account would lock the parent out,
+  /// because LoginPage refuses unverified emails.
+  Future<void> _askToVerifyBeforeSignOut() async {
+    final verifyNow = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: const Text(
+          'Please verify your email first. Otherwise you will not be able '
+          'to sign back in.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('OK'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Verify now'),
+          ),
+        ],
+      ),
+    );
+    if (verifyNow == true && mounted) await _verifyEmail();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -99,7 +195,13 @@ class _AdminPageState extends State<AdminPage> {
                       store: widget.store,
                     ),
                   );
+                } else if (value == 'verify_email') {
+                  await _verifyEmail();
                 } else if (value == 'sign_out') {
+                  if (_needsEmailVerification) {
+                    await _askToVerifyBeforeSignOut();
+                    return;
+                  }
                   final shouldSignOut = await showDialog<bool>(
                     context: context,
                     builder: (dialogContext) => AlertDialog(
@@ -150,6 +252,11 @@ class _AdminPageState extends State<AdminPage> {
                   const PopupMenuItem(
                     value: 'change_password',
                     child: Text('Change password'),
+                  ),
+                if (_needsEmailVerification)
+                  const PopupMenuItem(
+                    value: 'verify_email',
+                    child: Text('Verify my email'),
                   ),
                 if (auth.isAnonymous)
                   const PopupMenuItem(

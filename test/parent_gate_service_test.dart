@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tinymind/services/auth_service.dart';
@@ -47,8 +48,10 @@ void main() {
   testWidgets('anonymous forgot PIN requires device authentication',
       (tester) async {
     final phone = _FakePhoneAuthenticator(supported: true);
+    final google = _FakeGoogleAuthenticator();
     final service = ParentGateService(
       phoneAuthenticator: phone,
+      googleAuthenticator: google,
       storage: _FakeParentGateStorage(),
       auth: AuthService(
         auth: FakeFirebaseAuth(
@@ -66,6 +69,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(phone.authenticateCalls, 1);
+    expect(google.calls, 0);
     expect(find.text('Choose a PIN'), findsOneWidget);
   });
 
@@ -101,10 +105,12 @@ void main() {
   testWidgets('linked-email forgot PIN re-authenticates first',
       (tester) async {
     final passwordAuthenticator = _FakePasswordAuthenticator();
+    final google = _FakeGoogleAuthenticator();
     final service = ParentGateService(
       phoneAuthenticator: _FakePhoneAuthenticator(supported: false),
       storage: _FakeParentGateStorage(),
       passwordAuthenticator: passwordAuthenticator,
+      googleAuthenticator: google,
       auth: AuthService(
         auth: FakeFirebaseAuth(
           user: FakeFirebaseUser(
@@ -129,7 +135,81 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(passwordAuthenticator.calls, 1);
+    expect(google.calls, 0);
     expect(find.text('Choose a PIN'), findsOneWidget);
+  });
+
+  group('Google account forgot PIN', () {
+    late _FakePhoneAuthenticator phone;
+    late _FakePasswordAuthenticator password;
+    late _FakeGoogleAuthenticator google;
+    late _FakeParentGateStorage storage;
+
+    Future<void> openForgotPin(WidgetTester tester) async {
+      phone = _FakePhoneAuthenticator(supported: true);
+      password = _FakePasswordAuthenticator();
+      storage = _FakeParentGateStorage();
+      final service = ParentGateService(
+        phoneAuthenticator: phone,
+        storage: storage,
+        passwordAuthenticator: password,
+        googleAuthenticator: google,
+        auth: AuthService(
+          auth: FakeFirebaseAuth(
+            user: FakeFirebaseUser(
+              uid: 'google-uid',
+              isAnonymous: false,
+              email: 'parent@gmail.com',
+              googleProvider: true,
+            ),
+          ),
+        ),
+      );
+      final harness = _UnlockHarness(service);
+      await harness.mount(tester);
+      await harness.tap(tester);
+      await _enterPin(tester, '2468');
+      await _enterPin(tester, '2468');
+      await harness.tap(tester);
+      await tester.tap(find.text('Forgot PIN?'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('re-authenticates with Google, then sets a new PIN',
+        (tester) async {
+      google = _FakeGoogleAuthenticator();
+      await openForgotPin(tester);
+
+      expect(google.calls, 1);
+      expect(password.calls, 0);
+      expect(phone.authenticateCalls, 0);
+      expect(find.text('Choose a PIN'), findsOneWidget);
+      final oldRecord = storage.pinRecord;
+      await _enterPin(tester, '1357');
+      await _enterPin(tester, '1357');
+      expect(storage.pinRecord, isNot(oldRecord));
+    });
+
+    testWidgets('a cancelled Google check keeps the old PIN', (tester) async {
+      google = _FakeGoogleAuthenticator(
+        error: FirebaseAuthException(code: 'cancelled'),
+      );
+      await openForgotPin(tester);
+
+      expect(google.calls, 1);
+      expect(password.calls, 0);
+      expect(phone.authenticateCalls, 0);
+      expect(find.text('Choose a PIN'), findsNothing);
+      expect(find.text('Enter your 4-digit PIN'), findsOneWidget);
+    });
+
+    testWidgets('a failed Google check keeps the old PIN', (tester) async {
+      google = _FakeGoogleAuthenticator(error: StateError('network'));
+      await openForgotPin(tester);
+
+      expect(google.calls, 1);
+      expect(find.text('Choose a PIN'), findsNothing);
+    });
   });
 
   testWidgets('mismatched PIN confirmation is not stored', (tester) async {
@@ -390,6 +470,20 @@ class _FakeParentGateStorage implements ParentGateStorage {
   @override
   Future<void> writePinRecord(String record) async {
     pinRecord = record;
+  }
+}
+
+class _FakeGoogleAuthenticator implements ParentGoogleAuthenticator {
+  _FakeGoogleAuthenticator({this.error});
+
+  final Object? error;
+  int calls = 0;
+
+  @override
+  Future<void> reauthenticate() async {
+    calls++;
+    final error = this.error;
+    if (error != null) throw error;
   }
 }
 

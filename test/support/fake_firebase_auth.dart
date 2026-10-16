@@ -82,6 +82,7 @@ class FakeFirebaseUser extends Fake implements User {
     bool emailProvider = false,
     bool googleProvider = false,
     this.linkError,
+    this.emailVerified = true,
   }) : providerData = [
           if (emailProvider) FakeUserInfo(providerId: 'password'),
           if (googleProvider) FakeUserInfo(providerId: 'google.com'),
@@ -96,6 +97,11 @@ class FakeFirebaseUser extends Fake implements User {
   @override
   final List<UserInfo> providerData;
   final Object? linkError;
+  @override
+  bool emailVerified;
+  int sendEmailVerificationCalls = 0;
+  Object? sendEmailVerificationError;
+  int reloadCalls = 0;
   AuthCredential? linkedCredential;
   int reauthenticationCalls = 0;
   int deleteCalls = 0;
@@ -108,6 +114,20 @@ class FakeFirebaseUser extends Fake implements User {
     onDelete?.call();
     final error = deleteError;
     if (error != null) throw error;
+  }
+
+  @override
+  Future<void> sendEmailVerification([
+    ActionCodeSettings? actionCodeSettings,
+  ]) async {
+    sendEmailVerificationCalls++;
+    final error = sendEmailVerificationError;
+    if (error != null) throw error;
+  }
+
+  @override
+  Future<void> reload() async {
+    reloadCalls++;
   }
 
   @override
