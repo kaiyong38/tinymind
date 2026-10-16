@@ -20,6 +20,7 @@ import 'support/fake_firebase_auth.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => checkInternetConnection = () async => true);
 
   testWidgets('startup signs in anonymously and opens the child picker',
       (tester) async {
@@ -44,7 +45,7 @@ void main() {
 
   testWidgets('failed startup shows a child-safe retry screen', (tester) async {
     final firebaseAuth = FakeFirebaseAuth(
-      anonymousSignInError: FirebaseAuthException(code: 'network-request-failed'),
+      anonymousSignInError: FirebaseAuthException(code: 'internal-error'),
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -66,6 +67,40 @@ void main() {
     firebaseAuth.anonymousSignInError = null;
     await tester.tap(find.text('Retry'));
     await tester.pump();
+    await tester.pump();
+    expect(firebaseAuth.anonymousSignInCalls, 2);
+    expect(find.byType(ChildPickerPage), findsOneWidget);
+    await firebaseAuth.dispose();
+  });
+
+  testWidgets('offline startup says there is no internet and still retries',
+      (tester) async {
+    final firebaseAuth = FakeFirebaseAuth(
+      anonymousSignInError: FirebaseAuthException(code: 'network-request-failed'),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StartupGatePage(
+          store: ProgressStore(),
+          auth: AuthService(auth: firebaseAuth),
+          firestore: _FakeFirestoreService(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.text(
+        'No internet connection. Connect to the internet and TinyMind will '
+        'start automatically.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('We could not get ready'), findsNothing);
+    expect(find.text('Retry'), findsOneWidget);
+
+    firebaseAuth.anonymousSignInError = null;
+    await tester.pump(const Duration(seconds: 5));
     await tester.pump();
     expect(firebaseAuth.anonymousSignInCalls, 2);
     expect(find.byType(ChildPickerPage), findsOneWidget);
@@ -137,6 +172,28 @@ void main() {
     expect(user.linkedCredential, isA<EmailAuthCredential>());
     expect((user.linkedCredential as EmailAuthCredential).email,
         'parent@example.com');
+  });
+
+  test('linkGoogle treats an email account with the same email as a backup',
+      () async {
+    for (final code in [
+      'email-already-in-use',
+      'account-exists-with-different-credential',
+      'credential-already-in-use',
+    ]) {
+      final user = FakeFirebaseUser(
+        uid: 'anonymous',
+        isAnonymous: true,
+        linkError: FirebaseAuthException(code: code),
+      );
+      final service = AuthService(auth: FakeFirebaseAuth(user: user));
+      final credential = _fakeGoogleCredential();
+
+      final result = await service.linkGoogle(credential);
+
+      expect(result.status, GoogleLinkStatus.alreadyHasBackup, reason: code);
+      expect(result.credential, same(credential), reason: code);
+    }
   });
 
   testWidgets('email already in use displays backup sign-in guidance',
@@ -982,6 +1039,72 @@ void main() {
     expect(find.textContaining('login'), findsNothing);
   });
 
+  testWidgets('child picker shows Retry after an error and then loads',
+      (tester) async {
+    final firestore = _FakeFirestoreService()..watchError = true;
+    await tester.pumpWidget(_pickerApp(firestore));
+    await tester.pump();
+
+    expect(find.text('We could not load the pictures.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+
+    firestore
+      ..watchError = false
+      ..children['parent-uid'] = {
+        'child-a': {'childName': 'Kai', 'avatar': '🐸', 'childAge': 6},
+      };
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('We could not load the pictures.'), findsNothing);
+    expect(find.text('Kai'), findsOneWidget);
+  });
+
+  testWidgets('child picker retries once on its own 2 seconds after an error',
+      (tester) async {
+    final firestore = _FakeFirestoreService()..watchError = true;
+    await tester.pumpWidget(_pickerApp(firestore));
+    await tester.pump();
+    expect(find.text('We could not load the pictures.'), findsOneWidget);
+
+    firestore
+      ..watchError = false
+      ..children['parent-uid'] = {
+        'child-a': {'childName': 'Kai', 'avatar': '🐸', 'childAge': 6},
+      };
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Kai'), findsOneWidget);
+  });
+
+  testWidgets('backup reminder disappears as soon as Google is linked',
+      (tester) async {
+    final firebaseAuth = FakeFirebaseAuth(
+      user: FakeFirebaseUser(uid: 'anon', isAnonymous: true),
+    );
+    final auth = AuthService(auth: firebaseAuth);
+    await tester.pumpWidget(_adminApp(auth));
+    await tester.pump();
+    expect(
+      find.text('Your data is only on this phone. Tap to back up.'),
+      findsOneWidget,
+    );
+
+    final result = await auth.linkGoogle(_fakeGoogleCredential());
+    expect(result.status, GoogleLinkStatus.linked);
+    await tester.pump();
+
+    expect(
+      find.text('Your data is only on this phone. Tap to back up.'),
+      findsNothing,
+    );
+    expect(firebaseAuth.currentUser!.uid, 'anon');
+    await firebaseAuth.dispose();
+  });
+
   testWidgets('anonymous dashboard reminder is dismissible and password is hidden',
       (tester) async {
     final auth = AuthService(
@@ -1076,6 +1199,34 @@ void main() {
     expect(firebaseAuth.currentUser!.uid, isNot('linked'));
     final picker = tester.widget<ChildPickerPage>(find.byType(ChildPickerPage));
     expect(picker.parentUid, firebaseAuth.currentUser!.uid);
+    await firebaseAuth.dispose();
+  });
+
+  testWidgets('Sign out is refused while offline', (tester) async {
+    checkInternetConnection = () async => false;
+    final firebaseAuth = FakeFirebaseAuth(
+      user: FakeFirebaseUser(
+        uid: 'linked',
+        isAnonymous: false,
+        email: 'parent@example.com',
+        emailProvider: true,
+      ),
+    );
+    await tester.pumpWidget(_adminApp(AuthService(auth: firebaseAuth)));
+
+    await tester.tap(find.byTooltip('Account'));
+    await _pumpAnimations(tester);
+    await tester.tap(find.text('Sign out').last);
+    await _pumpAnimations(tester);
+
+    expect(
+      find.text('Please connect to the internet before signing out.'),
+      findsOneWidget,
+    );
+    expect(find.text('Sign out?'), findsNothing);
+    expect(firebaseAuth.signOutCalls, 0);
+    expect(firebaseAuth.currentUser!.uid, 'linked');
+    expect(find.byType(AdminPage), findsOneWidget);
     await firebaseAuth.dispose();
   });
 
@@ -1420,7 +1571,7 @@ void main() {
       await firebaseAuth.dispose();
     });
 
-    testWidgets('a Google email that has an email backup explains what to do',
+    testWidgets('a Google email that has an email backup signs in to it',
         (tester) async {
       setUpAccounts(
         linkError: FirebaseAuthException(code: 'email-already-in-use'),
@@ -1429,14 +1580,47 @@ void main() {
       await acceptPrivacyPolicy(tester);
       await tapGoogle(tester);
 
+      expect(find.textContaining('already has an email backup'),
+          findsNothing);
+      expect(find.text("Bring this phone's children into your account?"),
+          findsOneWidget);
+      expect(firebaseAuth.credentialSignInCalls, 0);
+      await tester.tap(find.text('Bring them'));
+      await tester.pumpAndSettle();
+
+      expectSignedInWithGoogle();
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('an offline Google sign-in says there is no internet',
+        (tester) async {
+      setUpAccounts();
+      google.error = FirebaseAuthException(code: 'network-request-failed');
+      await pumpRegister(tester);
+      await acceptPrivacyPolicy(tester);
+      await tapGoogle(tester);
+
       expect(
         find.text(
-          "This email already has an email backup. Use 'I already have a "
-          "backup' with your email and password.",
+          'No internet connection. Please connect to the internet and try '
+          'again.',
         ),
         findsOneWidget,
       );
-      expect(firebaseAuth.credentialSignInCalls, 0);
+      expect(find.text(_googleFailedMessage), findsNothing);
+      expect(auth.linkGoogleCalls, 0);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('other Google failures keep the usual message',
+        (tester) async {
+      setUpAccounts();
+      google.error = FirebaseAuthException(code: 'internal-error');
+      await pumpRegister(tester);
+      await acceptPrivacyPolicy(tester);
+      await tapGoogle(tester);
+
+      expect(find.text(_googleFailedMessage), findsOneWidget);
       await firebaseAuth.dispose();
     });
 
@@ -1644,6 +1828,96 @@ void main() {
       expect(user.deleteCalls, 0);
     });
   });
+
+  group('Google and password account delete', () {
+    late FakeFirebaseUser user;
+    late FakeFirebaseAuth firebaseAuth;
+    late FakeGoogleCredentialProvider google;
+    late _FakeAuthService auth;
+
+    Future<void> openDelete(WidgetTester tester, {bool googleWorks = true}) async {
+      user = FakeFirebaseUser(
+        uid: 'both-uid',
+        isAnonymous: false,
+        email: 'parent@gmail.com',
+        emailProvider: true,
+        googleProvider: true,
+      );
+      google = FakeGoogleCredentialProvider(
+        googleWorks ? _fakeGoogleCredential() : null,
+      );
+      firebaseAuth = FakeFirebaseAuth(user: user);
+      auth = _FakeAuthService([], auth: firebaseAuth, googleProvider: google);
+      await tester.pumpWidget(_adminApp(auth));
+      await tester.tap(find.byTooltip('Account'));
+      await _pumpAnimations(tester);
+      await tester.tap(find.text('Delete account and all data'));
+      await _pumpAnimations(tester);
+    }
+
+    testWidgets('checks Google first and skips the password', (tester) async {
+      await openDelete(tester);
+
+      expect(auth.reauthenticateWithGoogleCalls, 1);
+      expect(user.reauthenticationCalls, 1);
+      expect(find.text('Verify your password'), findsNothing);
+      expect(find.text("Verify it's you"), findsNothing);
+      expect(find.text('Delete account and all data?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await _pumpAnimations(tester);
+      expect(user.deleteCalls, 0);
+    });
+
+    testWidgets('a failed Google check offers the password instead',
+        (tester) async {
+      await openDelete(tester, googleWorks: false);
+
+      expect(auth.reauthenticateWithGoogleCalls, 1);
+      expect(find.text("Verify it's you"), findsOneWidget);
+      expect(
+        find.text(
+          'Google sign-in did not finish. You can try again or use your '
+          'password.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(FilledButton, 'Try Google again'),
+          findsOneWidget);
+      await tester.tap(find.text('Use my password'));
+      await _pumpAnimations(tester);
+
+      expect(find.text('Verify your password'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'backup-password');
+      await tester.tap(find.text('Continue'));
+      await _pumpAnimations(tester);
+
+      expect(user.reauthenticationCalls, 1);
+      expect(find.text('Delete account and all data?'), findsOneWidget);
+      expect(user.deleteCalls, 0);
+    });
+
+    testWidgets('Try Google again checks Google once more', (tester) async {
+      await openDelete(tester, googleWorks: false);
+      google.credential = _fakeGoogleCredential();
+      await tester.tap(find.text('Try Google again'));
+      await _pumpAnimations(tester);
+
+      expect(auth.reauthenticateWithGoogleCalls, 2);
+      expect(find.text('Verify your password'), findsNothing);
+      expect(find.text('Delete account and all data?'), findsOneWidget);
+    });
+
+    testWidgets('Cancel stops the delete', (tester) async {
+      await openDelete(tester, googleWorks: false);
+      await tester.tap(find.text('Cancel'));
+      await _pumpAnimations(tester);
+
+      expect(find.text('Verify your password'), findsNothing);
+      expect(find.text('Delete account and all data?'), findsNothing);
+      expect(user.reauthenticationCalls, 0);
+      expect(user.deleteCalls, 0);
+    });
+  });
 }
 
 AuthCredential _fakeGoogleCredential([String idToken = 'fake-id-token']) =>
@@ -1660,9 +1934,14 @@ class FakeGoogleCredentialProvider implements GoogleCredentialProvider {
   /// Thrown by [signOut] when set.
   Object? signOutError;
 
+  /// Thrown by [getCredential] when set.
+  Object? error;
+
   @override
   Future<AuthCredential?> getCredential() async {
     calls++;
+    final error = this.error;
+    if (error != null) throw error;
     return credential;
   }
 
@@ -1679,6 +1958,23 @@ Widget _adminApp(AuthService auth) => MaterialApp(
         auth: auth,
         firestore: _FakeFirestoreService(),
         gateService: ParentGateService(storage: _FakeGateStorage()),
+      ),
+    );
+
+const _googleFailedMessage =
+    'We could not finish signing in with Google. Please try again.';
+
+Widget _pickerApp(FirestoreService firestore) => MaterialApp(
+      home: ChildPickerPage(
+        store: ProgressStore(),
+        parentUid: 'parent-uid',
+        auth: AuthService(
+          auth: FakeFirebaseAuth(
+            user: FakeFirebaseUser(uid: 'parent-uid', isAnonymous: true),
+          ),
+        ),
+        gateService: ParentGateService(storage: _FakeGateStorage()),
+        firestore: firestore,
       ),
     );
 

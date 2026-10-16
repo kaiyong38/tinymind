@@ -22,8 +22,11 @@ services and currently targets Android only.
 - Backup is optional. A parent can link a Google account or an email and
   password to back up the current account; the account identifier is kept.
   Email accounts must verify their email before they can sign in on a new
-  phone. Without a backup, data is lost if the app is uninstalled or the
-  device is changed.
+  phone. A Google account and an email account with the same email are
+  joined into one account. When an account has both, TinyMind checks it is
+  you with Google first (for deleting the account or a forgotten PIN), and
+  you can use your password instead. Without a backup, data is lost if the
+  app is uninstalled or the device is changed.
 - Privacy information and controls for deleting an account.
 - In Manage mode on the child picker, a grown-up can change a learner's
   nickname, age and avatar (and still remove a learner). Changing the age

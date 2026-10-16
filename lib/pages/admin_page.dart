@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,6 +17,21 @@ import 'parent_settings_page.dart';
 import 'privacy_policy_page.dart';
 
 enum _VerifyEmailChoice { send, check }
+
+/// Checks whether the phone can reach the internet. Tests replace it, since
+/// they cannot make real lookups.
+@visibleForTesting
+Future<bool> Function() checkInternetConnection = _lookUpInternet;
+
+Future<bool> _lookUpInternet() async {
+  try {
+    final result = await InternetAddress.lookup('google.com')
+        .timeout(const Duration(seconds: 3));
+    return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+  } catch (_) {
+    return false;
+  }
+}
 
 class AdminPage extends StatefulWidget {
   AdminPage({
@@ -65,6 +82,15 @@ class _AdminPageState extends State<AdminPage> {
     // Linking an email keeps the uid, so only refresh.
     if (mounted) setState(() {});
   }
+
+  Future<void> _openSettings() => _push(
+        ParentSettingsPage(
+          gateService: gateService,
+          auth: auth,
+          store: widget.store,
+          firestore: firestore,
+        ),
+      );
 
   bool get _needsEmailVerification =>
       auth.hasEmailBackup && !auth.isEmailVerified;
@@ -172,14 +198,7 @@ class _AdminPageState extends State<AdminPage> {
                 minHeight: 48,
               ),
               icon: const Icon(Icons.settings_rounded),
-              onPressed: () => _push(
-                ParentSettingsPage(
-                  gateService: gateService,
-                  auth: auth,
-                  store: widget.store,
-                  firestore: firestore,
-                ),
-              ),
+              onPressed: _openSettings,
             ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.account_circle_rounded),
@@ -198,6 +217,15 @@ class _AdminPageState extends State<AdminPage> {
                 } else if (value == 'verify_email') {
                   await _verifyEmail();
                 } else if (value == 'sign_out') {
+                  // Signing back in needs the internet, so do not sign out
+                  // while offline.
+                  if (!await checkInternetConnection()) {
+                    _showMessage(
+                      'Please connect to the internet before signing out.',
+                    );
+                    return;
+                  }
+                  if (!context.mounted) return;
                   if (_needsEmailVerification) {
                     // The link may have been opened since the page loaded.
                     bool verified;
@@ -295,10 +323,10 @@ class _AdminPageState extends State<AdminPage> {
         ),
         body: Column(
           children: [
-            _AnonymousBackupBanner(auth: auth, gateService: gateService),
+            _AnonymousBackupBanner(auth: auth, onOpenSettings: _openSettings),
             Expanded(
               child: StreamBuilder<User?>(
-                stream: auth.authStateChanges,
+                stream: auth.userChanges,
                 builder: (context, authSnapshot) {
                   final uid = auth.currentUser?.uid;
                   if (uid == null) return _retryState();
@@ -409,11 +437,13 @@ class _AdminPageState extends State<AdminPage> {
 class _AnonymousBackupBanner extends StatefulWidget {
   const _AnonymousBackupBanner({
     required this.auth,
-    required this.gateService,
+    required this.onOpenSettings,
   });
 
   final AuthService auth;
-  final ParentGateService gateService;
+
+  /// Opens the settings page and refreshes the dashboard afterwards.
+  final Future<void> Function() onOpenSettings;
 
   @override
   State<_AnonymousBackupBanner> createState() => _AnonymousBackupBannerState();
@@ -424,7 +454,7 @@ class _AnonymousBackupBannerState extends State<_AnonymousBackupBanner> {
 
   @override
   Widget build(BuildContext context) => StreamBuilder(
-        stream: widget.auth.authStateChanges,
+        stream: widget.auth.userChanges,
         builder: (context, snapshot) {
           final user = widget.auth.currentUser ?? snapshot.data;
           if (_dismissed || user?.isAnonymous != true) {
@@ -438,15 +468,7 @@ class _AnonymousBackupBannerState extends State<_AnonymousBackupBanner> {
                 'Your data is only on this phone. Tap to back up.',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => ParentSettingsPage(
-                    gateService: widget.gateService,
-                    auth: widget.auth,
-                  ),
-                ),
-              ),
+              onTap: widget.onOpenSettings,
               trailing: IconButton(
                 tooltip: 'Dismiss backup reminder',
                 icon: const Icon(Icons.close_rounded),
@@ -465,44 +487,23 @@ Future<void> _deleteAccount(
   ProgressStore? store,
   FirestoreService? firestore,
 }) async {
-  if (auth.hasEmailBackup) {
-    final passwordController = TextEditingController();
-    final password = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Verify your password'),
-        content: TextField(
-          controller: passwordController,
-          obscureText: true,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Password'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, passwordController.text),
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
-    passwordController.dispose();
-    if (password == null || !context.mounted) return;
-
-    try {
-      await auth.reauthenticate(password);
-    } on FirebaseAuthException catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message ?? 'Password check failed.')),
-        );
-      }
-      return;
+  if (auth.hasGoogleBackup && auth.hasEmailBackup) {
+    // Google first; the password is the fallback.
+    while (true) {
+      try {
+        await auth.reauthenticateWithGoogle();
+        break;
+      } catch (_) {}
+      if (!context.mounted) return;
+      final choice = await showGoogleFallbackDialog(context);
+      if (!context.mounted) return;
+      if (choice == GoogleFallbackChoice.tryGoogleAgain) continue;
+      if (choice != GoogleFallbackChoice.usePassword) return;
+      if (!await _reauthenticateWithPassword(context, auth)) return;
+      break;
     }
+  } else if (auth.hasEmailBackup) {
+    if (!await _reauthenticateWithPassword(context, auth)) return;
   } else if (auth.hasGoogleBackup) {
     try {
       await auth.reauthenticateWithGoogle();
@@ -573,6 +574,71 @@ Future<void> _deleteAccount(
       );
     }
   }
+}
+
+/// Asks for the account password and re-authenticates with it. Returns
+/// false when the parent cancels or the password is wrong.
+Future<bool> _reauthenticateWithPassword(
+  BuildContext context,
+  AuthService auth,
+) async {
+  final password = await showDialog<String>(
+    context: context,
+    builder: (_) => const _VerifyPasswordDialog(),
+  );
+  if (password == null || !context.mounted) return false;
+
+  try {
+    await auth.reauthenticate(password);
+    return true;
+  } on FirebaseAuthException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'Password check failed.')),
+      );
+    }
+    return false;
+  }
+}
+
+/// Owns its text controller, so the controller lives until the dialog has
+/// finished closing.
+class _VerifyPasswordDialog extends StatefulWidget {
+  const _VerifyPasswordDialog();
+
+  @override
+  State<_VerifyPasswordDialog> createState() => _VerifyPasswordDialogState();
+}
+
+class _VerifyPasswordDialogState extends State<_VerifyPasswordDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Verify your password'),
+        content: TextField(
+          controller: _controller,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Password'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, _controller.text),
+            child: const Text('Continue'),
+          ),
+        ],
+      );
 }
 
 class _ChildProgressCard extends StatelessWidget {

@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_info.dart';
@@ -56,6 +60,16 @@ class GoogleSignInCredentialProvider implements GoogleCredentialProvider {
   }
 }
 
+/// True when [error] means the phone could not reach the internet.
+bool isNetworkError(Object error) => switch (error) {
+      FirebaseException(code: 'network-request-failed') => true,
+      SocketException() || TimeoutException() => true,
+      PlatformException(code: 'network_error') => true,
+      GoogleSignInException(:final description) =>
+        description?.toLowerCase().contains('network') ?? false,
+      _ => false,
+    };
+
 enum GoogleLinkStatus { linked, alreadyHasBackup }
 
 class GoogleLinkResult {
@@ -107,6 +121,10 @@ class AuthService {
       false;
   bool get hasBackup => hasEmailBackup || hasGoogleBackup;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  /// Like [authStateChanges], but also fires when the signed-in user changes,
+  /// e.g. after linking a backup.
+  Stream<User?> get userChanges => _auth.userChanges();
 
   /// True while LoginPage swaps accounts. Deleting the anonymous user signs
   /// out for a moment, and the startup gate must not sign in anonymously then.
@@ -199,8 +217,9 @@ class AuthService {
       _googleProvider.getCredential();
 
   /// Links a Google account to this phone's anonymous account, keeping the
-  /// uid. If that Google account already has its own backup, returns
-  /// [GoogleLinkResult.alreadyHasBackup] with a credential to sign in to it.
+  /// uid. If that Google account, or an email account with the same email,
+  /// already has its own backup, returns [GoogleLinkResult.alreadyHasBackup]
+  /// with a credential to sign in to it.
   Future<GoogleLinkResult> linkGoogle(AuthCredential credential) async {
     final user = _auth.currentUser;
     if (user == null || !user.isAnonymous) {
@@ -213,7 +232,12 @@ class AuthService {
       await user.linkWithCredential(credential);
       return const GoogleLinkResult.linked();
     } on FirebaseAuthException catch (error) {
-      if (error.code != 'credential-already-in-use') rethrow;
+      const inUse = {
+        'credential-already-in-use',
+        'email-already-in-use',
+        'account-exists-with-different-credential',
+      };
+      if (!inUse.contains(error.code)) rethrow;
       return GoogleLinkResult.alreadyHasBackup(error.credential ?? credential);
     }
   }

@@ -241,6 +241,9 @@ class _TestAuthService implements AuthService {
   Stream<User?> get authStateChanges => Stream.value(null);
 
   @override
+  Stream<User?> get userChanges => Stream.value(null);
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

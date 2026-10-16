@@ -228,6 +228,7 @@ class _StartupGatePageState extends State<StartupGatePage> {
   Timer? _retryTimer;
   bool _signingIn = false;
   bool _failed = false;
+  bool _offline = false;
 
   @override
   void initState() {
@@ -249,8 +250,13 @@ class _StartupGatePageState extends State<StartupGatePage> {
     try {
       await _auth.signInAnonymously();
       if (mounted) setState(() => _failed = false);
-    } catch (_) {
-      if (mounted) setState(() => _failed = true);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _failed = true;
+          _offline = isNetworkError(error);
+        });
+      }
     } finally {
       if (mounted) setState(() => _signingIn = false);
     }
@@ -291,10 +297,15 @@ class _StartupGatePageState extends State<StartupGatePage> {
                     ? Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'We could not get ready just yet. Please try again.',
+                          Text(
+                            _offline
+                                ? 'No internet connection. Connect to the '
+                                    'internet and TinyMind will start '
+                                    'automatically.'
+                                : 'We could not get ready just yet. Please '
+                                    'try again.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 20),
+                            style: const TextStyle(fontSize: 20),
                           ),
                           const SizedBox(height: 16),
                           FilledButton(
@@ -697,10 +708,8 @@ class _LoginPageState extends State<LoginPage> {
         store: widget.store ?? ProgressStore(),
         signIn: () => widget.auth.signInWithCredential(credential),
       );
-    } on FirebaseAuthException catch (error) {
+    } catch (error) {
       if (mounted) setState(() => _error = _friendlyGoogleError(error));
-    } catch (_) {
-      if (mounted) setState(() => _error = _googleFailedText);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -876,7 +885,8 @@ class _RegisterPageState extends State<RegisterPage> {
         Navigator.pop(context, true);
         return;
       }
-      // This Google account already has its own backup: sign in to it.
+      // This Google account, or an email account with the same email,
+      // already has its own backup: sign in to it.
       final backup = result.credential ?? credential;
       await _switchAccountFromAnonymous(
         context: context,
@@ -885,10 +895,8 @@ class _RegisterPageState extends State<RegisterPage> {
         store: widget.store ?? ProgressStore(),
         signIn: () => widget.auth.signInWithCredential(backup),
       );
-    } on FirebaseAuthException catch (error) {
+    } catch (error) {
       if (mounted) setState(() => _error = _friendlyGoogleError(error));
-    } catch (_) {
-      if (mounted) setState(() => _error = _googleFailedText);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -959,12 +967,11 @@ const _verificationSendFailedText =
 const _googleFailedText =
     'We could not finish signing in with Google. Please try again.';
 
-String _friendlyGoogleError(FirebaseAuthException error) => switch (error.code) {
-      'account-exists-with-different-credential' || 'email-already-in-use' =>
-        "This email already has an email backup. Use 'I already have a backup' "
-            'with your email and password.',
-      _ => _googleFailedText,
-    };
+const _googleOfflineText =
+    'No internet connection. Please connect to the internet and try again.';
+
+String _friendlyGoogleError(Object error) =>
+    isNetworkError(error) ? _googleOfflineText : _googleFailedText;
 
 /// The "or" divider and the secondary "Continue with Google" button shown at
 /// the bottom of the email forms.

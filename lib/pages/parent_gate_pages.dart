@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -86,6 +88,36 @@ class ChildPickerPage extends StatefulWidget {
 
 class _ChildPickerPageState extends State<ChildPickerPage> {
   bool _managing = false;
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _children =
+      widget.firestore.watchChildren(widget.parentUid);
+  int _attempt = 0;
+  Timer? _autoRetryTimer;
+  bool _autoRetried = false;
+
+  void _retry() {
+    _autoRetryTimer?.cancel();
+    _autoRetryTimer = null;
+    setState(() {
+      _children = widget.firestore.watchChildren(widget.parentUid);
+      _attempt++;
+    });
+  }
+
+  /// Retries once on its own, 2 seconds after an error.
+  void _scheduleAutoRetry() {
+    if (_autoRetried || _autoRetryTimer != null) return;
+    _autoRetried = true;
+    _autoRetryTimer = Timer(const Duration(seconds: 2), () {
+      _autoRetryTimer = null;
+      if (mounted) _retry();
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoRetryTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _selectChild(String childId) async {
     widget.store.configureChild(parentUid: widget.parentUid, childId: childId);
@@ -176,14 +208,35 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: StreamBuilder(
-        stream: widget.firestore.watchChildren(widget.parentUid),
+        key: ValueKey(_attempt),
+        stream: _children,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text('We could not load the pictures.'));
+            _scheduleAutoRetry();
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'We could not load the pictures.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _retry,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
+          _autoRetried = false;
           final children = snapshot.data!.docs;
           return SafeArea(
             child: LayoutBuilder(

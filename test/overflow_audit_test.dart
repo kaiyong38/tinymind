@@ -1186,6 +1186,9 @@ class _SignedInFirebaseAuth extends Fake implements FirebaseAuth {
 
   @override
   Stream<User?> authStateChanges() => Stream.value(_user);
+
+  @override
+  Stream<User?> userChanges() => Stream.value(_user);
 }
 
 class _UnusedFirebaseAuth extends Fake implements FirebaseAuth {
@@ -1194,6 +1197,9 @@ class _UnusedFirebaseAuth extends Fake implements FirebaseAuth {
 
   @override
   Stream<User?> authStateChanges() => Stream.value(null);
+
+  @override
+  Stream<User?> userChanges() => Stream.value(null);
 }
 
 class _AuditFirestore extends Fake implements FirestoreService {

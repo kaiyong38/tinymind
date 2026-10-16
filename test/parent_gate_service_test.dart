@@ -212,6 +212,87 @@ void main() {
     });
   });
 
+  group('Google and password forgot PIN', () {
+    late _FakePasswordAuthenticator password;
+    late _FakeGoogleAuthenticator google;
+    late _FakePhoneAuthenticator phone;
+
+    Future<void> openForgotPin(WidgetTester tester) async {
+      phone = _FakePhoneAuthenticator(supported: true);
+      password = _FakePasswordAuthenticator();
+      final service = ParentGateService(
+        phoneAuthenticator: phone,
+        storage: _FakeParentGateStorage(),
+        passwordAuthenticator: password,
+        googleAuthenticator: google,
+        auth: AuthService(
+          auth: FakeFirebaseAuth(
+            user: FakeFirebaseUser(
+              uid: 'both-uid',
+              isAnonymous: false,
+              email: 'parent@gmail.com',
+              emailProvider: true,
+              googleProvider: true,
+            ),
+          ),
+        ),
+      );
+      final harness = _UnlockHarness(service);
+      await harness.mount(tester);
+      await harness.tap(tester);
+      await _enterPin(tester, '2468');
+      await _enterPin(tester, '2468');
+      await harness.tap(tester);
+      await tester.tap(find.text('Forgot PIN?'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('checks Google first and skips the password', (tester) async {
+      google = _FakeGoogleAuthenticator();
+      await openForgotPin(tester);
+
+      expect(google.calls, 1);
+      expect(password.calls, 0);
+      expect(phone.authenticateCalls, 0);
+      expect(find.text('Confirm your account password'), findsNothing);
+      expect(find.text("Verify it's you"), findsNothing);
+      expect(find.text('Choose a PIN'), findsOneWidget);
+    });
+
+    testWidgets('a failed Google check offers the password instead',
+        (tester) async {
+      google = _FakeGoogleAuthenticator(
+        error: FirebaseAuthException(code: 'cancelled'),
+      );
+      await openForgotPin(tester);
+
+      expect(google.calls, 1);
+      expect(find.text("Verify it's you"), findsOneWidget);
+      await tester.tap(find.text('Use my password'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Confirm your account password'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'correct-password');
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+
+      expect(password.calls, 1);
+      expect(phone.authenticateCalls, 0);
+      expect(find.text('Choose a PIN'), findsOneWidget);
+    });
+
+    testWidgets('Cancel keeps the old PIN', (tester) async {
+      google = _FakeGoogleAuthenticator(error: StateError('failed'));
+      await openForgotPin(tester);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(password.calls, 0);
+      expect(find.text('Choose a PIN'), findsNothing);
+      expect(find.text('Enter your 4-digit PIN'), findsOneWidget);
+    });
+  });
+
   testWidgets('mismatched PIN confirmation is not stored', (tester) async {
     final storage = _FakeParentGateStorage();
     final service = ParentGateService(

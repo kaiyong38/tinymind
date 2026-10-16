@@ -44,6 +44,42 @@ abstract interface class ParentGoogleAuthenticator {
   Future<void> reauthenticate();
 }
 
+enum GoogleFallbackChoice { usePassword, tryGoogleAgain }
+
+/// Shown when the Google check did not finish for an account that also has
+/// a password. Returns null when the parent cancels.
+Future<GoogleFallbackChoice?> showGoogleFallbackDialog(BuildContext context) =>
+    showDialog<GoogleFallbackChoice>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Verify it's you"),
+        content: const SingleChildScrollView(
+          child: Text(
+            'Google sign-in did not finish. You can try again or use your '
+            'password.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, GoogleFallbackChoice.usePassword),
+            child: const Text('Use my password'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              GoogleFallbackChoice.tryGoogleAgain,
+            ),
+            child: const Text('Try Google again'),
+          ),
+        ],
+      ),
+    );
+
 class LocalAuthPhoneAuthenticator implements ParentPhoneAuthenticator {
   LocalAuthPhoneAuthenticator({LocalAuthentication? authentication})
       : _authentication = authentication ?? LocalAuthentication();
@@ -256,18 +292,26 @@ class ParentGateService {
         !user.isAnonymous &&
         user.email != null &&
         user.providerData.any((provider) => provider.providerId == 'password');
-    if (emailLinked) {
-      final password = await showDialog<String>(
-        context: context,
-        builder: (_) => const _ReauthenticateDialog(),
-      );
-      if (password == null || !context.mounted) return false;
-      try {
-        await _passwordAuthenticator.reauthenticate(password);
-      } on FirebaseAuthException {
-        return false;
+    final googleLinked =
+        user != null && !user.isAnonymous && auth.hasGoogleBackup;
+    if (emailLinked && googleLinked) {
+      // Google first; the password is the fallback.
+      while (true) {
+        try {
+          await _googleAuthenticator.reauthenticate();
+          break;
+        } catch (_) {}
+        if (!context.mounted) return false;
+        final choice = await showGoogleFallbackDialog(context);
+        if (!context.mounted) return false;
+        if (choice == GoogleFallbackChoice.tryGoogleAgain) continue;
+        if (choice != GoogleFallbackChoice.usePassword) return false;
+        if (!await _reauthenticateWithPassword(context)) return false;
+        break;
       }
-    } else if (user != null && !user.isAnonymous && auth.hasGoogleBackup) {
+    } else if (emailLinked) {
+      if (!await _reauthenticateWithPassword(context)) return false;
+    } else if (googleLinked) {
       try {
         await _googleAuthenticator.reauthenticate();
       } catch (_) {
@@ -297,6 +341,20 @@ class ParentGateService {
     await _savePin(pin);
     await _storage.writeMethod(ParentLockMethod.pin);
     return true;
+  }
+
+  Future<bool> _reauthenticateWithPassword(BuildContext context) async {
+    final password = await showDialog<String>(
+      context: context,
+      builder: (_) => const _ReauthenticateDialog(),
+    );
+    if (password == null || !context.mounted) return false;
+    try {
+      await _passwordAuthenticator.reauthenticate(password);
+      return true;
+    } on FirebaseAuthException {
+      return false;
+    }
   }
 
   void _startLockout() {
