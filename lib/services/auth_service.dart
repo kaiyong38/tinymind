@@ -10,6 +10,9 @@ import 'firestore_service.dart';
 /// credential for it, or null when they cancel.
 abstract interface class GoogleCredentialProvider {
   Future<AuthCredential?> getCredential();
+
+  /// Forgets the Google account so the next pick shows the account chooser.
+  Future<void> signOut();
 }
 
 class GoogleSignInCredentialProvider implements GoogleCredentialProvider {
@@ -41,6 +44,15 @@ class GoogleSignInCredentialProvider implements GoogleCredentialProvider {
       );
     }
     return GoogleAuthProvider.credential(idToken: idToken);
+  }
+
+  @override
+  Future<void> signOut() async {
+    // Nothing to sign out of if Google Sign-In was never initialized.
+    final initialized = _initialized;
+    if (initialized == null) return;
+    await initialized;
+    await GoogleSignIn.instance.signOut();
   }
 }
 
@@ -230,7 +242,14 @@ class AuthService {
   Future<void> sendPasswordReset(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    try {
+      await _googleProvider.signOut();
+    } catch (_) {
+      // A stale Google session must not block signing out of Firebase.
+    }
+    await _auth.signOut();
+  }
 
   Future<void> reauthenticate(String password) async {
     final user = _auth.currentUser;

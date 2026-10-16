@@ -1224,6 +1224,34 @@ void main() {
     expect(result.credential, same(existing));
   });
 
+  test('signOut signs out of Google once, then Firebase', () async {
+    final firebaseAuth = FakeFirebaseAuth(
+      user: FakeFirebaseUser(uid: 'g', isAnonymous: false, googleProvider: true),
+    );
+    final google = FakeGoogleCredentialProvider();
+    final service = AuthService(auth: firebaseAuth, googleProvider: google);
+
+    await service.signOut();
+
+    expect(google.signOutCalls, 1);
+    expect(firebaseAuth.signOutCalls, 1);
+  });
+
+  test('signOut still signs out of Firebase when Google sign-out throws',
+      () async {
+    final firebaseAuth = FakeFirebaseAuth(
+      user: FakeFirebaseUser(uid: 'g', isAnonymous: false, googleProvider: true),
+    );
+    final google = FakeGoogleCredentialProvider()
+      ..signOutError = Exception('google sign-out failed');
+    final service = AuthService(auth: firebaseAuth, googleProvider: google);
+
+    await service.signOut();
+
+    expect(google.signOutCalls, 1);
+    expect(firebaseAuth.signOutCalls, 1);
+  });
+
   group('Continue with Google', () {
     late FakeFirebaseAuth firebaseAuth;
     late _FakeFirestoreService firestore;
@@ -1627,11 +1655,22 @@ class FakeGoogleCredentialProvider implements GoogleCredentialProvider {
   /// What the next pick returns; null acts like the parent cancelling.
   AuthCredential? credential;
   int calls = 0;
+  int signOutCalls = 0;
+
+  /// Thrown by [signOut] when set.
+  Object? signOutError;
 
   @override
   Future<AuthCredential?> getCredential() async {
     calls++;
     return credential;
+  }
+
+  @override
+  Future<void> signOut() async {
+    signOutCalls++;
+    final error = signOutError;
+    if (error != null) throw error;
   }
 }
 
