@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -837,7 +838,7 @@ void main() {
                 reason: 'Manage target, $size, ${scale}x',
               );
               final headerTop =
-                  tester.getRect(find.byType(EmojiGlyph).first).top;
+                  tester.getRect(find.byType(SvgPicture).first).top;
               final parentLinkBottom = tester
                   .getRect(find.widgetWithText(TextButton, 'For parents'))
                   .bottom;

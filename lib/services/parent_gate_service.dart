@@ -904,12 +904,22 @@ class _ReauthenticateDialogState extends State<_ReauthenticateDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Confirm your account password'),
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        titlePadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+        contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+        title: const Text(
+          'Confirm your account password',
+          style: TextStyle(fontSize: 20),
+        ),
         content: TextField(
           controller: _controller,
           autofocus: true,
           obscureText: true,
-          decoration: const InputDecoration(labelText: 'Password'),
+          decoration: const InputDecoration(
+            labelText: 'Password',
+            isDense: true,
+          ),
           onSubmitted: (value) => Navigator.pop(context, value),
         ),
         actions: [

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,7 +17,9 @@ import 'child_detail_page.dart';
 import 'parent_settings_page.dart';
 import 'privacy_policy_page.dart';
 
-enum _VerifyEmailChoice { send, check }
+enum _VerifyEmailChoice { send, check, verified }
+
+const emailVerifiedAutomaticallyText = 'Your email is verified. Thank you!';
 
 /// Checks whether the phone can reach the internet. Tests replace it, since
 /// they cannot make real lookups.
@@ -52,7 +55,7 @@ class AdminPage extends StatefulWidget {
   State<AdminPage> createState() => _AdminPageState();
 }
 
-class _AdminPageState extends State<AdminPage> {
+class _AdminPageState extends State<AdminPage> with WidgetsBindingObserver {
   FirestoreService get firestore => widget.firestore;
   AuthService get auth => widget.auth;
   ParentGateService get gateService => widget.gateService;
@@ -73,6 +76,27 @@ class _AdminPageState extends State<AdminPage> {
         _childrenStream = null;
         _attempt++;
       });
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// The parent may have opened the verification link in another app.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !_needsEmailVerification) return;
+    auth.refreshEmailVerified().then((_) {
+      if (mounted) setState(() {});
+    }, onError: (_) {});
+  }
 
   Future<void> _push(Widget page) async {
     await Navigator.push(
@@ -105,40 +129,48 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _verifyEmail() async {
     final choice = await showDialog<_VerifyEmailChoice>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Verify my email'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'We will send a verification link to '
-                '${auth.currentUser?.email ?? 'your email'}.',
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () =>
-                    Navigator.pop(dialogContext, _VerifyEmailChoice.check),
-                child: const Text('I have verified it'),
-              ),
-            ],
+      builder: (dialogContext) => _EmailVerifiedWatcher(
+        auth: auth,
+        onVerified: () =>
+            Navigator.pop(dialogContext, _VerifyEmailChoice.verified),
+        child: AlertDialog(
+          title: const Text('Verify my email'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'We will send a verification link to '
+                  '${auth.currentUser?.email ?? 'your email'}.',
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext, _VerifyEmailChoice.check),
+                  child: const Text('I have verified it'),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, _VerifyEmailChoice.send),
+              child: const Text('Send link'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, _VerifyEmailChoice.send),
-            child: const Text('Send link'),
-          ),
-        ],
       ),
     );
-    if (choice == _VerifyEmailChoice.send) {
+    if (choice == _VerifyEmailChoice.verified) {
+      _showMessage(emailVerifiedAutomaticallyText);
+      if (mounted) setState(() {});
+    } else if (choice == _VerifyEmailChoice.send) {
       try {
         await auth.sendVerificationEmail();
         _showMessage(verificationLinkSentText);
@@ -164,26 +196,39 @@ class _AdminPageState extends State<AdminPage> {
   /// Signing out of an unverified email account would lock the parent out,
   /// because LoginPage refuses unverified emails.
   Future<void> _askToVerifyBeforeSignOut() async {
+    var verified = false;
     final verifyNow = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: const Text(
-          'Please verify your email first. Otherwise you will not be able '
-          'to sign back in.',
+      builder: (dialogContext) => _EmailVerifiedWatcher(
+        auth: auth,
+        onVerified: () {
+          verified = true;
+          Navigator.pop(dialogContext);
+        },
+        child: AlertDialog(
+          content: const Text(
+            'Please verify your email first. Otherwise you will not be able '
+            'to sign back in.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('OK'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Verify now'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('OK'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Verify now'),
-          ),
-        ],
       ),
     );
-    if (verifyNow == true && mounted) await _verifyEmail();
+    if (verified) {
+      _showMessage(emailVerifiedAutomaticallyText);
+      if (mounted) setState(() {});
+    } else if (verifyNow == true && mounted) {
+      await _verifyEmail();
+    }
   }
 
   @override
@@ -434,6 +479,69 @@ class _AdminPageState extends State<AdminPage> {
       );
 }
 
+/// Checks every 3 seconds, and when the app comes back to the front, whether
+/// the parent has opened the verification link, and calls [onVerified] once
+/// they have. The timer stops when the dialog closes.
+class _EmailVerifiedWatcher extends StatefulWidget {
+  const _EmailVerifiedWatcher({
+    required this.auth,
+    required this.onVerified,
+    required this.child,
+  });
+
+  final AuthService auth;
+  final VoidCallback onVerified;
+  final Widget child;
+
+  @override
+  State<_EmailVerifiedWatcher> createState() => _EmailVerifiedWatcherState();
+}
+
+class _EmailVerifiedWatcherState extends State<_EmailVerifiedWatcher>
+    with WidgetsBindingObserver {
+  Timer? _timer;
+  bool _checking = false;
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _check());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _check();
+  }
+
+  Future<void> _check() async {
+    if (_checking || _done) return;
+    _checking = true;
+    bool verified;
+    try {
+      verified = await widget.auth.refreshEmailVerified();
+    } catch (_) {
+      verified = false;
+    }
+    _checking = false;
+    if (!verified || _done || !mounted) return;
+    _done = true;
+    _timer?.cancel();
+    widget.onVerified();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 class _AnonymousBackupBanner extends StatefulWidget {
   const _AnonymousBackupBanner({
     required this.auth,
@@ -621,12 +729,22 @@ class _VerifyPasswordDialogState extends State<_VerifyPasswordDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Verify your password'),
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        titlePadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+        contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+        title: const Text(
+          'Verify your password',
+          style: TextStyle(fontSize: 20),
+        ),
         content: TextField(
           controller: _controller,
           obscureText: true,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Password'),
+          decoration: const InputDecoration(
+            labelText: 'Password',
+            isDense: true,
+          ),
         ),
         actions: [
           TextButton(

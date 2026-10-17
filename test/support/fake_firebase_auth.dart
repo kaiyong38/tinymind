@@ -162,6 +162,14 @@ class FakeFirebaseUser extends Fake implements User {
     reloadCalls++;
   }
 
+  int getIdTokenCalls = 0;
+
+  @override
+  Future<String?> getIdToken([bool forceRefresh = false]) async {
+    getIdTokenCalls++;
+    return 'fake-id-token';
+  }
+
   @override
   Future<UserCredential> linkWithCredential(AuthCredential credential) async {
     final error = linkError;

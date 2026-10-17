@@ -786,6 +786,130 @@ void main() {
       await firebaseAuth.dispose();
     });
 
+    testWidgets('the verify dialog closes on its own once verified',
+        (tester) async {
+      await pumpAdmin(tester);
+      await openVerifyDialog(tester);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump();
+
+      expect(user.reloadCalls, 1);
+      expect(find.text('I have verified it'), findsOneWidget);
+
+      user.emailVerified = true;
+      await tester.pump(const Duration(seconds: 3));
+      await _pumpAnimations(tester);
+
+      expect(find.text('I have verified it'), findsNothing);
+      expect(find.text('Your email is verified. Thank you!'), findsOneWidget);
+      await openMenu(tester);
+      expect(find.text('Verify my email'), findsNothing);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('closing the verify dialog stops checking', (tester) async {
+      await pumpAdmin(tester);
+      await openVerifyDialog(tester);
+      await tester.tap(find.text('Cancel'));
+      await _pumpAnimations(tester);
+
+      await tester.pump(const Duration(seconds: 10));
+      expect(user.reloadCalls, 0);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('the sign-out reminder closes on its own once verified',
+        (tester) async {
+      await pumpAdmin(tester);
+      await openMenu(tester);
+      await tester.tap(find.text('Sign out'));
+      await _pumpAnimations(tester);
+      expect(find.textContaining('Please verify your email first'),
+          findsOneWidget);
+
+      user.emailVerified = true;
+      await tester.pump(const Duration(seconds: 3));
+      await _pumpAnimations(tester);
+
+      expect(find.textContaining('Please verify your email first'),
+          findsNothing);
+      expect(find.text('Your email is verified. Thank you!'), findsOneWidget);
+      expect(firebaseAuth.signOutCalls, 0);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('coming back to the app refreshes the verification',
+        (tester) async {
+      user = FakeFirebaseUser(
+        uid: 'linked',
+        isAnonymous: false,
+        email: 'parent@example.com',
+        emailProvider: true,
+        emailVerified: false,
+      );
+      firebaseAuth = FakeFirebaseAuth(user: user);
+      final auth = _VerifyOnRefreshAuthService(user, auth: firebaseAuth);
+      await tester.pumpWidget(_adminApp(auth));
+      await openMenu(tester);
+      expect(find.text('Verify my email'), findsOneWidget);
+      await tester.tapAt(Offset.zero);
+      await _pumpAnimations(tester);
+
+      await _sendAppToBackgroundAndBack(tester);
+
+      expect(auth.refreshCalls, 1);
+      await openMenu(tester);
+      expect(find.text('Verify my email'), findsNothing);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('coming back to the app closes a verify dialog once verified',
+        (tester) async {
+      await pumpAdmin(tester);
+      await openVerifyDialog(tester);
+      user.emailVerified = true;
+      await _sendAppToBackgroundAndBack(tester);
+      await _pumpAnimations(tester);
+
+      expect(find.text('I have verified it'), findsNothing);
+      expect(find.text('Your email is verified. Thank you!'), findsOneWidget);
+      await firebaseAuth.dispose();
+    });
+
+    testWidgets('password dialog stays usable with a keyboard at 640x360',
+        (tester) async {
+      tester.view.physicalSize = const Size(640, 360);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpAdmin(tester, emailVerified: true);
+      await openMenu(tester);
+      await tester.tap(find.text('Delete account and all data'));
+      tester.view.viewInsets = const FakeViewPadding(bottom: 180);
+      await _pumpAnimations(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Verify your password'), findsOneWidget);
+      final field = tester.getRect(find.byType(TextField));
+      expect(field.top, greaterThanOrEqualTo(0));
+      expect(field.bottom, lessThanOrEqualTo(360 - 180));
+
+      await tester.enterText(find.byType(TextField), 'backup-password');
+      await tester.ensureVisible(find.text('Continue'));
+      await tester.pump();
+      expect(
+        tester.getRect(find.text('Continue')).bottom,
+        lessThanOrEqualTo(360 - 180),
+      );
+      await tester.tap(find.text('Continue'));
+      // The keyboard closes with the password field.
+      tester.view.resetViewInsets();
+      await _pumpAnimations(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(user.reauthenticationCalls, 1);
+      await firebaseAuth.dispose();
+    });
+
     testWidgets('Sign out is blocked until the email is verified',
         (tester) async {
       await pumpAdmin(tester);
@@ -1078,6 +1202,87 @@ void main() {
     await tester.pump();
 
     expect(find.text('Kai'), findsOneWidget);
+  });
+
+  testWidgets('child picker shows the error code under the message',
+      (tester) async {
+    final firestore = _FakeFirestoreService()
+      ..watchError = true
+      ..watchErrorValue = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+      );
+    await tester.pumpWidget(_pickerApp(firestore));
+    await tester.pump();
+
+    expect(find.text('We could not load the pictures.'), findsOneWidget);
+    expect(find.text('(permission-denied)'), findsOneWidget);
+  });
+
+  testWidgets('child picker Retry refreshes the token and reloads',
+      (tester) async {
+    final user = FakeFirebaseUser(uid: 'parent-uid', isAnonymous: true);
+    final firestore = _FakeFirestoreService()..watchError = true;
+    await tester.pumpWidget(_pickerApp(firestore, user: user));
+    await tester.pump();
+    expect(find.text('We could not load the pictures.'), findsOneWidget);
+
+    firestore
+      ..watchError = false
+      ..children['parent-uid'] = {
+        'child-a': {'childName': 'Kai', 'avatar': '🐸', 'childAge': 6},
+      };
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(user.getIdTokenCalls, 1);
+    expect(find.text('Kai'), findsOneWidget);
+    expect(find.text('TinyMind'), findsOneWidget);
+  });
+
+  testWidgets('child picker Retry restarts when the account has changed',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final user = FakeFirebaseUser(uid: 'other-uid', isAnonymous: true);
+    final firestore = _FakeFirestoreService()..watchError = true;
+    await tester.pumpWidget(_pickerApp(firestore, user: user));
+    await tester.pump();
+    expect(find.text('We could not load the pictures.'), findsOneWidget);
+
+    firestore.watchError = false;
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(user.getIdTokenCalls, 1);
+    expect(find.byType(StartupGatePage), findsOneWidget);
+    final picker = tester.widget<ChildPickerPage>(find.byType(ChildPickerPage));
+    expect(picker.parentUid, 'other-uid');
+  });
+
+  testWidgets('child picker Retry restarts when nobody is signed in',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final firebaseAuth = FakeFirebaseAuth();
+    final firestore = _FakeFirestoreService()..watchError = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChildPickerPage(
+          store: ProgressStore(),
+          parentUid: 'parent-uid',
+          auth: AuthService(auth: firebaseAuth),
+          gateService: ParentGateService(storage: _FakeGateStorage()),
+          firestore: firestore,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(StartupGatePage), findsOneWidget);
+    await firebaseAuth.dispose();
   });
 
   testWidgets('backup reminder disappears as soon as Google is linked',
@@ -1964,13 +2169,15 @@ Widget _adminApp(AuthService auth) => MaterialApp(
 const _googleFailedMessage =
     'We could not finish signing in with Google. Please try again.';
 
-Widget _pickerApp(FirestoreService firestore) => MaterialApp(
+Widget _pickerApp(FirestoreService firestore, {FakeFirebaseUser? user}) =>
+    MaterialApp(
       home: ChildPickerPage(
         store: ProgressStore(),
         parentUid: 'parent-uid',
         auth: AuthService(
           auth: FakeFirebaseAuth(
-            user: FakeFirebaseUser(uid: 'parent-uid', isAnonymous: true),
+            user: user ??
+                FakeFirebaseUser(uid: 'parent-uid', isAnonymous: true),
           ),
         ),
         gateService: ParentGateService(storage: _FakeGateStorage()),
@@ -1981,6 +2188,21 @@ Widget _pickerApp(FirestoreService firestore) => MaterialApp(
 Future<void> _pumpAnimations(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+}
+
+Future<void> _sendAppToBackgroundAndBack(WidgetTester tester) async {
+  for (final state in const [
+    AppLifecycleState.inactive,
+    AppLifecycleState.hidden,
+    AppLifecycleState.paused,
+    AppLifecycleState.hidden,
+    AppLifecycleState.inactive,
+    AppLifecycleState.resumed,
+  ]) {
+    tester.binding.handleAppLifecycleStateChanged(state);
+  }
+  await tester.pump();
+  await tester.pump();
 }
 
 class _FailingGateService extends ParentGateService {
@@ -2002,12 +2224,15 @@ class _FakeFirestoreService extends FirestoreService {
   final _changes = StreamController<void>.broadcast(sync: true);
   int deleteParentDataCalls = 0;
   bool watchError = false;
+  Object? watchErrorValue;
   bool offline = false;
 
   @override
   Stream<QuerySnapshot<Map<String, dynamic>>> watchChildren(String parentUid) {
     if (watchError) {
-      return Stream.error(StateError('[cloud_firestore/permission-denied] x'));
+      return Stream.error(
+        watchErrorValue ?? StateError('[cloud_firestore/permission-denied] x'),
+      );
     }
     return Stream.multi((controller) {
       QuerySnapshot<Map<String, dynamic>> snapshot() => _FakeChildrenSnapshot([
@@ -2202,6 +2427,22 @@ class _FakeGateStorage implements ParentGateStorage {
   @override
   Future<void> writePinRecord(String record) async {
     pinRecord = record;
+  }
+}
+
+/// Like opening the verification link while the app was in the background:
+/// the next refresh finds the email verified.
+class _VerifyOnRefreshAuthService extends AuthService {
+  _VerifyOnRefreshAuthService(this.user, {super.auth});
+
+  final FakeFirebaseUser user;
+  int refreshCalls = 0;
+
+  @override
+  Future<bool> refreshEmailVerified() async {
+    refreshCalls++;
+    user.emailVerified = true;
+    return true;
   }
 }
 

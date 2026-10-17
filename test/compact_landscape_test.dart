@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tinymind/main.dart';
 import 'package:tinymind/models/activities.dart';
@@ -8,6 +9,7 @@ import 'package:tinymind/models/learning.dart';
 import 'package:tinymind/pages/admin_page.dart';
 import 'package:tinymind/pages/auth_pages.dart';
 import 'package:tinymind/pages/child_detail_page.dart';
+import 'package:tinymind/pages/parent_gate_pages.dart';
 import 'package:tinymind/pages/parent_settings_page.dart';
 import 'package:tinymind/services/auth_service.dart';
 import 'package:tinymind/services/accessibility_settings.dart';
@@ -219,6 +221,69 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  for (final count in [1, 20]) {
+    testWidgets('child picker shows the TinyMind header with $count children '
+        'at 640x360', (tester) async {
+      tester.view.physicalSize = const Size(640, 360);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChildPickerPage(
+            store: ProgressStore(),
+            parentUid: 'parent-1',
+            auth: _TestAuthService(),
+            firestore: _ManyChildrenFirestoreService(count),
+            gateService: ParentGateService(
+              storage: _TestGateStorage(),
+              phoneAuthenticator: _TestPhoneAuthenticator(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Who is playing?'), findsNothing);
+      expect(find.text('TinyMind'), findsOneWidget);
+      final logo = find.byType(SvgPicture);
+      expect(logo, findsOneWidget);
+      expect(tester.getSize(logo).height, 40);
+      final title = tester.getRect(find.text('TinyMind'));
+      final manage = tester.getRect(find.text('Manage'));
+      expect(title.left, greaterThanOrEqualTo(0));
+      expect(manage.right, lessThanOrEqualTo(640));
+      expect(title.top, greaterThanOrEqualTo(0));
+    });
+  }
+}
+
+class _ManyChildrenFirestoreService extends Fake implements FirestoreService {
+  _ManyChildrenFirestoreService(this.count);
+
+  final int count;
+
+  @override
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchChildren(String parentUid) =>
+      Stream.value(
+        _TestChildrenSnapshot([
+          for (var i = 0; i < count; i++) _NamedChildDocument('child-$i'),
+        ]),
+      );
+}
+
+// ignore: subtype_of_sealed_class
+class _NamedChildDocument extends Fake
+    implements QueryDocumentSnapshot<Map<String, dynamic>> {
+  _NamedChildDocument(this.id);
+
+  @override
+  final String id;
+
+  @override
+  Map<String, dynamic> data() => {'name': 'Kid$id', 'avatar': '🐱', 'age': 4};
 }
 
 void _ignoreAnswer(int index) {}

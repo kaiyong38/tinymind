@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../main.dart';
 import '../services/auth_service.dart';
@@ -9,6 +11,7 @@ import '../services/firestore_service.dart';
 import '../services/parent_gate_service.dart';
 import '../services/progress_store.dart';
 import '../theme/adaptive_metrics.dart';
+import '../theme/tinymind_colors.dart';
 import '../widgets/emoji_glyph.dart';
 import 'admin_page.dart';
 import 'auth_pages.dart';
@@ -94,9 +97,26 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
   Timer? _autoRetryTimer;
   bool _autoRetried = false;
 
-  void _retry() {
+  /// Refreshes the sign-in token first, since an expired token is a common
+  /// reason for the error. If the account has changed in the meantime, this
+  /// page's uid is stale, so start again instead of retrying it.
+  Future<void> _retry() async {
     _autoRetryTimer?.cancel();
     _autoRetryTimer = null;
+    try {
+      await widget.auth.currentUser?.getIdToken(true);
+    } catch (_) {}
+    if (!mounted) return;
+    final uid = widget.auth.currentUser?.uid;
+    if (uid == null || uid != widget.parentUid) {
+      await restartToStartup(
+        context,
+        store: widget.store,
+        auth: widget.auth,
+        firestore: widget.firestore,
+      );
+      return;
+    }
     setState(() {
       _children = widget.firestore.watchChildren(widget.parentUid);
       _attempt++;
@@ -118,6 +138,11 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
     _autoRetryTimer?.cancel();
     super.dispose();
   }
+
+  /// A short code for the error, so a parent can report it without the
+  /// raw message being shown.
+  String _errorCode(Object? error) =>
+      error is FirebaseException ? error.code : '${error.runtimeType}';
 
   Future<void> _selectChild(String childId) async {
     widget.store.configureChild(parentUid: widget.parentUid, childId: childId);
@@ -223,6 +248,15 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                       'We could not load the pictures.',
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '(${_errorCode(snapshot.error)})',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black45,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     FilledButton(
                       onPressed: _retry,
@@ -253,10 +287,15 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                 final itemHeight = ((constraints.maxHeight - 100) / rows)
                     .clamp(104.0, 150.0)
                     .toDouble();
-                final avatarRadius = (itemWidth * 0.31)
-                        .clamp(metrics.size(20), metrics.size(42))
-                        .toDouble() *
-                    1.15;
+                // Leaves room for the name when many children make the
+                // rows short.
+                final avatarRadius = min(
+                  (itemWidth * 0.31)
+                          .clamp(metrics.size(20), metrics.size(42))
+                          .toDouble() *
+                      1.15,
+                  (itemHeight - 30) / 2,
+                );
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: SingleChildScrollView(
@@ -272,11 +311,21 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                             crossAxisAlignment: WrapCrossAlignment.center,
                             alignment: WrapAlignment.center,
                             children: [
-                              const EmojiGlyph('🌈', 36),
-                              const Text(
-                                'Who is playing?',
-                                style: TextStyle(
-                                    fontSize: 27, fontWeight: FontWeight.w900),
+                              SvgPicture.asset(
+                                'assets/branding/tinymind_icon.svg',
+                                height: 40,
+                                semanticsLabel: 'TinyMind',
+                              ),
+                              Text(
+                                'TinyMind',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w900,
+                                      color: TinyMindColors.textDark,
+                                    ),
                               ),
                               TextButton(
                                 onPressed: _managing
