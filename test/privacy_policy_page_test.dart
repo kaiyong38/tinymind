@@ -8,6 +8,8 @@ import 'package:tinymind/pages/auth_pages.dart';
 import 'package:tinymind/pages/privacy_policy_page.dart';
 import 'package:tinymind/services/auth_service.dart';
 
+import '../tool/privacy_fingerprint.dart';
+
 void main() {
   test('nickname validation rejects spaces and values over 20 characters', () {
     expect(isValidNickname('Mia'), isTrue);
@@ -33,7 +35,14 @@ void main() {
     ]) {
       expect(find.text(title), findsOneWidget);
     }
-    expect(find.text('Last updated: 12 October 2026'), findsOneWidget);
+    expect(
+      find.text('Last updated: ${AppInfo.privacyPolicyLastUpdated}'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Also available online: ${AppInfo.privacyPolicyUrl}'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('Singapore region (asia-southeast1)'),
       findsOneWidget,
@@ -67,6 +76,28 @@ void main() {
     final hostedPolicy = File('public/privacy-policy.html').readAsStringSync();
 
     expect(hostedPolicy, docsPolicy);
+  });
+
+  test('privacy policy fingerprint matches the recorded version', () {
+    final root = Directory.current;
+    final recorded = PolicyVersion.read(root);
+
+    expect(recorded, isNotNull, reason: 'Missing $versionPath');
+    expect(
+      policyFingerprint(root),
+      recorded!.hash,
+      reason: 'Privacy policy text changed. '
+          'Run: dart run tool/update_privacy_date.dart',
+    );
+  });
+
+  test('privacy policy dates match the recorded version', () {
+    final root = Directory.current;
+    final lastUpdated = PolicyVersion.read(root)!.lastUpdated;
+
+    expect(htmlLastUpdated(root, hostedPolicyPath), lastUpdated);
+    expect(htmlLastUpdated(root, docsPolicyPath), lastUpdated);
+    expect(AppInfo.privacyPolicyLastUpdated, lastUpdated);
   });
 
   test('hosted privacy policies describe Google backup and the copy choice',

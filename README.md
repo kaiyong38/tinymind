@@ -28,6 +28,8 @@ services and currently targets Android only.
   you can use your password instead. Without a backup, data is lost if the
   app is uninstalled or the device is changed.
 - Privacy information and controls for deleting an account.
+- The privacy policy is shown in the app and hosted online at
+  <https://tinymind-dab14.web.app/privacy-policy.html>.
 - The child picker shows the TinyMind app icon and name. A small pencil
   button in the top-right corner (tooltip "Manage", behind the parent PIN)
   turns on manage mode, where a grown-up can change a learner's nickname,
@@ -154,6 +156,28 @@ test/widget_test.dart
 
 Question-bank requirements are documented in
 [docs/question_bank_rules.md](docs/question_bank_rules.md).
+
+## Privacy policy
+
+The policy text lives in three places that must stay in sync:
+`lib/pages/privacy_policy_page.dart` (in the app),
+`public/privacy-policy.html` (hosted at
+<https://tinymind-dab14.web.app/privacy-policy.html>), and
+`docs/privacy-policy.html` (an identical copy). The "Last updated" date is
+`AppInfo.privacyPolicyLastUpdated`, and `docs/privacy-policy.version.json`
+records it together with a fingerprint of the policy text.
+
+After changing the policy:
+
+```sh
+dart run tool/update_privacy_date.dart
+flutter test
+firebase deploy --only hosting
+```
+
+The tool sets "Last updated" to today in all three places when the policy
+text has changed, and prints "Privacy policy unchanged." otherwise. The tests
+fail if the policy text changes without running the tool.
 
 ## Build a release package
 

@@ -4,8 +4,6 @@ import 'package:tinymind/app_info.dart';
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
 
-  static const lastUpdated = '12 October 2026';
-
   static const sections = <MapEntry<String, String>>[
     MapEntry(
       'What we collect',
@@ -105,9 +103,17 @@ class PrivacyPolicyPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 22),
                     ],
-                    Text(
-                      'Last updated: $lastUpdated',
-                      style: const TextStyle(
+                    const SelectableText(
+                      'Also available online: ${AppInfo.privacyPolicyUrl}',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Last updated: ${AppInfo.privacyPolicyLastUpdated}',
+                      style: TextStyle(
                         color: Colors.black54,
                         fontSize: 14,
                       ),
