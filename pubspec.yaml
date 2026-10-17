@@ -22,6 +22,7 @@ dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/branding/tinymind_launcher.png
     - assets/branding/tinymind_icon.svg
     - assets/branding/tinymind_logo.svg
     - assets/branding/tinymind_app_icon.svg

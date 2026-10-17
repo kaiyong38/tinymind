@@ -28,9 +28,19 @@ services and currently targets Android only.
   you can use your password instead. Without a backup, data is lost if the
   app is uninstalled or the device is changed.
 - Privacy information and controls for deleting an account.
-- In Manage mode on the child picker, a grown-up can change a learner's
-  nickname, age and avatar (and still remove a learner). Changing the age
-  changes which activities are suggested.
+- The child picker shows the TinyMind app icon and name. A small pencil
+  button in the top-right corner (tooltip "Manage", behind the parent PIN)
+  turns on manage mode, where a grown-up can change a learner's nickname,
+  age and avatar (and still remove a learner); a check button ends it.
+  Changing the age changes which activities are suggested.
+- If the child picker cannot load the children, it shows the error code and
+  a few small diagnostic lines (error message, the end of the account id,
+  whether it is anonymous, and its sign-in providers) with a Retry button.
+  For `permission-denied` or `unauthenticated` errors it also offers
+  "Start over", which signs this phone out after a warning and starts fresh.
+- Password checks (for example before deleting an account) use a compact
+  one-row dialog, so the field and buttons stay visible in landscape with the
+  keyboard open.
 - Music volume is adjusted in the menu (and music can be muted). Voice volume
   is not adjustable; narration always plays at full volume.
 

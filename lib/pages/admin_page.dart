@@ -12,6 +12,7 @@ import '../services/parent_gate_service.dart';
 import '../services/progress_store.dart';
 import '../widgets/bouncy_tap.dart';
 import '../widgets/emoji_glyph.dart';
+import '../widgets/password_prompt_dialog.dart';
 import 'auth_pages.dart';
 import 'child_detail_page.dart';
 import 'parent_settings_page.dart';
@@ -692,7 +693,8 @@ Future<bool> _reauthenticateWithPassword(
 ) async {
   final password = await showDialog<String>(
     context: context,
-    builder: (_) => const _VerifyPasswordDialog(),
+    builder: (_) =>
+        const PasswordPromptDialog(labelText: 'Verify your password'),
   );
   if (password == null || !context.mounted) return false;
 
@@ -707,56 +709,6 @@ Future<bool> _reauthenticateWithPassword(
     }
     return false;
   }
-}
-
-/// Owns its text controller, so the controller lives until the dialog has
-/// finished closing.
-class _VerifyPasswordDialog extends StatefulWidget {
-  const _VerifyPasswordDialog();
-
-  @override
-  State<_VerifyPasswordDialog> createState() => _VerifyPasswordDialogState();
-}
-
-class _VerifyPasswordDialogState extends State<_VerifyPasswordDialog> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-        scrollable: true,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-        contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-        title: const Text(
-          'Verify your password',
-          style: TextStyle(fontSize: 20),
-        ),
-        content: TextField(
-          controller: _controller,
-          obscureText: true,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Password',
-            isDense: true,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, _controller.text),
-            child: const Text('Continue'),
-          ),
-        ],
-      );
 }
 
 class _ChildProgressCard extends StatelessWidget {

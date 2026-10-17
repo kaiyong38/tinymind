@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../main.dart';
 import '../services/auth_service.dart';
@@ -144,6 +143,70 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
   String _errorCode(Object? error) =>
       error is FirebaseException ? error.code : '${error.runtimeType}';
 
+  /// The raw error message, cut to 80 characters.
+  String _errorMessage(Object? error) {
+    final message = error is FirebaseException
+        ? (error.message ?? '')
+        : '${error ?? ''}';
+    return message.length > 80 ? message.substring(0, 80) : message;
+  }
+
+  /// Small lines about the signed-in account, to help diagnose the error.
+  List<String> _accountDiagnostics() {
+    final user = widget.auth.currentUser;
+    if (user == null) return const ['signed out'];
+    final uid = user.uid;
+    final uidTail = uid.length > 6 ? uid.substring(uid.length - 6) : uid;
+    final providers =
+        user.providerData.map((info) => info.providerId).join(', ');
+    return [
+      'uid …$uidTail',
+      'anonymous: ${user.isAnonymous ? 'yes' : 'no'}',
+      'providers: ${providers.isEmpty ? 'none' : providers}',
+    ];
+  }
+
+  /// Signs out and starts fresh after the parent confirms. Offered when the
+  /// account itself is the problem, so retrying cannot help.
+  Future<void> _startOver() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Start over?'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'This phone will sign out of this account and start fresh. '
+            'Children saved only on this phone may be lost if you have not '
+            'backed up.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Start over'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    _autoRetryTimer?.cancel();
+    _autoRetryTimer = null;
+    try {
+      await widget.auth.signOut();
+    } catch (_) {}
+    if (!mounted) return;
+    await restartToStartup(
+      context,
+      store: widget.store,
+      auth: widget.auth,
+      firestore: widget.firestore,
+    );
+  }
+
   Future<void> _selectChild(String childId) async {
     widget.store.configureChild(parentUid: widget.parentUid, childId: childId);
     await widget.store.load();
@@ -238,8 +301,13 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             _scheduleAutoRetry();
+            final code = _errorCode(snapshot.error);
+            final message = _errorMessage(snapshot.error);
+            final canStartOver =
+                code == 'permission-denied' || code == 'unauthenticated';
+            const smallStyle = TextStyle(fontSize: 12, color: Colors.black45);
             return Center(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -250,17 +318,35 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '(${_errorCode(snapshot.error)})',
+                      '($code)',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.black45,
-                      ),
+                      style: smallStyle,
                     ),
+                    if (message.isNotEmpty)
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: smallStyle,
+                      ),
+                    for (final line in _accountDiagnostics())
+                      Text(line, textAlign: TextAlign.center, style: smallStyle),
                     const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: _retry,
-                      child: const Text('Retry'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        FilledButton(
+                          onPressed: _retry,
+                          child: const Text('Retry'),
+                        ),
+                        if (canStartOver)
+                          TextButton(
+                            onPressed: _startOver,
+                            child: const Text('Start over'),
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -273,127 +359,145 @@ class _ChildPickerPageState extends State<ChildPickerPage> {
           _autoRetried = false;
           final children = snapshot.data!.docs;
           return SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final total = children.length + 1;
-                final availableWidth = constraints.maxWidth - 24;
-                final columns = (availableWidth / 108).floor().clamp(1, total);
-                final rows = (total / columns).ceil();
-                final spacing = 8.0;
-                final metrics =
-                    AdaptiveMetrics.fromConstraints(context, constraints);
-                final itemWidth =
-                    (availableWidth - spacing * (columns - 1)) / columns;
-                final itemHeight = ((constraints.maxHeight - 100) / rows)
-                    .clamp(104.0, 150.0)
-                    .toDouble();
-                // Leaves room for the name when many children make the
-                // rows short.
-                final avatarRadius = min(
-                  (itemWidth * 0.31)
-                          .clamp(metrics.size(20), metrics.size(42))
-                          .toDouble() *
-                      1.15,
-                  (itemHeight - 30) / 2,
-                );
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints:
-                          BoxConstraints(minHeight: constraints.maxHeight),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            alignment: WrapAlignment.center,
-                            children: [
-                              SvgPicture.asset(
-                                'assets/branding/tinymind_icon.svg',
-                                height: 40,
-                                semanticsLabel: 'TinyMind',
-                              ),
-                              Text(
-                                'TinyMind',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w900,
-                                      color: TinyMindColors.textDark,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final total = children.length + 1;
+                      final availableWidth = constraints.maxWidth - 24;
+                      final columns =
+                          (availableWidth / 108).floor().clamp(1, total);
+                      final rows = (total / columns).ceil();
+                      final spacing = 8.0;
+                      final metrics =
+                          AdaptiveMetrics.fromConstraints(context, constraints);
+                      final compact = constraints.maxHeight < 400 &&
+                          constraints.maxWidth > constraints.maxHeight;
+                      final logoSize = compact ? 56.0 : 72.0;
+                      final itemWidth =
+                          (availableWidth - spacing * (columns - 1)) / columns;
+                      final itemHeight = ((constraints.maxHeight - 100) / rows)
+                          .clamp(104.0, 150.0)
+                          .toDouble();
+                      // Leaves room for the name when many children make the
+                      // rows short.
+                      final avatarRadius = min(
+                        (itemWidth * 0.31)
+                                .clamp(metrics.size(20), metrics.size(42))
+                                .toDouble() *
+                            1.15,
+                        (itemHeight - 30) / 2,
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints:
+                                BoxConstraints(minHeight: constraints.maxHeight),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Image.asset(
+                                        'assets/branding/tinymind_launcher.png',
+                                        width: logoSize,
+                                        height: logoSize,
+                                        semanticLabel: 'TinyMind',
+                                      ),
                                     ),
-                              ),
-                              TextButton(
-                                onPressed: _managing
-                                    ? () => setState(() => _managing = false)
-                                    : _startManaging,
-                                style: TextButton.styleFrom(
-                                  minimumSize: const Size(48, 48),
-                                  textStyle: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
+                                    Text(
+                                      'TinyMind',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineMedium
+                                          ?.copyWith(
+                                            fontSize: compact ? 32 : 40,
+                                            fontWeight: FontWeight.w900,
+                                            color: TinyMindColors.textDark,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                Center(
+                                  child: Wrap(
+                                    spacing: spacing,
+                                    runSpacing: 4,
+                                    alignment: WrapAlignment.center,
+                                    children: [
+                                      for (final doc in children)
+                                        _FlatChildAvatar(
+                                          name: (doc.data()['name'] as String?) ??
+                                              'Little Learner',
+                                          avatar: (doc.data()['avatar'] as String?) ??
+                                              '🧒',
+                                          width: itemWidth,
+                                          height: itemHeight,
+                                          avatarRadius: avatarRadius,
+                                          managing: _managing,
+                                          onDelete: () => _removeChild(
+                                            doc.id,
+                                            (doc.data()['name'] as String?) ??
+                                                'Little Learner',
+                                          ),
+                                          onTap: _managing
+                                              ? () => _editChild(doc)
+                                              : () => _selectChild(doc.id),
+                                        ),
+                                      _FlatAddAvatar(
+                                        width: itemWidth,
+                                        height: itemHeight,
+                                        avatarRadius: avatarRadius,
+                                        onTap: _managing ? () {} : _addChild,
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                child: Text(_managing ? 'Done' : 'Manage'),
-                              ),
-                            ],
-                          ),
-                          Center(
-                            child: Wrap(
-                              spacing: spacing,
-                              runSpacing: 4,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                for (final doc in children)
-                                  _FlatChildAvatar(
-                                    name: (doc.data()['name'] as String?) ??
-                                        'Little Learner',
-                                    avatar: (doc.data()['avatar'] as String?) ??
-                                        '🧒',
-                                    width: itemWidth,
-                                    height: itemHeight,
-                                    avatarRadius: avatarRadius,
-                                    managing: _managing,
-                                    onDelete: () => _removeChild(
-                                      doc.id,
-                                      (doc.data()['name'] as String?) ??
-                                          'Little Learner',
-                                    ),
-                                    onTap: _managing
-                                        ? () => _editChild(doc)
-                                        : () => _selectChild(doc.id),
+                                TextButton.icon(
+                                  onPressed: () => openParentArea(
+                                    context,
+                                    auth: widget.auth,
+                                    store: widget.store,
+                                    firestore: widget.firestore,
                                   ),
-                                _FlatAddAvatar(
-                                  width: itemWidth,
-                                  height: itemHeight,
-                                  avatarRadius: avatarRadius,
-                                  onTap: _managing ? () {} : _addChild,
+                                  icon: const Icon(Icons.family_restroom_rounded,
+                                      size: 18, color: Colors.black45),
+                                  label: const Text('For parents',
+                                      style: TextStyle(color: Colors.black45)),
                                 ),
                               ],
                             ),
                           ),
-                          TextButton.icon(
-                            onPressed: () => openParentArea(
-                              context,
-                              auth: widget.auth,
-                              store: widget.store,
-                              firestore: widget.firestore,
-                            ),
-                            icon: const Icon(Icons.family_restroom_rounded,
-                                size: 18, color: Colors.black45),
-                            label: const Text('For parents',
-                                style: TextStyle(color: Colors.black45)),
-                          ),
-                        ],
-                      ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: IconButton(
+                    onPressed: _managing
+                        ? () => setState(() => _managing = false)
+                        : _startManaging,
+                    tooltip: _managing ? 'Done' : 'Manage',
+                    iconSize: 24,
+                    constraints:
+                        const BoxConstraints(minWidth: 48, minHeight: 48),
+                    color: Colors.black54,
+                    icon: Icon(
+                      _managing ? Icons.check_rounded : Icons.edit_outlined,
                     ),
                   ),
-                );
-              },
+                ),
+              ],
             ),
           );
         },

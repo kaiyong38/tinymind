@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tinymind/main.dart';
 import 'package:tinymind/models/activities.dart';
@@ -222,41 +221,55 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final count in [1, 20]) {
-    testWidgets('child picker shows the TinyMind header with $count children '
-        'at 640x360', (tester) async {
-      tester.view.physicalSize = const Size(640, 360);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ChildPickerPage(
-            store: ProgressStore(),
-            parentUid: 'parent-1',
-            auth: _TestAuthService(),
-            firestore: _ManyChildrenFirestoreService(count),
-            gateService: ParentGateService(
-              storage: _TestGateStorage(),
-              phoneAuthenticator: _TestPhoneAuthenticator(),
+  for (final size in const [Size(640, 360), Size(640, 290)]) {
+    for (final count in [1, 20]) {
+      testWidgets('child picker shows the TinyMind header with $count children '
+          'at ${size.width.toInt()}x${size.height.toInt()}', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ChildPickerPage(
+              store: ProgressStore(),
+              parentUid: 'parent-1',
+              auth: _TestAuthService(),
+              firestore: _ManyChildrenFirestoreService(count),
+              gateService: ParentGateService(
+                storage: _TestGateStorage(),
+                phoneAuthenticator: _TestPhoneAuthenticator(),
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-      expect(find.text('Who is playing?'), findsNothing);
-      expect(find.text('TinyMind'), findsOneWidget);
-      final logo = find.byType(SvgPicture);
-      expect(logo, findsOneWidget);
-      expect(tester.getSize(logo).height, 40);
-      final title = tester.getRect(find.text('TinyMind'));
-      final manage = tester.getRect(find.text('Manage'));
-      expect(title.left, greaterThanOrEqualTo(0));
-      expect(manage.right, lessThanOrEqualTo(640));
-      expect(title.top, greaterThanOrEqualTo(0));
-    });
+        expect(tester.takeException(), isNull);
+        expect(find.text('Who is playing?'), findsNothing);
+        expect(find.text('TinyMind'), findsOneWidget);
+        final logo = find.image(
+          const AssetImage('assets/branding/tinymind_launcher.png'),
+        );
+        expect(logo, findsOneWidget);
+        // Compact landscape (height under 400) uses the smaller header.
+        expect(tester.getSize(logo), const Size(56, 56));
+        expect(tester.widget<Text>(find.text('TinyMind')).style?.fontSize, 32);
+        expect(find.text('Manage'), findsNothing);
+        final title = tester.getRect(find.text('TinyMind'));
+        final manageButton = find.byTooltip('Manage');
+        expect(manageButton, findsOneWidget);
+        expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+        final manage = tester.getRect(manageButton);
+        expect(manage.width, greaterThanOrEqualTo(48));
+        expect(manage.height, greaterThanOrEqualTo(48));
+        expect(title.left, greaterThanOrEqualTo(0));
+        expect(manage.right, lessThanOrEqualTo(size.width));
+        expect(manage.top, greaterThanOrEqualTo(0));
+        expect(title.top, greaterThanOrEqualTo(0));
+        expect(manage.overlaps(title), isFalse);
+      });
+    }
   }
 }
 

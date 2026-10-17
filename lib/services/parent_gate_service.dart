@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/password_prompt_dialog.dart';
 import 'auth_service.dart';
 
 enum ParentLockMethod { phone, pin }
@@ -346,7 +347,9 @@ class ParentGateService {
   Future<bool> _reauthenticateWithPassword(BuildContext context) async {
     final password = await showDialog<String>(
       context: context,
-      builder: (_) => const _ReauthenticateDialog(),
+      builder: (_) => const PasswordPromptDialog(
+        labelText: 'Confirm your account password',
+      ),
     );
     if (password == null || !context.mounted) return false;
     try {
@@ -883,54 +886,5 @@ class _PinKey extends StatelessWidget {
             ),
           ),
         ),
-      );
-}
-
-class _ReauthenticateDialog extends StatefulWidget {
-  const _ReauthenticateDialog();
-
-  @override
-  State<_ReauthenticateDialog> createState() => _ReauthenticateDialogState();
-}
-
-class _ReauthenticateDialogState extends State<_ReauthenticateDialog> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-        scrollable: true,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-        contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-        title: const Text(
-          'Confirm your account password',
-          style: TextStyle(fontSize: 20),
-        ),
-        content: TextField(
-          controller: _controller,
-          autofocus: true,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Password',
-            isDense: true,
-          ),
-          onSubmitted: (value) => Navigator.pop(context, value),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, _controller.text),
-            child: const Text('Continue'),
-          ),
-        ],
       );
 }

@@ -5,7 +5,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -828,17 +827,23 @@ void main() {
               '$page, $count children, $size, ${scale}x',
             );
             if (page == 'ChildPickerPage' && count == 1) {
-              final manageButton = find.ancestor(
-                of: find.text('Manage'),
-                matching: find.byType(TextButton),
-              );
+              final manageButton = find.byTooltip('Manage');
+              final manageSize = tester.getSize(manageButton);
               expect(
-                tester.getSize(manageButton).height,
+                manageSize.height,
                 greaterThanOrEqualTo(48),
                 reason: 'Manage target, $size, ${scale}x',
               );
-              final headerTop =
-                  tester.getRect(find.byType(SvgPicture).first).top;
+              expect(
+                manageSize.width,
+                greaterThanOrEqualTo(48),
+                reason: 'Manage target, $size, ${scale}x',
+              );
+              final headerTop = tester
+                  .getRect(find.image(
+                    const AssetImage('assets/branding/tinymind_launcher.png'),
+                  ))
+                  .top;
               final parentLinkBottom = tester
                   .getRect(find.widgetWithText(TextButton, 'For parents'))
                   .bottom;

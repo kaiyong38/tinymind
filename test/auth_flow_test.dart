@@ -910,6 +910,57 @@ void main() {
       await firebaseAuth.dispose();
     });
 
+    for (final (size, keyboard) in const [
+      (Size(640, 290), 200.0),
+      (Size(360, 640), 280.0),
+    ]) {
+      testWidgets(
+          'password dialog fits on one view at '
+          '${size.width.toInt()}x${size.height.toInt()} with a '
+          '${keyboard.toInt()} keyboard', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await pumpAdmin(tester, emailVerified: true);
+        await openMenu(tester);
+        await tester.tap(find.text('Delete account and all data'));
+        tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+        await _pumpAnimations(tester);
+
+        expect(tester.takeException(), isNull);
+        _expectPasswordDialogVisible(
+          tester,
+          label: 'Verify your password',
+          visibleBottom: size.height - keyboard,
+          width: size.width,
+        );
+
+        await tester.enterText(find.byType(TextField), 'backup-password');
+        await tester.tap(find.text('Continue'));
+        tester.view.resetViewInsets();
+        await _pumpAnimations(tester);
+
+        expect(tester.takeException(), isNull);
+        expect(user.reauthenticationCalls, 1);
+        await firebaseAuth.dispose();
+      });
+    }
+
+    testWidgets('the keyboard done key works like Continue', (tester) async {
+      await pumpAdmin(tester, emailVerified: true);
+      await openMenu(tester);
+      await tester.tap(find.text('Delete account and all data'));
+      await _pumpAnimations(tester);
+
+      await tester.enterText(find.byType(TextField), 'backup-password');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await _pumpAnimations(tester);
+
+      expect(find.text('Verify your password'), findsNothing);
+      expect(user.reauthenticationCalls, 1);
+      await firebaseAuth.dispose();
+    });
+
     testWidgets('Sign out is blocked until the email is verified',
         (tester) async {
       await pumpAdmin(tester);
@@ -1217,6 +1268,168 @@ void main() {
 
     expect(find.text('We could not load the pictures.'), findsOneWidget);
     expect(find.text('(permission-denied)'), findsOneWidget);
+  });
+
+  testWidgets('child picker error shows diagnostics about the account',
+      (tester) async {
+    final firestore = _FakeFirestoreService()
+      ..watchError = true
+      ..watchErrorValue = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+        message: 'Missing or insufficient permissions. ${'x' * 100}',
+      );
+    final user = FakeFirebaseUser(
+      uid: 'abcdef123456',
+      isAnonymous: false,
+      emailProvider: true,
+      googleProvider: true,
+    );
+    await tester.pumpWidget(_pickerApp(firestore, user: user));
+    await tester.pump();
+
+    final message = find.textContaining('Missing or insufficient permissions.');
+    expect(message, findsOneWidget);
+    expect(tester.widget<Text>(message).data!.length, 80);
+    expect(find.text('uid …123456'), findsOneWidget);
+    expect(find.text('anonymous: no'), findsOneWidget);
+    expect(find.text('providers: password, google.com'), findsOneWidget);
+  });
+
+  testWidgets('child picker error diagnostics for an anonymous account',
+      (tester) async {
+    final firestore = _FakeFirestoreService()
+      ..watchError = true
+      ..watchErrorValue = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'unavailable',
+      );
+    await tester.pumpWidget(_pickerApp(firestore));
+    await tester.pump();
+
+    expect(find.text('uid …nt-uid'), findsOneWidget);
+    expect(find.text('anonymous: yes'), findsOneWidget);
+    expect(find.text('providers: none'), findsOneWidget);
+  });
+
+  testWidgets('child picker error says signed out without a user',
+      (tester) async {
+    final firebaseAuth = FakeFirebaseAuth();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChildPickerPage(
+          store: ProgressStore(),
+          parentUid: 'parent-uid',
+          auth: AuthService(auth: firebaseAuth),
+          gateService: ParentGateService(storage: _FakeGateStorage()),
+          firestore: _FakeFirestoreService()
+            ..watchError = true
+            ..watchErrorValue = FirebaseException(
+              plugin: 'cloud_firestore',
+              code: 'unavailable',
+            ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('signed out'), findsOneWidget);
+    expect(find.textContaining('uid …'), findsNothing);
+    await firebaseAuth.dispose();
+  });
+
+  testWidgets('child picker does not offer Start over when unavailable',
+      (tester) async {
+    final firestore = _FakeFirestoreService()
+      ..watchError = true
+      ..watchErrorValue = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'unavailable',
+      );
+    await tester.pumpWidget(_pickerApp(firestore));
+    await tester.pump();
+
+    expect(find.text('(unavailable)'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Start over'), findsNothing);
+  });
+
+  group('child picker Start over', () {
+    late FakeFirebaseAuth firebaseAuth;
+    late _FakeFirestoreService firestore;
+
+    Future<void> pumpPicker(WidgetTester tester, String code) async {
+      SharedPreferences.setMockInitialValues({});
+      firebaseAuth = FakeFirebaseAuth(
+        user: FakeFirebaseUser(uid: 'parent-uid', isAnonymous: true),
+      );
+      firestore = _FakeFirestoreService()
+        ..watchError = true
+        ..watchErrorValue = FirebaseException(
+          plugin: 'cloud_firestore',
+          code: code,
+        );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChildPickerPage(
+            store: ProgressStore(),
+            parentUid: 'parent-uid',
+            auth: AuthService(auth: firebaseAuth),
+            gateService: ParentGateService(storage: _FakeGateStorage()),
+            firestore: firestore,
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    Finder dialogButton(String label) => find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text(label),
+        );
+
+    for (final code in ['permission-denied', 'unauthenticated']) {
+      testWidgets('signs out and restarts after confirming ($code)',
+          (tester) async {
+        await pumpPicker(tester, code);
+        expect(find.text('Start over'), findsOneWidget);
+
+        await tester.tap(find.text('Start over'));
+        await tester.pumpAndSettle();
+        expect(find.text('Start over?'), findsOneWidget);
+        expect(
+          find.text(
+            'This phone will sign out of this account and start fresh. '
+            'Children saved only on this phone may be lost if you have not '
+            'backed up.',
+          ),
+          findsOneWidget,
+        );
+
+        firestore.watchError = false;
+        await tester.tap(dialogButton('Start over'));
+        await tester.pumpAndSettle();
+
+        expect(firebaseAuth.signOutCalls, 1);
+        expect(find.byType(StartupGatePage), findsOneWidget);
+        await firebaseAuth.dispose();
+      });
+    }
+
+    testWidgets('Cancel does nothing', (tester) async {
+      await pumpPicker(tester, 'permission-denied');
+      await tester.tap(find.text('Start over'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(dialogButton('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start over?'), findsNothing);
+      expect(firebaseAuth.signOutCalls, 0);
+      expect(find.byType(StartupGatePage), findsNothing);
+      expect(find.text('We could not load the pictures.'), findsOneWidget);
+      await firebaseAuth.dispose();
+    });
   });
 
   testWidgets('child picker Retry refreshes the token and reloads',
@@ -2184,6 +2397,29 @@ Widget _pickerApp(FirestoreService firestore, {FakeFirebaseUser? user}) =>
         firestore: firestore,
       ),
     );
+
+/// Checks the one-row password dialog: the field and both buttons sit fully
+/// inside the part of the screen the keyboard leaves visible.
+void _expectPasswordDialogVisible(
+  WidgetTester tester, {
+  required String label,
+  required double visibleBottom,
+  required double width,
+}) {
+  expect(find.byType(AlertDialog), findsNothing);
+  expect(find.text(label), findsOneWidget);
+  for (final target in [
+    find.byType(TextField),
+    find.widgetWithText(TextButton, 'Cancel'),
+    find.widgetWithText(FilledButton, 'Continue'),
+  ]) {
+    final rect = tester.getRect(target);
+    expect(rect.top, greaterThanOrEqualTo(0));
+    expect(rect.left, greaterThanOrEqualTo(0));
+    expect(rect.right, lessThanOrEqualTo(width));
+    expect(rect.bottom, lessThanOrEqualTo(visibleBottom));
+  }
+}
 
 Future<void> _pumpAnimations(WidgetTester tester) async {
   await tester.pump();

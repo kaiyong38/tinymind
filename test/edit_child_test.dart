@@ -160,7 +160,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Manage'));
+    await tester.tap(find.byTooltip('Manage'));
     await tester.pump();
     expect(gate.unlocks, 1);
     expect(find.byIcon(Icons.edit_rounded), findsOneWidget);
@@ -183,7 +183,8 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Done'));
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+    await tester.tap(find.byTooltip('Done'));
     await tester.pump();
     await tester.tap(find.text('Old'));
     await tester.pump();

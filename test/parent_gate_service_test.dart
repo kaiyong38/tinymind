@@ -139,6 +139,73 @@ void main() {
     expect(find.text('Choose a PIN'), findsOneWidget);
   });
 
+  // Portrait is covered in password_prompt_dialog_test.dart: the PIN prompt
+  // under this dialog is laid out for the app's landscape-only screens.
+  for (final (size, keyboard) in const [(Size(640, 290), 200.0)]) {
+    testWidgets(
+        'forgot PIN password dialog fits at '
+        '${size.width.toInt()}x${size.height.toInt()} with a '
+        '${keyboard.toInt()} keyboard', (tester) async {
+      // The PIN steps run at a roomier size; the size changes once the
+      // password dialog is open.
+      tester.view.physicalSize = const Size(640, 360);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final passwordAuthenticator = _FakePasswordAuthenticator();
+      final service = ParentGateService(
+        phoneAuthenticator: _FakePhoneAuthenticator(supported: false),
+        storage: _FakeParentGateStorage(),
+        passwordAuthenticator: passwordAuthenticator,
+        googleAuthenticator: _FakeGoogleAuthenticator(),
+        auth: AuthService(
+          auth: FakeFirebaseAuth(
+            user: FakeFirebaseUser(
+              uid: 'linked',
+              isAnonymous: false,
+              email: 'parent@example.com',
+              emailProvider: true,
+            ),
+          ),
+        ),
+      );
+      final harness = _UnlockHarness(service);
+      await harness.mount(tester);
+      await harness.tap(tester);
+      await _enterPin(tester, '2468');
+      await _enterPin(tester, '2468');
+      await harness.tap(tester);
+      await tester.tap(find.text('Forgot PIN?'));
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = size;
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('Confirm your account password'), findsOneWidget);
+      for (final target in [
+        find.byType(TextField),
+        find.widgetWithText(TextButton, 'Cancel'),
+        find.widgetWithText(FilledButton, 'Continue'),
+      ]) {
+        final rect = tester.getRect(target);
+        expect(rect.top, greaterThanOrEqualTo(0));
+        expect(rect.left, greaterThanOrEqualTo(0));
+        expect(rect.right, lessThanOrEqualTo(size.width));
+        expect(rect.bottom, lessThanOrEqualTo(size.height - keyboard));
+      }
+
+      await tester.enterText(find.byType(TextField), 'correct-password');
+      await tester.tap(find.text('Continue'));
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(passwordAuthenticator.calls, 1);
+      expect(find.text('Choose a PIN'), findsOneWidget);
+    });
+  }
+
   group('Google account forgot PIN', () {
     late _FakePhoneAuthenticator phone;
     late _FakePasswordAuthenticator password;
