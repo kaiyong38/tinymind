@@ -10,8 +10,6 @@ void main() {
       expect(entry.value.sections, isNotEmpty, reason: entry.key);
       expect(entry.value.activities, isNotEmpty, reason: entry.key);
       expect(
-          entry.value.olderStartSection, lessThan(entry.value.sections.length));
-      expect(
           entry.value.youngMaxSection, lessThan(entry.value.sections.length));
     }
   });
@@ -137,67 +135,27 @@ void main() {
     expect(starsForScore(0, 3), 1);
   });
 
-  test('recommendedActivityId follows age and stars', () {
-    expect(recommendedActivityId(worldId: 'numbers', age: 4, bestStars: {}),
-        'numbers_01');
-    expect(recommendedActivityId(worldId: 'numbers', age: 6, bestStars: {}),
-        'numbers_11');
-    expect(
-        recommendedActivityId(
-            worldId: 'numbers', age: 4, bestStars: {'numbers_01': 3}),
-        'numbers_02');
-    expect(
-        recommendedActivityId(
-            worldId: 'numbers', age: 4, bestStars: {'numbers_01': 1}),
-        'numbers_01');
-  });
-
-  test('3-year-olds are not recommended numbers beyond section 2', () {
+  test('worldFinished needs 3 stars on every age-suitable activity', () {
+    expect(worldFinished(worldId: 'numbers', age: 4, bestStars: {}), isFalse);
     final allEarlierNumbersHaveThreeStars = {
       for (var number = 1; number <= 15; number++)
         'numbers_${number.toString().padLeft(2, '0')}': 3,
     };
-
     expect(
-      recommendedActivityId(
+      worldFinished(
         worldId: 'numbers',
         age: 3,
         bestStars: allEarlierNumbersHaveThreeStars,
       ),
-      isNull,
+      isTrue,
     );
-  });
-
-  test('6-year-olds can be recommended numbers from section 3', () {
-    final starsBeforeSectionThree = {
-      for (var number = 1; number <= 15; number++)
-        'numbers_${number.toString().padLeft(2, '0')}': 3,
-    };
-
     expect(
-      recommendedActivityId(
+      worldFinished(
         worldId: 'numbers',
         age: 6,
-        bestStars: starsBeforeSectionThree,
+        bestStars: allEarlierNumbersHaveThreeStars,
       ),
-      'numbers_16',
-    );
-  });
-
-  test('4-year-olds finish colors recommendations at the young section cap',
-      () {
-    final allowedColorActivities = {
-      for (final activity in worldCatalogs['colors']!.activities)
-        if (activity.sectionIndex <= 1) activity.id: 3,
-    };
-
-    expect(
-      recommendedActivityId(
-        worldId: 'colors',
-        age: 4,
-        bestStars: allowedColorActivities,
-      ),
-      isNull,
+      isFalse,
     );
   });
 
@@ -227,12 +185,20 @@ void main() {
           activity.id: 3,
     };
     expect(
-      recommendedActivityId(
+      worldFinished(
         worldId: 'colors',
         age: 5,
         bestStars: allEarlierColorsHaveThreeStars,
       ),
-      'colors_09',
+      isFalse,
+    );
+    expect(
+      worldFinished(
+        worldId: 'colors',
+        age: 4,
+        bestStars: allEarlierColorsHaveThreeStars,
+      ),
+      isTrue,
     );
   });
   group('nextActivityId', () {

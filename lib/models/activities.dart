@@ -53,18 +53,13 @@ class Activity {
 class WorldCatalog {
   const WorldCatalog({
     required this.sections,
-    required this.olderStartSection,
     required this.youngMaxSection,
     required this.activities,
   });
 
   final List<LearningSection> sections;
 
-  /// Section where children aged 5-6 are first recommended to start
-  /// (3-4 year olds always start at section 0).
-  final int olderStartSection;
-
-  /// Last section recommended to children aged 4 and under, inclusive.
+  /// Last section suited to children aged 4 and under, inclusive.
   final int youngMaxSection;
   final List<Activity> activities;
 
@@ -94,37 +89,18 @@ Activity? activityById(String id) {
   return null;
 }
 
-/// The rule-based "try this next" suggestion for a world (this is the
-/// adaptive part): start from the section that suits the child's age, and
-/// suggest the first activity that does not yet have 2+ stars — an unplayed
-/// one, or a 1-star one worth replaying. Falls back to the earliest such
-/// activity in the age-appropriate range, then to the first without 3 stars
-/// in that range, then null.
-/// [bestStars] maps activity id -> best stars earned so far (missing = 0).
-String? recommendedActivityId({
+/// True when every activity in the world that suits the child's age already
+/// has 3 stars. [bestStars] maps activity id -> best stars (missing = 0).
+bool worldFinished({
   required String worldId,
   required int age,
   required Map<String, int> bestStars,
 }) {
   final catalog = worldCatalogs[worldId];
-  if (catalog == null) return null;
-  final start = age >= 5 ? catalog.olderStartSection : 0;
-  final candidates = catalog.activities.where(
-    (activity) =>
-        age >= activity.minAge &&
-        (age > 4 || activity.sectionIndex <= catalog.youngMaxSection),
-  );
-  int stars(Activity a) => bestStars[a.id] ?? 0;
-  for (final a in candidates) {
-    if (a.sectionIndex >= start && stars(a) < 2) return a.id;
-  }
-  for (final a in candidates) {
-    if (stars(a) < 2) return a.id;
-  }
-  for (final a in candidates) {
-    if (stars(a) < 3) return a.id;
-  }
-  return null;
+  if (catalog == null) return true;
+  return catalog.activities
+      .where((activity) => _suitsAge(activity, catalog, age))
+      .every((activity) => (bestStars[activity.id] ?? 0) >= 3);
 }
 
 /// The activity that follows [currentId] in the world's order, skipping only
@@ -184,7 +160,6 @@ const worldCatalogs = <String, WorldCatalog>{
 
   // ===== Letter Land (26 activities) =====
   'letters': WorldCatalog(
-    olderStartSection: 0,
     youngMaxSection: 2,
     sections: [
       LearningSection(title: 'A to I', emoji: '🍎'),
@@ -1236,7 +1211,6 @@ const worldCatalogs = <String, WorldCatalog>{
   ),
   // ===== Math Town (20 activities) =====
   'numbers': WorldCatalog(
-    olderStartSection: 2,
     youngMaxSection: 2,
     sections: [
       LearningSection(title: 'Counting to 5', emoji: '🔢'),
@@ -2199,7 +2173,6 @@ const worldCatalogs = <String, WorldCatalog>{
   ),
   // ===== Shape Safari (12 activities) =====
   'shapes': WorldCatalog(
-    olderStartSection: 1,
     youngMaxSection: 1,
     sections: [
       LearningSection(title: 'Meet the shapes', emoji: '🔺'),
@@ -2874,7 +2847,6 @@ const worldCatalogs = <String, WorldCatalog>{
   ),
   // ===== Color Garden (12 activities) =====
   'colors': WorldCatalog(
-    olderStartSection: 1,
     youngMaxSection: 1,
     sections: [
       LearningSection(title: 'Meet the colors', emoji: '🎨'),

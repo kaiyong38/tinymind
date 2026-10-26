@@ -311,38 +311,6 @@ void main() {
       }
       handle.dispose();
     });
-
-    testWidgets('number badge does not overlap "Try this!" at 568x320, 1.3x',
-        (tester) async {
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      SharedPreferences.setMockInitialValues({});
-      const size = Size(568, 320);
-      tester.view.physicalSize = size;
-      tester.view.devicePixelRatio = 1;
-      for (final module in learningModules) {
-        await tester.pumpWidget(
-          MediaQuery(
-            data: MediaQueryData(
-              size: size,
-              textScaler: const TextScaler.linear(1.3),
-            ),
-            child: MaterialApp(
-              home: LibraryPage(world: module, store: ProgressStore()),
-            ),
-          ),
-        );
-        await tester.pump();
-        expect(tester.takeException(), isNull, reason: module.id);
-        final badge = tester.getRect(find.byKey(ValueKey(
-            'activity-number-${worldCatalogs[module.id]!.activities.first.id}')));
-        final tryThis = find.textContaining('Try this!');
-        if (tryThis.evaluate().isNotEmpty) {
-          expect(tester.getRect(tryThis.first).overlaps(badge), isFalse,
-              reason: module.id);
-        }
-      }
-    });
   });
 }
 

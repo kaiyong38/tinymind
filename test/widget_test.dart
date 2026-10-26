@@ -213,7 +213,7 @@ void main() {
     }
   });
 
-  testWidgets('world library groups activities and recommends one',
+  testWidgets('world library groups activities without a recommendation',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -227,7 +227,7 @@ void main() {
 
     expect(find.text('Letter Land'), findsOneWidget);
     expect(find.textContaining('A to I'), findsOneWidget);
-    expect(find.textContaining('Try this!'), findsOneWidget);
+    expect(find.textContaining('Try this!'), findsNothing);
   });
 }
 

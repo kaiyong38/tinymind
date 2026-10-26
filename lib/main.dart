@@ -680,7 +680,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Widget build(BuildContext context) {
     final catalog = worldCatalogs[widget.world.id]!;
     final bestStars = widget.store.progress.activityStars;
-    final recommendedId = recommendedActivityId(
+    final finished = worldFinished(
       worldId: widget.world.id,
       age: widget.store.progress.childAge,
       bestStars: bestStars,
@@ -703,7 +703,7 @@ class _LibraryPageState extends State<LibraryPage> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
               children: [
-                if (recommendedId == null)
+                if (finished)
                   const Padding(
                     padding: EdgeInsets.only(top: 12),
                     child: EmojiText(
@@ -750,12 +750,10 @@ class _LibraryPageState extends State<LibraryPage> {
                     itemBuilder: (context, index) {
                       final activity = catalog.inSection(sectionIndex)[index];
                       final stars = bestStars[activity.id] ?? 0;
-                      final recommended = activity.id == recommendedId;
                       return _ActivityTile(
                         activity: activity,
                         number: catalog.activities.indexOf(activity) + 1,
                         stars: stars,
-                        recommended: recommended,
                         color: widget.world.color,
                         onTap: () => _openActivity(activity),
                       );
@@ -776,7 +774,6 @@ class _ActivityTile extends StatelessWidget {
     required this.activity,
     required this.number,
     required this.stars,
-    required this.recommended,
     required this.color,
     required this.onTap,
   });
@@ -784,7 +781,6 @@ class _ActivityTile extends StatelessWidget {
   final Activity activity;
   final int number;
   final int stars;
-  final bool recommended;
   final Color color;
   final VoidCallback onTap;
 
@@ -800,8 +796,8 @@ class _ActivityTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: recommended ? color : color.withValues(alpha: 0.25),
-              width: recommended ? 3 : 1.5,
+              color: color.withValues(alpha: 0.25),
+              width: 1.5,
             ),
           ),
           padding: const EdgeInsets.all(10),
@@ -839,38 +835,6 @@ class _ActivityTile extends StatelessWidget {
                   ),
                 ],
               ),
-              if (recommended)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 30,
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.topLeft,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          child: EmojiText(
-                            '⭐ Try this!',
-                            maxLines: 1,
-                            softWrap: false,
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
               Positioned(
                 top: 0,
                 right: 0,
@@ -2327,13 +2291,7 @@ class ResultPage extends StatelessWidget {
       age: store.progress.childAge,
       currentId: activity.id,
     );
-    final recommendedId = recommendedActivityId(
-      worldId: world.id,
-      age: store.progress.childAge,
-      bestStars: store.progress.activityStars,
-    );
-    final hasSuggestion = sequentialId != null ||
-        (recommendedId != null && recommendedId != activity.id);
+    final hasSuggestion = sequentialId != null;
     final nextId = nextActivityForResult(
       worldId: world.id,
       age: store.progress.childAge,

@@ -186,7 +186,7 @@ class _EditChildPageState extends State<EditChildPage> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Changing the age changes which activities are suggested.',
+                    'Age decides which activities come next after one is finished.',
                     style: TextStyle(fontSize: 13, color: Colors.black54),
                   ),
                   const SizedBox(height: 10),

@@ -114,7 +114,7 @@ void main() {
     expect(find.text(nicknameErrorText), findsOneWidget);
     expect(firestore.updates, 0);
     expect(
-      find.text('Changing the age changes which activities are suggested.'),
+      find.text('Age decides which activities come next after one is finished.'),
       findsOneWidget,
     );
   });
