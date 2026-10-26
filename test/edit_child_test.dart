@@ -60,7 +60,8 @@ void main() {
       'tinymind_child_id': _childId,
       'tinymind_progress': jsonEncode({'childName': 'Old', 'points': 50}),
     });
-    final firestore = _FakeFirestore()..progressDoc['childName'] = 'Nova';
+    final firestore = _FakeFirestore()
+      ..progressDoc.addAll({'childName': 'Nova', 'avatar': '🦊', 'childAge': 6});
     final store = ProgressStore(firestore: firestore, currentUid: () => _uid);
 
     await store.applyProfileEdit(

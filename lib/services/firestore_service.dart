@@ -35,8 +35,15 @@ class FirestoreService {
     await _firestore.runTransaction((transaction) async {
       final remoteProgress = await transaction.get(progress);
       final remoteChild = await transaction.get(child);
+      final childData = remoteChild.data();
       final merged = mergeProgressData(
-        remoteProgress.data() ?? remoteChild.data() ?? const {},
+        {
+          ...?(remoteProgress.data() ?? childData),
+          // The child document is the source of truth for the profile.
+          if (childData?['name'] != null) 'childName': childData!['name'],
+          if (childData?['avatar'] != null) 'avatar': childData!['avatar'],
+          if (childData?['age'] != null) 'childAge': childData!['age'],
+        },
         data,
       );
       final profile = <String, dynamic>{
@@ -68,11 +75,25 @@ class FirestoreService {
     });
   }
 
+  /// Set on queued [local] data that holds a profile change made on this
+  /// phone that the cloud has not seen yet. Never written to Firestore.
+  static const profileEditMarker = 'profileEditPending';
+  static const profileFields = ['childName', 'avatar', 'childAge'];
+
+  /// Merges [local] progress into [remote]. The nickname, avatar and age are
+  /// taken from [remote] (an older local copy must not undo an edit made in
+  /// Manage mode) unless [local] carries [profileEditMarker].
   static Map<String, dynamic> mergeProgressData(
     Map<String, dynamic> remote,
     Map<String, dynamic> local,
   ) {
     final merged = <String, dynamic>{...remote, ...local};
+    if (local[profileEditMarker] != true) {
+      for (final key in profileFields) {
+        if (remote[key] != null) merged[key] = remote[key];
+      }
+    }
+    merged.remove(profileEditMarker);
     for (final key in const [
       'points',
       'todayQuestions',

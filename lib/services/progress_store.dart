@@ -166,12 +166,13 @@ class ProgressStore extends ChangeNotifier {
 
     if (_parentUid != null && _childId != null) {
       final queued = preferences.getString(_pendingKey);
+      var queuedProfileEdit = false;
       if (queued != null) {
+        final queuedData = jsonDecode(queued) as Map<String, dynamic>;
+        queuedProfileEdit =
+            queuedData[FirestoreService.profileEditMarker] == true;
         progress = UserProgress.fromJson(
-          FirestoreService.mergeProgressData(
-            progress.toJson(),
-            jsonDecode(queued) as Map<String, dynamic>,
-          ),
+          FirestoreService.mergeProgressData(progress.toJson(), queuedData),
         );
       }
       try {
@@ -183,10 +184,10 @@ class ProgressStore extends ChangeNotifier {
             await _firestore!.loadProgress(_parentUid!, _childId!);
         if (cloudData != null) {
           progress = UserProgress.fromJson(
-            FirestoreService.mergeProgressData(
-              cloudData,
-              progress.toJson(),
-            ),
+            FirestoreService.mergeProgressData(cloudData, {
+              ...progress.toJson(),
+              if (queuedProfileEdit) FirestoreService.profileEditMarker: true,
+            }),
           );
           await _saveCache(preferences);
         }
@@ -254,7 +255,7 @@ class ProgressStore extends ChangeNotifier {
 
   Future<void> setAvatar(String avatar) async {
     progress.avatar = avatar;
-    await _save();
+    await _save(profileEdit: true);
   }
 
   Future<void> setChildProfile({
@@ -265,7 +266,7 @@ class ProgressStore extends ChangeNotifier {
     progress.childName = name.trim().isEmpty ? 'Little Learner' : name.trim();
     progress.avatar = avatar;
     if (age != null) progress.childAge = age;
-    await _save();
+    await _save(profileEdit: true);
   }
 
   /// Applies a profile edit (nickname, avatar, age) to this phone's copies so
@@ -324,7 +325,11 @@ class ProgressStore extends ChangeNotifier {
       if (pending != null || queueForSync) {
         await preferences.setString(
           key,
-          jsonEncode({...?pending, ...fields}),
+          jsonEncode({
+            ...?pending,
+            ...fields,
+            if (queueForSync) FirestoreService.profileEditMarker: true,
+          }),
         );
         _startSyncTimer();
       }
@@ -338,7 +343,10 @@ class ProgressStore extends ChangeNotifier {
     }
   }
 
-  Future<void> _save() async {
+  /// Saves the progress here and to the cloud. Only a [profileEdit] (the
+  /// child changing their own avatar, a new child's profile) may change the
+  /// cloud's nickname, avatar and age.
+  Future<void> _save({bool profileEdit = false}) async {
     // The in-memory progress has already changed; tell the screens now rather
     // than after the (slower) disk and cloud writes.
     notifyListeners();
@@ -347,16 +355,16 @@ class ProgressStore extends ChangeNotifier {
     final parentUid = _parentUid;
     final childId = _childId;
     if (parentUid != null && childId != null) {
-      final data = progress.toJson();
+      final key = _pendingKeyFor(parentUid, childId);
+      final data = profileEdit
+          ? {...progress.toJson(), FirestoreService.profileEditMarker: true}
+          : _keepQueuedProfileEdit(preferences, key, progress.toJson());
       try {
         _firestore ??= FirestoreService();
         await _firestore!.saveProgress(parentUid, childId, data);
-        await preferences.remove(_pendingKeyFor(parentUid, childId));
+        await preferences.remove(key);
       } on FirebaseException {
-        await preferences.setString(
-          _pendingKeyFor(parentUid, childId),
-          jsonEncode(data),
-        );
+        await preferences.setString(key, jsonEncode(data));
         _startSyncTimer();
       }
     }
@@ -375,10 +383,42 @@ class ProgressStore extends ChangeNotifier {
 
   Future<void> _queueCloudSync(SharedPreferences preferences) async {
     if (_parentUid == null || _childId == null) return;
-    await preferences.setString(_pendingKey, jsonEncode(progress.toJson()));
+    await preferences.setString(
+      _pendingKey,
+      jsonEncode(
+        _keepQueuedProfileEdit(preferences, _pendingKey, progress.toJson()),
+      ),
+    );
     _syncTimer ??= Timer.periodic(const Duration(seconds: 10), (_) {
       _syncPending();
     });
+  }
+
+  /// [data] to put in the queue entry [key], keeping the profile change of an
+  /// entry queued by an offline edit so it is neither dropped nor undone.
+  Map<String, dynamic> _keepQueuedProfileEdit(
+    SharedPreferences preferences,
+    String key,
+    Map<String, dynamic> data,
+  ) {
+    final raw = preferences.getString(key);
+    if (raw == null) return data;
+    final Object? queued;
+    try {
+      queued = jsonDecode(raw);
+    } on FormatException {
+      return data;
+    }
+    if (queued is! Map<String, dynamic> ||
+        queued[FirestoreService.profileEditMarker] != true) {
+      return data;
+    }
+    return {
+      ...data,
+      for (final field in FirestoreService.profileFields)
+        if (queued[field] != null) field: queued[field],
+      FirestoreService.profileEditMarker: true,
+    };
   }
 
   Future<void> _syncPending() async {
@@ -445,11 +485,20 @@ class ProgressStore extends ChangeNotifier {
   ) async {
     final data = snapshot.data();
     if (data == null) return;
-    final merged = FirestoreService.mergeProgressData(data, progress.toJson());
+    final parentUid = _parentUid;
+    final childId = _childId;
+    final preferences = await SharedPreferences.getInstance();
+    final local = parentUid == null || childId == null
+        ? progress.toJson()
+        : _keepQueuedProfileEdit(
+            preferences,
+            _pendingKeyFor(parentUid, childId),
+            progress.toJson(),
+          );
+    final merged = FirestoreService.mergeProgressData(data, local);
     final needsSync = jsonEncode(UserProgress.fromJson(merged).toJson()) !=
         jsonEncode(UserProgress.fromJson(data).toJson());
     progress = UserProgress.fromJson(merged);
-    final preferences = await SharedPreferences.getInstance();
     await _saveCache(preferences);
     notifyListeners();
     if (needsSync) {
