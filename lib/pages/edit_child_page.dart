@@ -12,7 +12,7 @@ import 'auth_pages.dart';
 const editSavedOfflineMessage =
     'Saved on this phone. It will sync when you are online.';
 
-/// Lets a grown-up change a child's nickname, age and avatar. It is only
+/// Lets a parent change a child's nickname, age and avatar. It is only
 /// reachable from the child picker's Manage mode, which already asked for the
 /// parent PIN, so it does not ask again.
 class EditChildPage extends StatefulWidget {

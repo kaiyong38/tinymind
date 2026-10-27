@@ -1287,7 +1287,7 @@ class _ChildProfilePageState extends State<ChildProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  signedIn ? 'Add a new learner' : 'A grown-up goes first',
+                  signedIn ? 'Add a new learner' : 'A parent goes first',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 28,

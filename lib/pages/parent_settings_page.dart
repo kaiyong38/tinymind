@@ -36,7 +36,7 @@ class ParentSettingsPage extends StatelessWidget {
               ),
             const _VoiceStatusRow(),
             const _ColorFriendlyModeRow(),
-            _GrownUpLockSection(service: gateService),
+            _ParentLockSection(service: gateService),
           ],
         ),
       );
@@ -129,16 +129,16 @@ class _EmailBackupSectionState extends State<_EmailBackupSection> {
   }
 }
 
-class _GrownUpLockSection extends StatefulWidget {
-  const _GrownUpLockSection({required this.service});
+class _ParentLockSection extends StatefulWidget {
+  const _ParentLockSection({required this.service});
 
   final ParentGateService service;
 
   @override
-  State<_GrownUpLockSection> createState() => _GrownUpLockSectionState();
+  State<_ParentLockSection> createState() => _ParentLockSectionState();
 }
 
-class _GrownUpLockSectionState extends State<_GrownUpLockSection> {
+class _ParentLockSectionState extends State<_ParentLockSection> {
   late Future<ParentLockMethod?> _method;
 
   @override
@@ -178,7 +178,7 @@ class _GrownUpLockSectionState extends State<_GrownUpLockSection> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Grown-up lock',
+                'Parent lock',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
               ),
               FutureBuilder<ParentLockMethod?>(

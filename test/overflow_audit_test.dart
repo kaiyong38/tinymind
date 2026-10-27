@@ -625,7 +625,7 @@ void main() {
     ];
     const phases = <(String, ParentLockMethod?, String, String)>[
       ('set PIN', null, 'set-pin', 'Set a 4-digit PIN'),
-      ('enter PIN', ParentLockMethod.pin, 'unlock', 'Grown-ups only'),
+      ('enter PIN', ParentLockMethod.pin, 'unlock', 'Parents only'),
     ];
     for (final phase in phases) {
       for (final size in sizes) {

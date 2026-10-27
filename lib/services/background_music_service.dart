@@ -6,7 +6,7 @@ import 'music_settings.dart';
 
 /// Which looping music bed is playing.
 enum MusicTrack {
-  /// Gentle, calm loop for the home / "Grown-ups" screens, and the very
+  /// Gentle, calm loop for the home / "Parents" screens, and the very
   /// first "who is learning today?" screen the app opens on.
   playtime('audio/bg_music.mp3'),
 
@@ -41,7 +41,7 @@ enum MusicTrack {
 }
 
 /// Plays a looping, low-volume background music track while a child is in
-/// the app, and remembers whether the grown-up muted it last time.
+/// the app, and remembers whether the parent muted it last time.
 ///
 /// Five tracks ship in `assets/audio/` (already declared in pubspec.yaml
 /// via the whole-folder entry): a calm one for browsing/menus, plus one
@@ -72,7 +72,7 @@ class BackgroundMusicService {
   MusicTrack? _playingTrack;
 
   /// True while music was auto-paused because the app went to the
-  /// background — distinct from [_muted], which is the grown-up's
+  /// background — distinct from [_muted], which is the parent's
   /// deliberate choice. Keeping them separate means backgrounding the app
   /// never flips the mute switch the parent sees.
   bool _pausedForBackground = false;
@@ -174,7 +174,7 @@ class BackgroundMusicService {
   }
 
   /// Called when the app returns to the foreground — resumes only if it
-  /// was *this* auto-pause that stopped it, never overriding a grown-up's
+  /// was *this* auto-pause that stopped it, never overriding a parent's
   /// explicit mute.
   Future<void> resumeFromBackground() async {
     if (!_pausedForBackground) return;

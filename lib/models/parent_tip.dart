@@ -1,7 +1,7 @@
 import 'activities.dart';
 import 'learning.dart';
 
-/// Builds the green tip on the Grown-ups page from how much of each world
+/// Builds the green tip on the Parents page from how much of each world
 /// has been explored (activities with at least one star / all activities).
 String parentTipFor(
   Map<String, int> activityStars, {

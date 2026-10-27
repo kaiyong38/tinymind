@@ -15,7 +15,7 @@ services and currently targets Android only.
 - Parent pages for learner profiles, settings, and progress.
 - Learning reports that can be exported and shared.
 - A parent gate requiring a four-digit PIN on every parent-area entry.
-- The Grown-ups page in the child menu requires the PIN every time it is
+- The Parents page in the child menu requires the PIN every time it is
   opened, and returns to Play when the app goes to the background.
 - The app starts with an anonymous Firebase account and opens the child picker
   directly. A parent must enter the device-only PIN on every parent-area entry.
@@ -32,7 +32,7 @@ services and currently targets Android only.
   <https://tinymind-dab14.web.app/privacy-policy.html>.
 - The child picker shows the TinyMind app icon and name. A small pencil
   button in the top-right corner (tooltip "Manage", behind the parent PIN)
-  turns on manage mode, where a grown-up can change a learner's nickname,
+  turns on manage mode, where a parent can change a learner's nickname,
   age and avatar (and still remove a learner); a check button ends it.
   Changing the age changes which activities are suggested.
 - If the child picker cannot load the children, it shows the error code and

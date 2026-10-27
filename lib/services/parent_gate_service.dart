@@ -94,7 +94,7 @@ class LocalAuthPhoneAuthenticator implements ParentPhoneAuthenticator {
   Future<bool> authenticate() async {
     try {
       return await _authentication.authenticate(
-        localizedReason: "Grown-ups only: confirm it's you",
+        localizedReason: "Parents only: confirm it's you",
       );
     } on LocalAuthException {
       return false;
@@ -122,7 +122,7 @@ class SharedPreferencesParentGateStorage implements ParentGateStorage {
   Future<void> writeMethod(ParentLockMethod method) async {
     final saved = await (await SharedPreferences.getInstance())
         .setString(_methodKey, method.name);
-    if (!saved) throw StateError('Could not save the grown-up lock method.');
+    if (!saved) throw StateError('Could not save the parent lock method.');
   }
 
   @override
@@ -402,7 +402,7 @@ class _AdultReadingCheckDialogState extends State<_AdultReadingCheckDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Grown-up check'),
+        title: const Text('Parent check'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,7 +496,7 @@ class _PinSetupPageState extends State<_PinSetupPage> {
                   message: _message,
                   note: _firstPin == null
                       ? 'This PIN is only for this device.\n'
-                          'Grown-ups: please set this PIN yourself, not the child.'
+                          'Parents: please set this PIN yourself, not the child.'
                       : 'This PIN is only for this device.',
                 );
                 final pad = _PinNumberPad(
@@ -647,7 +647,7 @@ class _PinEntryPageState extends State<_PinEntryPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Grown-ups only')),
+        appBar: AppBar(title: const Text('Parents only')),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(12),

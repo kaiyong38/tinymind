@@ -19,7 +19,7 @@ void main() {
     expect(find.text('Choose a PIN'), findsOneWidget);
     expect(
       find.textContaining(
-        'Grown-ups: please set this PIN yourself, not the child.',
+        'Parents: please set this PIN yourself, not the child.',
       ),
       findsOneWidget,
     );
@@ -568,7 +568,7 @@ class _UnlockHarness {
                 onPressed: () async {
                   result = await service.unlock(context);
                 },
-                child: const Text('Open grown-up area'),
+                child: const Text('Open parent area'),
               ),
             ),
           ),
@@ -578,7 +578,7 @@ class _UnlockHarness {
   }
 
   Future<void> tap(WidgetTester tester) async {
-    await tester.tap(find.text('Open grown-up area'));
+    await tester.tap(find.text('Open parent area'));
     await tester.pumpAndSettle();
   }
 }

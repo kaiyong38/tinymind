@@ -166,7 +166,7 @@ class _VoiceAvailabilityNoticeState extends State<_VoiceAvailabilityNotice> {
         title: const Text('Voice not available'),
         content: const SingleChildScrollView(
           child: Text(
-            'This device has no voice installed. Ask a grown-up to install '
+            'This device has no voice installed. Ask a parent to install '
             'Google Text-to-Speech, then restart TinyMind.',
           ),
         ),
@@ -184,17 +184,21 @@ class _VoiceAvailabilityNoticeState extends State<_VoiceAvailabilityNotice> {
   Widget build(BuildContext context) => widget.child;
 }
 
-/// The tabbed Play / Stars / Grown-ups shell for a specific, already
+/// The tabbed Play / Stars / Parents shell for a specific, already
 /// loaded [store] — reached only after a learner has been chosen on the
 /// [WelcomePage].
 class TinyMindHomeShell extends StatefulWidget {
   const TinyMindHomeShell({
     required this.store,
     this.gateService,
+    this.auth,
+    this.firestore,
     super.key,
   });
   final ProgressStore store;
   final ParentGateService? gateService;
+  final AuthService? auth;
+  final FirestoreService? firestore;
 
   @override
   State<TinyMindHomeShell> createState() => _TinyMindHomeShellState();
@@ -283,11 +287,32 @@ class _TinyMindHomeShellState extends State<TinyMindHomeShell>
       ),
     );
     if (selected == null || !mounted) return;
+    if (selected == _switchLearnerChoice) {
+      _openChildPicker();
+      return;
+    }
     if (selected == 2 && _tabIndex != 2) {
       final unlocked = await _gate.unlock(context);
       if (!unlocked || !mounted) return;
     }
     setState(() => _tabIndex = selected);
+  }
+
+  void _openChildPicker() {
+    final auth = widget.auth ?? AuthService();
+    final parentUid = auth.currentUser?.uid;
+    if (parentUid == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChildPickerPage(
+          store: widget.store,
+          parentUid: parentUid,
+          auth: auth,
+          firestore: widget.firestore,
+          gateService: widget.gateService,
+        ),
+      ),
+    );
   }
 
   @override
@@ -365,6 +390,10 @@ class _MenuButton extends StatelessWidget {
   }
 }
 
+/// Returned by [_HomeMenuSheet] for "Switch learner", which opens the child
+/// picker instead of choosing a tab.
+const _switchLearnerChoice = -1;
+
 /// The bottom sheet opened by [_MenuButton].
 class _HomeMenuSheet extends StatelessWidget {
   const _HomeMenuSheet({
@@ -421,10 +450,29 @@ class _HomeMenuSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       LayoutBuilder(builder: (context, constraints) {
+                        // Navigation stays compact; volume controls get
+                        // dedicated rows below. A label may wrap to two
+                        // lines, so tiles in a row stretch to match.
+                        final columns = constraints.maxWidth >= 480 ? 4 : 2;
+                        const gap = 10.0;
+                        final tileWidth =
+                            (constraints.maxWidth - gap * (columns - 1)) /
+                                columns;
+                        final labelScaler = _MenuTile.scalerFor(
+                          context,
+                          labelWidth: tileWidth - 16,
+                          labels: const [
+                            'Play',
+                            'Stars',
+                            'Switch learner',
+                            'Parents',
+                          ],
+                        );
                         final tiles = [
                           _MenuTile(
                             icon: Icons.home_rounded,
                             label: 'Play',
+                            labelScaler: labelScaler,
                             color: TinyMindColors.primary,
                             selected: currentIndex == 0,
                             onTap: () => Navigator.of(context).pop(0),
@@ -432,31 +480,46 @@ class _HomeMenuSheet extends StatelessWidget {
                           _MenuTile(
                             icon: Icons.emoji_events_rounded,
                             label: 'Stars',
+                            labelScaler: labelScaler,
                             color: const Color(0xFFFFB703),
                             selected: currentIndex == 1,
                             onTap: () => Navigator.of(context).pop(1),
                           ),
                           _MenuTile(
+                            icon: Icons.switch_account_rounded,
+                            label: 'Switch learner',
+                            labelScaler: labelScaler,
+                            color: TinyMindColors.lavender,
+                            selected: false,
+                            onTap: () =>
+                                Navigator.of(context).pop(_switchLearnerChoice),
+                          ),
+                          _MenuTile(
                             icon: Icons.family_restroom_rounded,
-                            label: 'Grown-ups',
+                            label: 'Parents',
+                            labelScaler: labelScaler,
                             color: TinyMindColors.mint,
                             selected: currentIndex == 2,
                             onTap: () => Navigator.of(context).pop(2),
                           ),
                         ];
-                        // Navigation stays compact; volume controls get
-                        // dedicated rows below.
-                        final columns = constraints.maxWidth >= 480 ? 3 : 2;
-                        const gap = 10.0;
-                        final width =
-                            (constraints.maxWidth - gap * (columns - 1)) /
-                                columns;
-                        return Wrap(
-                          spacing: gap,
-                          runSpacing: gap,
+                        return Column(
                           children: [
-                            for (final tile in tiles)
-                              SizedBox(width: width, child: tile),
+                            for (var i = 0; i < tiles.length; i += columns) ...[
+                              if (i > 0) const SizedBox(height: gap),
+                              IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    for (var j = i; j < i + columns; j++) ...[
+                                      if (j > i) const SizedBox(width: gap),
+                                      Expanded(child: tiles[j]),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         );
                       }),
@@ -551,13 +614,45 @@ class _MenuTile extends StatelessWidget {
   const _MenuTile({
     required this.icon,
     required this.label,
+    required this.labelScaler,
     required this.color,
     required this.selected,
     required this.onTap,
   });
 
+  static const _labelStyle =
+      TextStyle(fontSize: 16, fontWeight: FontWeight.w900);
+
+  /// The ambient text scale, shrunk just enough that the longest single
+  /// word of any label fits [labelWidth]. Labels wrap between words, so
+  /// only a word too wide on its own needs smaller text.
+  static TextScaler scalerFor(
+    BuildContext context, {
+    required double labelWidth,
+    required List<String> labels,
+  }) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final style = DefaultTextStyle.of(context).style.merge(_labelStyle);
+    var widest = 0.0;
+    for (final word in labels.expand((label) => label.split(' '))) {
+      final painter = TextPainter(
+        text: TextSpan(text: word, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+      )..layout();
+      widest = math.max(widest, painter.width);
+      painter.dispose();
+    }
+    if (widest <= labelWidth || labelWidth <= 0) return scaler;
+    // A little spare room, since letter spacing does not scale.
+    final size = _labelStyle.fontSize!;
+    final fit = labelWidth * 0.95 / widest;
+    return TextScaler.linear(scaler.scale(size) / size * fit);
+  }
+
   final IconData icon;
   final String label;
+  final TextScaler labelScaler;
   final Color color;
   final bool selected;
   final VoidCallback onTap;
@@ -574,6 +669,7 @@ class _MenuTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircleAvatar(
                 radius: 24,
@@ -581,15 +677,16 @@ class _MenuTile extends StatelessWidget {
                 child: Icon(icon, color: color, size: 28),
               ),
               const SizedBox(height: 5),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: selected ? FontWeight.w900 : FontWeight.w800,
-                    color: selected ? color : Colors.black87,
-                  ),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textScaler: labelScaler,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w800,
+                  color: selected ? color : Colors.black87,
                 ),
               ),
             ],
@@ -1672,9 +1769,8 @@ class _QuizPageState extends State<QuizPage> {
     final saving = widget.store.recordAnswer(
       _world.id,
       correct,
-      completedQuestionId: correct
-          ? '${widget.activity.id}_${_questionNumber + 1}'
-          : null,
+      completedQuestionId:
+          correct ? '${widget.activity.id}_${_questionNumber + 1}' : null,
     );
     await _showFeedback(correct, _question.options[index]);
     await saving;
@@ -2748,8 +2844,7 @@ class ParentPage extends StatelessWidget {
             child: Row(children: [
               const Icon(Icons.lightbulb, color: Colors.green, size: 32),
               const SizedBox(width: 12),
-              Expanded(
-                  child: Text(parentTipFor(store.progress.activityStars))),
+              Expanded(child: Text(parentTipFor(store.progress.activityStars))),
             ]),
           ),
         ),
@@ -2765,21 +2860,6 @@ class ParentPage extends StatelessWidget {
           ),
           icon: const Icon(Icons.admin_panel_settings),
           label: const Text('Open learning dashboard'),
-        ),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: () {
-            final parentUid = AuthService().currentUser?.uid;
-            if (parentUid == null) return;
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) =>
-                    ChildPickerPage(store: store, parentUid: parentUid),
-              ),
-            );
-          },
-          icon: const Icon(Icons.switch_account_rounded),
-          label: const Text('Switch learner'),
         ),
       ],
     );
