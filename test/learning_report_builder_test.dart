@@ -1,9 +1,14 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tinymind/models/learning.dart';
 import 'package:tinymind/services/learning_report_builder.dart';
 import 'package:tinymind/services/learning_report_pdf.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('builds report totals and rule-based strongest and practice areas', () {
     final progress = UserProgress(
       childName: 'Sunny',
@@ -98,5 +103,26 @@ void main() {
     final bytes = await LearningReportPdf.build(report);
 
     expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+  });
+
+  test('embeds Noto Sans SC for Chinese nicknames without warnings', () async {
+    final report = ReportBuilder.build(
+      UserProgress(childName: '小明'),
+      generatedAt: DateTime(2026, 10, 4),
+    );
+    final logs = <String>[];
+
+    final bytes = await runZoned(
+      () => LearningReportPdf.build(report),
+      zoneSpecification: ZoneSpecification(
+        print: (self, parent, zone, line) => logs.add(line),
+      ),
+    );
+
+    expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+    // The Helvetica "no Unicode support" notice is a debug assert fired when
+    // the font is constructed; a missing CJK glyph logs "Unable to find a font".
+    expect(logs.where((l) => l.contains('Unable to find a font')), isEmpty);
+    expect(latin1.decode(bytes, allowInvalid: true), contains('NotoSansSC'));
   });
 }

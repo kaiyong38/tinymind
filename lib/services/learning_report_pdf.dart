@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -9,7 +10,16 @@ class LearningReportPdf {
   const LearningReportPdf._();
 
   static Future<Uint8List> build(LearningReport report) async {
-    final document = pw.Document();
+    final notoSansSc = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/NotoSansSC-Regular.ttf'),
+    );
+    final document = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: pw.Font.helvetica(),
+        bold: pw.Font.helveticaBold(),
+        fontFallback: [notoSansSc],
+      ),
+    );
     final bodyStyle = pw.TextStyle(fontSize: 10);
     document.addPage(
       pw.Page(

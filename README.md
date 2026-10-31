@@ -62,7 +62,7 @@ such as dialogs, menus, and SnackBars.
 - `google_fonts` and bundled Baloo 2 font files
 - `audioplayers` and `flutter_tts` for music and narration
 - `flutter_svg` for illustrations
-- `pdf` and `share_plus` for learning reports
+- `pdf` and `share_plus` for learning reports (Noto Sans SC bundled as the PDF's Chinese fallback font)
 - `crypto` for secure PIN-related operations
 
 ## Project structure
