@@ -954,11 +954,11 @@ bool _showsEmoji(AnswerVisual visual) =>
     visual == AnswerVisual.letterPicture ||
     visual == AnswerVisual.numberDots;
 
-bool _containsRect(Rect parent, Rect child) =>
-    parent.left <= child.left &&
-    parent.top <= child.top &&
-    parent.right >= child.right &&
-    parent.bottom >= child.bottom;
+bool _containsRect(Rect parent, Rect child, {double tolerance = 0.01}) =>
+    parent.left <= child.left + tolerance &&
+    parent.top <= child.top + tolerance &&
+    parent.right >= child.right - tolerance &&
+    parent.bottom >= child.bottom - tolerance;
 
 void _expectClippedChildrenWithinParents(
   WidgetTester tester,

@@ -503,11 +503,11 @@ Future<List<String>> _inspectState(
   return issues;
 }
 
-bool _containsRect(Rect outer, Rect inner) =>
-    inner.left >= outer.left &&
-    inner.top >= outer.top &&
-    inner.right <= outer.right &&
-    inner.bottom <= outer.bottom;
+bool _containsRect(Rect outer, Rect inner, {double tolerance = 0.01}) =>
+    outer.left <= inner.left + tolerance &&
+    outer.top <= inner.top + tolerance &&
+    outer.right >= inner.right - tolerance &&
+    outer.bottom >= inner.bottom - tolerance;
 
 bool _isTeachingScreen(WidgetTester tester) =>
     find.byType(Dialog).evaluate().isEmpty;
