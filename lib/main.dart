@@ -2404,162 +2404,156 @@ class ResultPage extends StatelessWidget {
             SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final landscape =
-                      constraints.maxWidth > constraints.maxHeight;
                   final metrics =
                       AdaptiveMetrics.fromConstraints(context, constraints);
-                  final celebration = Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(metrics.size(12)),
-                        decoration: BoxDecoration(
-                          color: world.color.withValues(alpha: 0.14),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          excellent ? Icons.celebration : Icons.auto_awesome,
-                          size: metrics.size(48),
-                          color: world.color,
-                        ),
-                      ),
-                      SizedBox(height: metrics.size(8)),
-                      EmojiText(
-                        excellent ? 'Amazing work! 🎉' : 'Keep going! 💪',
-                        style: TextStyle(
-                          fontSize: metrics.size(23),
-                          fontWeight: FontWeight.w900,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: metrics.size(4)),
-                      Text(
-                        'You got $score out of 3 in ${activity.title}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: metrics.size(15)),
-                      ),
-                      SizedBox(height: metrics.size(6)),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          3,
-                          (index) => Icon(
-                            Icons.star,
-                            size: metrics.size(25),
-                            color: index < stars
-                                ? const Color(0xFFFFB703)
-                                : Colors.black12,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: metrics.size(4)),
-                      Text(
-                        'Best result: $stars ${stars == 1 ? 'star' : 'stars'}',
-                        style: TextStyle(
-                          color: world.color,
-                          fontWeight: FontWeight.w800,
-                          fontSize: metrics.size(14),
-                        ),
-                      ),
-                    ],
+                  final outerPadding = metrics.size(12);
+                  final cardWidth = math.min(
+                    constraints.maxWidth - outerPadding * 2,
+                    metrics.size(560),
                   );
                   final buttonHeight = math.max(48.0, metrics.size(46));
+                  final gap = metrics.size(8);
                   Widget oneLine(String label) => FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(label, maxLines: 1, softWrap: false),
                       );
-                  final buttons = Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
+                  final buttons = Row(
                     children: [
-                      FilledButton(
-                        onPressed: () => Navigator.of(context).pushReplacement(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                QuizPage(activity: activity, store: store),
-                          ),
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: world.color,
-                          minimumSize: Size.fromHeight(buttonHeight),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: oneLine('Play again'),
-                      ),
-                      SizedBox(height: metrics.size(8)),
-                      OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: Size.fromHeight(buttonHeight),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: oneLine('Back to library'),
-                      ),
-                      if (nextActivity != null) ...[
-                        SizedBox(height: metrics.size(8)),
-                        FilledButton.tonal(
+                      Expanded(
+                        child: FilledButton(
                           onPressed: () =>
                               Navigator.of(context).pushReplacement(
                             MaterialPageRoute<void>(
-                              builder: (_) => QuizPage(
-                                activity: nextActivity,
-                                store: store,
-                              ),
+                              builder: (_) =>
+                                  QuizPage(activity: activity, store: store),
                             ),
                           ),
                           style: FilledButton.styleFrom(
+                            backgroundColor: world.color,
                             minimumSize: Size.fromHeight(buttonHeight),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: EdgeInsets.symmetric(
+                                horizontal: metrics.size(8)),
                           ),
-                          child: oneLine('Next'),
+                          child: oneLine('Play again'),
                         ),
-                      ],
-                      if (!hasSuggestion) ...[
-                        SizedBox(height: metrics.size(8)),
-                        EmojiText(
-                          'You finished everything here! Replay your favorites ⭐',
-                          style: TextStyle(
-                            fontSize: metrics.size(13),
-                            height: 1.1,
+                      ),
+                      SizedBox(width: gap),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: Size.fromHeight(buttonHeight),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: EdgeInsets.symmetric(
+                                horizontal: metrics.size(8)),
                           ),
-                          textAlign: TextAlign.center,
+                          child: oneLine('Back to library'),
+                        ),
+                      ),
+                      if (nextActivity != null) ...[
+                        SizedBox(width: gap),
+                        Expanded(
+                          child: FilledButton.tonal(
+                            onPressed: () =>
+                                Navigator.of(context).pushReplacement(
+                              MaterialPageRoute<void>(
+                                builder: (_) => QuizPage(
+                                  activity: nextActivity,
+                                  store: store,
+                                ),
+                              ),
+                            ),
+                            style: FilledButton.styleFrom(
+                              minimumSize: Size.fromHeight(buttonHeight),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: metrics.size(8)),
+                            ),
+                            child: oneLine('Next'),
+                          ),
                         ),
                       ],
                     ],
+                  );
+                  final card = Container(
+                    width: cardWidth,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: metrics.size(18),
+                      vertical: metrics.size(12),
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(metrics.size(24)),
+                      border: Border.all(
+                        color: world.color.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        EmojiText(
+                          excellent ? 'Amazing work! 🎉' : 'Keep going! 💪',
+                          style: TextStyle(
+                            fontSize: metrics.size(23),
+                            fontWeight: FontWeight.w900,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: metrics.size(2)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            3,
+                            (index) => Icon(
+                              Icons.star,
+                              size: metrics.size(44),
+                              color: index < stars
+                                  ? const Color(0xFFFFB703)
+                                  : Colors.black12,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: metrics.size(2)),
+                        Text(
+                          'You got $score out of 3 in ${activity.title}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: metrics.size(15)),
+                        ),
+                        SizedBox(height: metrics.size(2)),
+                        Text(
+                          'Best result: $stars ${stars == 1 ? 'star' : 'stars'}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: world.color,
+                            fontWeight: FontWeight.w800,
+                            fontSize: metrics.size(14),
+                          ),
+                        ),
+                        SizedBox(height: metrics.size(10)),
+                        buttons,
+                        if (!hasSuggestion) ...[
+                          SizedBox(height: gap),
+                          EmojiText(
+                            'You finished everything here! Replay your favorites ⭐',
+                            style: TextStyle(
+                              fontSize: metrics.size(13),
+                              height: 1.1,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ],
+                    ),
                   );
                   return SingleChildScrollView(
                     child: ConstrainedBox(
                       constraints:
                           BoxConstraints(minHeight: constraints.maxHeight),
                       child: Padding(
-                        padding: EdgeInsets.all(metrics.size(16)),
-                        child: Center(
-                          child: landscape
-                              ? Row(
-                                  children: [
-                                    Expanded(child: Center(child: celebration)),
-                                    SizedBox(width: metrics.size(20)),
-                                    SizedBox(
-                                      width: metrics.size(190),
-                                      child: buttons,
-                                    ),
-                                  ],
-                                )
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Center(child: celebration),
-                                    SizedBox(height: metrics.size(12)),
-                                    SizedBox(
-                                      width: metrics.size(240),
-                                      child: buttons,
-                                    ),
-                                  ],
-                                ),
-                        ),
+                        padding: EdgeInsets.all(outerPadding),
+                        child: Center(child: card),
                       ),
                     ),
                   );
@@ -2805,61 +2799,92 @@ class ParentPage extends StatelessWidget {
         const SizedBox(height: 6),
         Text('A quick view of ${store.progress.childName}’s learning journey.'),
         const SizedBox(height: 22),
-        Card(
-          elevation: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(children: [
-                  Icon(Icons.insights, color: Color(0xFFFF6FA5)),
-                  SizedBox(width: 10),
-                  Text('Overview',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w800))
-                ]),
-                const SizedBox(height: 18),
-                _OverviewRow(
-                    label: 'Activities completed',
-                    value:
-                        '${store.progress.activityStars.values.where((stars) => stars > 0).length}'),
-                _OverviewRow(
-                    label: 'Average accuracy',
-                    value:
-                        '${store.progress.totalQuestions == 0 ? 0 : (store.progress.correctAnswers / store.progress.totalQuestions * 100).round()}% correct'),
-                _OverviewRow(
-                    label: 'Days played',
-                    value: '${store.progress.daysLearned}'),
-              ],
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 4,
+                child: Card(
+                  elevation: 0,
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(children: [
+                          Icon(Icons.insights, color: Color(0xFFFF6FA5)),
+                          SizedBox(width: 10),
+                          Flexible(
+                            child: Text('Overview',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w800)),
+                          ),
+                        ]),
+                        const SizedBox(height: 18),
+                        _OverviewRow(
+                            label: 'Activities completed',
+                            value:
+                                '${store.progress.activityStars.values.where((stars) => stars > 0).length}'),
+                        _OverviewRow(
+                            label: 'Average accuracy',
+                            value:
+                                '${store.progress.totalQuestions == 0 ? 0 : (store.progress.correctAnswers / store.progress.totalQuestions * 100).round()}% correct'),
+                        _OverviewRow(
+                            label: 'Days played',
+                            value: '${store.progress.daysLearned}'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                flex: 3,
+                child: Card(
+                  elevation: 0,
+                  margin: EdgeInsets.zero,
+                  color: const Color(0xFFE8F7EF),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(children: [
+                          Icon(Icons.lightbulb, color: Colors.green, size: 28),
+                          SizedBox(width: 10),
+                          Flexible(
+                            child: Text('Tip for today',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w800)),
+                          ),
+                        ]),
+                        const SizedBox(height: 12),
+                        Text(parentTipFor(store.progress.activityStars)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.tonalIcon(
+            onPressed: () => openParentArea(
+              context,
+              store: store,
+              auth: auth,
+              firestore: firestore,
+              gateService: gateService,
+              skipGate: true,
             ),
+            icon: const Icon(Icons.admin_panel_settings),
+            label: const Text('Open learning dashboard'),
           ),
-        ),
-        const SizedBox(height: 14),
-        Card(
-          elevation: 0,
-          color: const Color(0xFFE8F7EF),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(children: [
-              const Icon(Icons.lightbulb, color: Colors.green, size: 32),
-              const SizedBox(width: 12),
-              Expanded(child: Text(parentTipFor(store.progress.activityStars))),
-            ]),
-          ),
-        ),
-        const SizedBox(height: 14),
-        FilledButton.tonalIcon(
-          onPressed: () => openParentArea(
-            context,
-            store: store,
-            auth: auth,
-            firestore: firestore,
-            gateService: gateService,
-            skipGate: true,
-          ),
-          icon: const Icon(Icons.admin_panel_settings),
-          label: const Text('Open learning dashboard'),
         ),
       ],
     );

@@ -23,24 +23,62 @@ class ParentSettingsPage extends StatelessWidget {
   final FirestoreService? firestore;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Settings')),
-        body: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          children: [
-            if (auth != null)
-              _EmailBackupSection(
-                auth: auth!,
-                store: store,
-                firestore: firestore,
-              ),
-            const _VoiceStatusRow(),
-            const _ColorFriendlyModeRow(),
-            _ParentLockSection(service: gateService),
-          ],
+  Widget build(BuildContext context) {
+    final cards = <Widget>[
+      if (auth != null)
+        _EmailBackupSection(
+          auth: auth!,
+          store: store,
+          firestore: firestore,
         ),
-      );
+      _ParentLockSection(service: gateService),
+      const _VoiceStatusRow(),
+      const _ColorFriendlyModeRow(),
+    ];
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          const spacing = 12.0;
+          final rows = <Widget>[];
+          if (constraints.maxWidth >= 560) {
+            for (var i = 0; i < cards.length; i += 2) {
+              rows.add(
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: cards[i]),
+                      const SizedBox(width: spacing),
+                      Expanded(
+                        child: i + 1 < cards.length
+                            ? cards[i + 1]
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+          } else {
+            rows.addAll(cards);
+          }
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) const SizedBox(height: spacing),
+                rows[i],
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
+
+const _cardTitleStyle = TextStyle(fontSize: 17, fontWeight: FontWeight.w800);
 
 class _EmailBackupSection extends StatefulWidget {
   const _EmailBackupSection({required this.auth, this.store, this.firestore});
@@ -87,16 +125,13 @@ class _EmailBackupSectionState extends State<_EmailBackupSection> {
     final backedUp = widget.auth.hasBackup;
     final email = user?.email;
     return Card(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Data backup',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-            ),
+            const Text('Data backup', style: _cardTitleStyle),
             const SizedBox(height: 6),
             Text(!backedUp
                 ? 'Not backed up (this device only)'
@@ -108,18 +143,24 @@ class _EmailBackupSectionState extends State<_EmailBackupSection> {
               const Text(
                 'Without a backup, data is lost if you uninstall the app or change phone.',
               ),
-              Wrap(
-                spacing: 8,
-                children: [
-                  FilledButton(
-                    onPressed: _openBackup,
-                    child: const Text('Back up my data'),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _openBackup,
+                  child: const Text('Back up my data'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _openSignIn,
+                  child: const Text(
+                    'I already have a backup (sign in)',
+                    textAlign: TextAlign.center,
                   ),
-                  TextButton(
-                    onPressed: _openSignIn,
-                    child: const Text('I already have a backup (sign in)'),
-                  ),
-                ],
+                ),
               ),
             ],
           ],
@@ -170,17 +211,15 @@ class _ParentLockSectionState extends State<_ParentLockSection> {
 
   @override
   Widget build(BuildContext context) => Card(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Parent lock',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-              ),
+              const Text('Parent lock', style: _cardTitleStyle),
+              const SizedBox(height: 6),
               FutureBuilder<ParentLockMethod?>(
                 future: _method,
                 builder: (context, snapshot) {
@@ -194,6 +233,7 @@ class _ParentLockSectionState extends State<_ParentLockSection> {
                   return Text('Current method: $label');
                 },
               ),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 4,
@@ -221,38 +261,43 @@ class _VoiceStatusRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final voiceAvailable = NarrationService.instance.voiceAvailable;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                voiceAvailable
-                    ? Icons.volume_up_rounded
-                    : Icons.volume_off_rounded,
-                color: voiceAvailable ? Colors.green : Colors.redAccent,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Voice: ${voiceAvailable ? 'Ready' : 'Not available'}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-          OutlinedButton.icon(
-            onPressed: voiceAvailable
-                ? () => NarrationService.instance
-                    .speak('This is TinyMind. Can you hear me?')
-                : null,
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('Play test voice'),
-          ),
-        ],
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Voice', style: _cardTitleStyle),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(
+                  voiceAvailable
+                      ? Icons.volume_up_rounded
+                      : Icons.volume_off_rounded,
+                  color: voiceAvailable ? Colors.green : Colors.redAccent,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Voice: ${voiceAvailable ? 'Ready' : 'Not available'}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: voiceAvailable
+                  ? () => NarrationService.instance
+                      .speak('This is TinyMind. Can you hear me?')
+                  : null,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Play test voice'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -286,14 +331,21 @@ class _ColorFriendlyModeRowState extends State<_ColorFriendlyModeRow> {
   @override
   Widget build(BuildContext context) {
     final settings = AccessibilitySettingsScope.of(context);
-    return SwitchListTile(
-      title: const Text('Color-friendly mode'),
-      subtitle: const Text(
-        'Adds patterns and names to colors for children '
-        'who have trouble telling colors apart.',
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Color-friendly mode', style: _cardTitleStyle),
+          subtitle: const Text(
+            'Adds patterns and names to colors for children '
+            'who have trouble telling colors apart.',
+          ),
+          value: settings.colorFriendlyMode,
+          onChanged: _saving ? null : (enabled) => _save(settings, enabled),
+        ),
       ),
-      value: settings.colorFriendlyMode,
-      onChanged: _saving ? null : (enabled) => _save(settings, enabled),
     );
   }
 }
