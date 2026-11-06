@@ -120,8 +120,8 @@ class _DetailBody extends StatelessWidget {
                         'points', const Color(0xFFFFB703)),
                     _MiniStat(
                         Icons.calendar_month_rounded,
-                        '${progress.daysLearned}',
-                        'Days played',
+                        '${progress.streak}',
+                        'Day streak',
                         const Color(0xFF4ECDC4)),
                   ],
                 ),

@@ -1195,7 +1195,7 @@ class _HomeHeader extends StatelessWidget {
                     ),
                     _HeaderChip(
                       icon: Icons.calendar_month_rounded,
-                      text: '${progress.daysLearned} days played',
+                      text: '${progress.streak}-day streak',
                     ),
                   ],
                 ),
@@ -1290,8 +1290,8 @@ class _HomeStats extends StatelessWidget {
         Expanded(
           child: _HomeStat(
             icon: Icons.calendar_month_rounded,
-            value: '${progress.daysLearned}',
-            label: 'Days played',
+            value: '${progress.streak}',
+            label: 'Day streak',
             color: const Color(0xFF4ECDC4),
           ),
         ),
@@ -2652,8 +2652,7 @@ class _ProgressPageState extends State<ProgressPage>
                           style: const TextStyle(
                               fontSize: 21, fontWeight: FontWeight.w900)),
                       const SizedBox(height: 3),
-                      Text(
-                          '${progress.daysLearned} days played • $accuracy% correct',
+                      Text('${progress.streak}-day streak • $accuracy% correct',
                           style: const TextStyle(fontSize: 15)),
                     ],
                   ),
@@ -2686,7 +2685,7 @@ class _ProgressPageState extends State<ProgressPage>
                 _BadgeData(
                   icon: Icons.calendar_month_rounded,
                   label: 'Three-day explorer',
-                  earned: progress.daysLearned >= 3,
+                  earned: progress.bestStreak >= 3,
                 ),
                 _BadgeData(
                   icon: Icons.star,
@@ -2832,8 +2831,8 @@ class ParentPage extends StatelessWidget {
                             value:
                                 '${store.progress.totalQuestions == 0 ? 0 : (store.progress.correctAnswers / store.progress.totalQuestions * 100).round()}% correct'),
                         _OverviewRow(
-                            label: 'Days played',
-                            value: '${store.progress.daysLearned}'),
+                            label: 'Day streak',
+                            value: '${store.progress.streak}'),
                       ],
                     ),
                   ),

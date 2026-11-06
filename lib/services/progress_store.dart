@@ -13,6 +13,10 @@ import 'firestore_service.dart';
 /// changes, so pages such as the activity library refresh their stars at once.
 class ProgressStore extends ChangeNotifier {
   static const _storageKey = 'tinymind_progress';
+
+  /// Play days kept in [UserProgress.dailyStats]; enough for a year-long
+  /// daily streak. The 7-day chart and reports only read recent days.
+  static const maxDailyStatsDays = 366;
   static const _childIdKey = 'tinymind_child_id';
   UserProgress progress = UserProgress();
   ProgressStore({
@@ -220,9 +224,11 @@ class ProgressStore extends ChangeNotifier {
     final today = progress.dailyStats.putIfAbsent(dayKey, () => [0, 0]);
     today[0]++;
     if (correct) today[1]++;
-    if (progress.dailyStats.length > 60) {
+    // Keep a year of play days so the daily streak can reach 366.
+    if (progress.dailyStats.length > maxDailyStatsDays) {
       final keys = progress.dailyStats.keys.toList()..sort();
-      for (final key in keys.take(progress.dailyStats.length - 60)) {
+      for (final key
+          in keys.take(progress.dailyStats.length - maxDailyStatsDays)) {
         progress.dailyStats.remove(key);
       }
     }

@@ -18,9 +18,9 @@ class AchievementPage extends StatelessWidget {
         Achievement(
             id: 'days_played',
             title: 'Three-day explorer',
-            description: 'Play on 3 different days',
+            description: 'Play 3 days in a row',
             icon: Icons.calendar_month_rounded,
-            unlocked: progress.daysLearned >= 3),
+            unlocked: progress.bestStreak >= 3),
         Achievement(
             id: 'stars',
             title: 'Star learner',

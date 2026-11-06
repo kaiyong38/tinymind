@@ -6,7 +6,7 @@ class LearningReport {
     required this.nickname,
     required this.age,
     required this.reportDate,
-    required this.daysPlayed,
+    required this.dayStreak,
     required this.totalQuestions,
     required this.correctAnswers,
     required this.worlds,
@@ -17,7 +17,7 @@ class LearningReport {
   final String nickname;
   final int age;
   final String reportDate;
-  final int daysPlayed;
+  final int dayStreak;
   final int totalQuestions;
   final int correctAnswers;
   final List<LearningWorldReport> worlds;
@@ -45,7 +45,7 @@ class LearningReport {
       'Age: $age',
       'Report date: $reportDate',
       '',
-      'Days played: $daysPlayed',
+      'Day streak: $dayStreak',
       'Total questions: $totalQuestions',
       'Overall accuracy: ${_percent(overallAccuracy)}% correct',
       '',
@@ -128,7 +128,7 @@ class ReportBuilder {
       nickname: progress.childName,
       age: progress.childAge,
       reportDate: dateString,
-      daysPlayed: progress.daysLearned,
+      dayStreak: progress.streakOn(date),
       totalQuestions: progress.totalQuestions,
       correctAnswers: progress.correctAnswers,
       worlds: worlds,

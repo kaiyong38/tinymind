@@ -43,7 +43,7 @@ class LearningReportPdf {
               spacing: 24,
               runSpacing: 6,
               children: [
-                pw.Text('Days played: ${report.daysPlayed}', style: bodyStyle),
+                pw.Text('Day streak: ${report.dayStreak}', style: bodyStyle),
                 pw.Text(
                   'Total questions: ${report.totalQuestions}',
                   style: bodyStyle,

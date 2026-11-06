@@ -858,7 +858,7 @@ void main() {
                 count == 1 &&
                 size == const Size(568, 320) &&
                 scale == 1.3) {
-              for (final label in ['Points', 'Days played', 'Correct']) {
+              for (final label in ['Points', 'Day streak', 'Correct']) {
                 final text = tester.widget<Text>(find.text(label));
                 expect(text.overflow, isNot(TextOverflow.ellipsis));
                 expect(
@@ -870,7 +870,7 @@ void main() {
                 );
               }
               expect(find.text('99999'), findsOneWidget);
-              expect(find.text('100'), findsOneWidget);
+              expect(find.text('366'), findsOneWidget);
               expect(find.text('100%'), findsOneWidget);
             }
           }
@@ -1159,6 +1159,21 @@ class _QuestionState {
   final bool answered;
 }
 
+/// Worst-case streak width: the maximum 366 kept days, all consecutive and
+/// ending today, so streak labels render a three-digit number.
+Map<String, List<int>> _yearLongStreakStats() {
+  final now = DateTime.now();
+  return {
+    for (var offset = 0; offset < 366; offset++)
+      _auditDateKey(DateTime(now.year, now.month, now.day - offset)): [1, 1],
+  };
+}
+
+String _auditDateKey(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-'
+    '${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';
+
 ProgressStore _stressStore() {
   final store = ProgressStore();
   store.progress = UserProgress(
@@ -1168,10 +1183,7 @@ ProgressStore _stressStore() {
     points: 99999,
     totalQuestions: 999,
     correctAnswers: 999,
-    dailyStats: {
-      for (var day = 1; day <= 100; day++)
-        '2026-01-${day.toString().padLeft(2, '0')}': [1, 1],
-    },
+    dailyStats: _yearLongStreakStats(),
   );
   return store;
 }
@@ -1277,9 +1289,7 @@ class _AuditChildDocument extends Fake
         'totalQuestions': 999,
         'correctAnswers': 999,
         'activityStars': <String, int>{},
-        'dailyStats': {
-          for (var day = 0; day < 100; day++) 'day-$day': <int>[1, 1],
-        },
+        'dailyStats': _yearLongStreakStats(),
       };
 }
 

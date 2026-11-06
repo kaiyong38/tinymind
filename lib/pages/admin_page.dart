@@ -722,9 +722,9 @@ class _ChildProgressCard extends StatelessWidget {
     final avatar = data['avatar'] as String? ?? '🧒';
     final age = _number(data['age']);
     final points = _number(data['points']);
-    final daysLearned = UserProgress.fromJson({
+    final dayStreak = UserProgress.fromJson({
       'dailyStats': data['dailyStats'],
-    }).daysLearned;
+    }).streak;
     final totalQuestions = _number(data['totalQuestions']);
     final correctAnswers = _number(data['correctAnswers']);
     final accuracy =
@@ -818,8 +818,8 @@ class _ChildProgressCard extends StatelessWidget {
                   Expanded(
                     child: _Stat(
                       icon: Icons.calendar_month_rounded,
-                      value: '$daysLearned',
-                      label: 'Days played',
+                      value: '$dayStreak',
+                      label: 'Day streak',
                       color: const Color(0xFF4ECDC4),
                     ),
                   ),

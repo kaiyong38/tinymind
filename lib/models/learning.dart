@@ -439,19 +439,45 @@ class UserProgress {
 
   int get daysLearned => dailyStats.length;
 
-  int get streak {
-    final today = DateTime.now();
-    final todayKey = _dateKey(today);
-    var date = dailyStats.containsKey(todayKey)
-        ? DateTime(today.year, today.month, today.day)
-        : DateTime(today.year, today.month, today.day)
-            .subtract(const Duration(days: 1));
+  /// Daily check-in streak: consecutive play days ending today. If today has
+  /// not been played yet, counting starts from yesterday so the streak only
+  /// resets once a whole day has been missed.
+  int get streak => streakOn(DateTime.now());
+
+  /// The streak as it stood on [day] (see [streak]).
+  int streakOn(DateTime day) {
+    var date = DateTime(day.year, day.month, day.day);
+    if (!dailyStats.containsKey(_dateKey(date))) {
+      date = DateTime(date.year, date.month, date.day - 1);
+    }
     var consecutiveDays = 0;
     while (dailyStats.containsKey(_dateKey(date))) {
       consecutiveDays++;
-      date = date.subtract(const Duration(days: 1));
+      // Calendar arithmetic (not Duration) so DST changes never skip a day.
+      date = DateTime(date.year, date.month, date.day - 1);
     }
     return consecutiveDays;
+  }
+
+  /// Longest run of consecutive play days anywhere in [dailyStats].
+  int get bestStreak {
+    final days = <DateTime>[
+      for (final key in dailyStats.keys)
+        if (DateTime.tryParse(key) case final parsed?)
+          DateTime.utc(parsed.year, parsed.month, parsed.day),
+    ]..sort();
+    var best = 0;
+    var current = 0;
+    DateTime? previous;
+    for (final day in days) {
+      if (previous != null && day == previous) continue;
+      current = previous != null && day.difference(previous).inDays == 1
+          ? current + 1
+          : 1;
+      if (current > best) best = current;
+      previous = day;
+    }
+    return best;
   }
 
   String _dateKey(DateTime date) =>
