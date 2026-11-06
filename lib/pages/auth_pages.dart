@@ -937,13 +937,13 @@ class _RegisterPageState extends State<RegisterPage> {
                 'I am a parent or guardian and I agree to the Privacy Policy',
               ),
             ),
+            TextButton(
+              onPressed: () => openPrivacyPolicy(context),
+              child: const Text('Privacy Policy'),
+            ),
           ],
         ),
-        afterSubmit: TextButton(
-          onPressed: () => openPrivacyPolicy(context),
-          child: const Text('Privacy Policy'),
-        ),
-        sidePanel: _GoogleFooter(
+        footer: _GoogleFooter(
           onPressed: _busy ? null : _continueWithGoogle,
         ),
       );
@@ -1464,9 +1464,7 @@ class _ParentAuthScaffold extends StatelessWidget {
     this.success,
     this.busy = false,
     this.beforeSubmit,
-    this.afterSubmit,
     this.footer,
-    this.sidePanel,
   });
 
   final String title;
@@ -1489,197 +1487,113 @@ class _ParentAuthScaffold extends StatelessWidget {
   /// Shown between the text fields and the submit button, e.g. the
   /// Privacy Policy checkbox.
   final Widget? beforeSubmit;
-
-  /// Shown under the submit button, inside the form card of the
-  /// two-column layout.
-  final Widget? afterSubmit;
   final Widget? footer;
 
-  /// When set, the page uses a two-column layout with this beside the form.
-  final Widget? sidePanel;
-
-  /// The text fields down to the submit button.
-  List<Widget> _formBody() => [
-        for (var i = 0; i < fields.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: TextField(
-              controller: fields[i],
-              obscureText: hints[i].toLowerCase().contains('password'),
-              style: const TextStyle(fontSize: 18),
-              decoration: InputDecoration(
-                labelText: hints[i],
-                labelStyle: const TextStyle(fontSize: 17),
-                prefixIcon: Icon(
-                  hints[i].toLowerCase().contains('email')
-                      ? Icons.email_rounded
-                      : Icons.lock_rounded,
-                ),
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 18,
-                ),
-              ),
-            ),
-          ),
-        if (beforeSubmit != null) beforeSubmit!,
-        if (error != null)
-          Text(
-            error!,
-            style: const TextStyle(
-              color: Colors.red,
-              fontSize: 16,
-            ),
-          ),
-        if (error != null && errorAction != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: errorAction,
-          ),
-        if (success != null)
-          Row(
-            children: [
-              const Icon(Icons.check_circle_rounded,
-                  color: Colors.green, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  success!,
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: busy ? null : onSubmit,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(56),
-            textStyle: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          child: Text(busy ? 'Please wait…' : action),
-        ),
-      ];
-
   @override
-  Widget build(BuildContext context) {
-    if (sidePanel != null) return _buildTwoColumn();
-    return Scaffold(
-      appBar: AppBar(),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Icon(
-                  Icons.lock_rounded,
-                  color: Color(0xFFFF6FA5),
-                  size: 54,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 29,
-                    fontWeight: FontWeight.w900,
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(),
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(
+                    Icons.lock_rounded,
+                    color: Color(0xFFFF6FA5),
+                    size: 54,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 18, color: Colors.black54),
-                ),
-                const SizedBox(height: 28),
-                ..._formBody(),
-                if (footer != null) footer!,
-              ],
+                  const SizedBox(height: 14),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 29,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 18, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 28),
+                  for (var i = 0; i < fields.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: TextField(
+                        controller: fields[i],
+                        obscureText:
+                            hints[i].toLowerCase().contains('password'),
+                        style: const TextStyle(fontSize: 18),
+                        decoration: InputDecoration(
+                          labelText: hints[i],
+                          labelStyle: const TextStyle(fontSize: 17),
+                          prefixIcon: Icon(
+                            hints[i].toLowerCase().contains('email')
+                                ? Icons.email_rounded
+                                : Icons.lock_rounded,
+                          ),
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (beforeSubmit != null) beforeSubmit!,
+                  if (error != null)
+                    Text(
+                      error!,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 16,
+                      ),
+                    ),
+                  if (error != null && errorAction != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: errorAction,
+                    ),
+                  if (success != null)
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle_rounded,
+                            color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            success!,
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: busy ? null : onSubmit,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                      textStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    child: Text(busy ? 'Please wait…' : action),
+                  ),
+                  if (footer != null) footer!,
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  /// The title sits in the body, not the AppBar, so the submit button stays
-  /// the last widget showing the action text.
-  Widget _buildTwoColumn() {
-    final form = Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ..._formBody(),
-          if (afterSubmit != null) afterSubmit!,
-        ],
-      ),
-    );
-    final side = Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF6F6F6),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: sidePanel,
-    );
-    return Scaffold(
-      appBar: AppBar(),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 560;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 16, color: Colors.black54),
-                ),
-                const SizedBox(height: 18),
-                if (wide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: form),
-                      const SizedBox(width: 18),
-                      Expanded(flex: 2, child: side),
-                    ],
-                  )
-                else ...[
-                  form,
-                  const SizedBox(height: 18),
-                  side,
-                ],
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
+      );
 }

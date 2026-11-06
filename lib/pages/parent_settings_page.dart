@@ -331,19 +331,41 @@ class _ColorFriendlyModeRowState extends State<_ColorFriendlyModeRow> {
   @override
   Widget build(BuildContext context) {
     final settings = AccessibilitySettingsScope.of(context);
+    final onChanged =
+        _saving ? null : (bool enabled) => _save(settings, enabled);
+    // A plain Row/Column instead of SwitchListTile: ListTile under-reports
+    // its intrinsic height when the subtitle wraps, so the IntrinsicHeight
+    // row in the settings grid made this card too short.
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Color-friendly mode', style: _cardTitleStyle),
-          subtitle: const Text(
-            'Adds patterns and names to colors for children '
-            'who have trouble telling colors apart.',
-          ),
-          value: settings.colorFriendlyMode,
-          onChanged: _saving ? null : (enabled) => _save(settings, enabled),
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: onChanged == null
+                    ? null
+                    : () => onChanged(!settings.colorFriendlyMode),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Color-friendly mode', style: _cardTitleStyle),
+                    SizedBox(height: 4),
+                    Text(
+                      'Adds patterns and names to colors for children '
+                      'who have trouble telling colors apart.',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Switch(
+              value: settings.colorFriendlyMode,
+              onChanged: onChanged,
+            ),
+          ],
         ),
       ),
     );

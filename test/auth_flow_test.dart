@@ -607,7 +607,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('shows the email note under the fields and Google beside it',
+    testWidgets('shows the email note under the fields and Google last',
         (tester) async {
       await pumpRegister(tester);
 
@@ -631,9 +631,7 @@ void main() {
       expect(top(lastField), lessThan(top(note)));
       expect(top(note), lessThan(top(checkbox)));
       expect(top(checkbox), lessThan(top(submit)));
-      final submitRight = tester.getTopRight(submit).dx;
-      expect(tester.getTopLeft(or).dx, greaterThan(submitRight));
-      expect(tester.getTopLeft(google).dx, greaterThan(submitRight));
+      expect(top(submit), lessThan(top(or)));
       expect(top(or), lessThan(top(google)));
     });
 
